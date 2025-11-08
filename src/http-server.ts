@@ -439,17 +439,33 @@ class HTTPMCPServer {
         return res.status(400).json({ error: 'SQL query is required' });
       }
 
+      // Check if direct SQL queries are allowed based on db header
+      const dbHeader = req.headers.db as string;
+      const showDatabaseTools = shouldShowDatabaseTools(dbHeader);
+
+      console.log(`[LEGACY-QUERY] SQL query request, db header: ${dbHeader}, showDatabaseTools: ${showDatabaseTools}`);
+
+      if (!showDatabaseTools) {
+        console.log(`[LEGACY-QUERY] Direct SQL access blocked - requires 'db: show' header`);
+        res.status(403).json({
+          error: 'Direct SQL access not available',
+          details: 'Direct SQL queries require database access. Add \'db: show\' header to execute SQL queries.',
+          alternative: 'Use find_resources tool for resource queries without the db header'
+        });
+        return;
+      }
+
       res.writeHead(200, {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive',
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Cache-Control'
+        'Access-Control-Allow-Headers': 'Cache-Control, db'
       });
 
       try {
         const results = await this.mcpServer.executeQuery(sql, parameters, { maxRows });
-        
+
         res.write(`event: results\ndata: ${JSON.stringify(results)}\n\n`);
         res.write(`event: complete\ndata: success\n\n`);
       } catch (error) {
@@ -465,17 +481,35 @@ class HTTPMCPServer {
       const { toolName } = req.params;
       const { arguments: args }: ToolCallRequest = req.body;
 
+      // Check if tool is allowed based on db header
+      const dbHeader = req.headers.db as string;
+      const showDatabaseTools = shouldShowDatabaseTools(dbHeader);
+      const filteredTools = getFilteredTools(showDatabaseTools);
+      const allowedToolNames = filteredTools.map(tool => tool.name);
+
+      console.log(`[LEGACY-TOOL] Request for tool: ${toolName}, db header: ${dbHeader}, showDatabaseTools: ${showDatabaseTools}`);
+
+      if (!allowedToolNames.includes(toolName)) {
+        console.log(`[LEGACY-TOOL] Tool '${toolName}' blocked - not in allowed tools: ${allowedToolNames.join(', ')}`);
+        res.status(403).json({
+          error: 'Tool not available',
+          details: `Tool '${toolName}' requires database access. Add 'db: show' header to access database tools.`,
+          availableTools: allowedToolNames
+        });
+        return;
+      }
+
       res.writeHead(200, {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive',
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Cache-Control'
+        'Access-Control-Allow-Headers': 'Cache-Control, db'
       });
 
       try {
         const result = await this.mcpServer.callTool(toolName, args);
-        
+
         res.write(`event: results\ndata: ${JSON.stringify(result)}\n\n`);
         res.write(`event: complete\ndata: success\n\n`);
       } catch (error) {
@@ -488,8 +522,13 @@ class HTTPMCPServer {
 
     // List available tools
     this.app.get('/tools', (req, res) => {
-      const tools = this.mcpServer.getAvailableTools();
-      res.json({ tools });
+      const dbHeader = req.headers.db as string;
+      const showDatabaseTools = shouldShowDatabaseTools(dbHeader);
+      const filteredTools = getFilteredTools(showDatabaseTools);
+      const toolNames = filteredTools.map(tool => tool.name);
+
+      console.log(`[TOOLS] Request with db header: ${dbHeader}, showDatabaseTools: ${showDatabaseTools}, returning ${toolNames.length} tools`);
+      res.json({ tools: toolNames });
     });
 
     // Get database statistics
