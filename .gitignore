@@ -77,4 +77,7 @@ postgresql-security-analysis.md
 security-analysis-report-corrected.md
 security-analysis-report.md
 .claude/
-
+golang-implementation.md
+status.md
+test-plan.md
+STATUS_*.*
