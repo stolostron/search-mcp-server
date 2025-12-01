@@ -10,9 +10,9 @@ NAMESPACE ?= acm-search
 SECRET_NAME = acm-search-mcp-secret
 
 # Container Configuration - Quay.io Registry
-REGISTRY ?= quay.io/bjoydeep
-IMAGE_TAG ?= with-auth-latest
-MCP_SERVER_IMAGE = $(REGISTRY)/acm-search-mcp-server:$(IMAGE_TAG)
+REGISTRY ?= quay.io/stolostron
+IMAGE_TAG ?= dev-preview
+MCP_SERVER_IMAGE = $(REGISTRY)/search-mcp-server:$(IMAGE_TAG)
 
 # Deployment names (aligned with image names)
 DEPLOYMENT_NAME = acm-search-mcp-server
@@ -204,7 +204,7 @@ container-push: check-quay-login ## Push container images to Quay.io
 	@echo "$(GREEN)✓ Pushed: $(MCP_SERVER_IMAGE)$(RESET)"
 	@echo ""
 	@echo "$(GREEN)🎉 Images available at:$(RESET)"
-	@echo "  📦 https://quay.io/repository/bjoydeep/acm-search-mcp-server"
+	@echo "  📦 https://quay.io/repository/stolostron/search-mcp-server"
 
 ## Build pipeline
 .build-docker: container-build container-push
@@ -408,6 +408,6 @@ quay-login: ## Login to Quay.io registry
 
 quay-repos: ## Show Quay.io repository URLs
 	@echo "$(CYAN)Quay.io Repository URLs:$(RESET)"
-	@echo "📦 MCP Server (with integrated auth): https://quay.io/repository/bjoydeep/acm-search-mcp-server"
+	@echo "📦 MCP Server (with integrated auth): https://quay.io/repository/stolostron/search-mcp-server"
 	@echo ""
 	@echo "$(YELLOW)Make repository public for OpenShift to pull without authentication$(RESET)"

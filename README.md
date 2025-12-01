@@ -60,13 +60,6 @@ claude mcp add --scope project --transport sse acm-search \
 **Default Mode** (secure):
 - `find_resources` - Advanced search across ACM managed cluster resources
 
-**Database Mode** (add `--header "db: show"`):
-- `find_resources` - Advanced search across ACM managed cluster resources
-- `query_database` - Execute SQL queries with parameters and limits
-- `get_database_stats` - Database statistics (table count, rows, size)
-- `list_tables` - List all tables with row counts and schema
-- `search_tables` - Search for tables by name pattern
-
 ### Wildcard Namespace Filtering
 
 ```json
@@ -257,7 +250,8 @@ src/
 | Task | Command |
 |------|---------|
 | **Deploy** | `./scripts/create-secret.sh && make deploy-prebuilt` |
-| **Connect** | `claude mcp add --transport sse acm-search https://route/sse --header "Authorization: Bearer $TOKEN"` |
+| **Export** | `export NODE_TLS_REJECT_UNAUTHORIZED=0` |
+| **Connect** | `claude mcp add --scope project --transport sse acm-search https://route/sse --header "Authorization: Bearer $TOKEN"` |
 | **Status** | `make status` |
 | **Logs** | `make logs` |
 | **Clean** | `make clean-all` |
@@ -267,7 +261,7 @@ src/
 - **HTTP Port-forward**: `http://localhost:8080/sse` (with `oc port-forward service/acm-search-mcp-server-service 8080:80 -n acm-search`)
 
 ### Registry
-- **Image**: `quay.io/bjoydeep/acm-search-mcp-server:with-auth-latest`
+- **Image**: `quay.io/stolostron/search-mcp-server:dev-preview`
 - **Repository**: `git@github.com:stolostron/search-mcp-server.git`
 
 ## License
