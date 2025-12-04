@@ -1,5 +1,9 @@
 # ACM Search MCP Server
 
+> ⚠️ **EXPERIMENTAL SOFTWARE**
+>
+> Do not use this in production environment - this is still experimental
+
 A Model Context Protocol (MCP) server that provides secure access to ACM (Advanced Cluster Management) search databases. Enables AI assistants and MCP clients to query and analyze Kubernetes resources across managed clusters through a standardized interface.
 
 ## Features
