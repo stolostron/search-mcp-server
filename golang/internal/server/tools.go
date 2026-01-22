@@ -20,6 +20,26 @@ type ToolDefinition struct {
 func GetCentralizedToolDefinitions() []ToolDefinition {
 	return []ToolDefinition{
 		{
+			Name:        "query_database",
+			Description: "Execute SQL queries against the PostgreSQL database with security validation",
+			Options: []mcp.ToolOption{
+				mcp.WithString("sql",
+					mcp.Description("SQL query to execute (SELECT statements only for security)"),
+					mcp.Required(),
+				),
+			},
+			JSONSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"sql": map[string]interface{}{
+						"type":        "string",
+						"description": "SQL query to execute (SELECT statements only for security)",
+					},
+				},
+				"required": []string{"sql"},
+			},
+		},
+		{
 			Name:        "find_resources",
 			Description: "Find and analyze Kubernetes resources across ACM managed clusters with advanced filtering, counting, and health analysis",
 			Options: []mcp.ToolOption{

@@ -434,6 +434,11 @@ var _ = Describe("Database Integration Tests", func() {
 				Expect(err.Error()).To(ContainSubstring("Mutating operation 'DROP' is not allowed"))
 			})
 
+			It("should block SQL injection attempts", func() {
+				_, err := db.ExecuteQuery(ctx, "SELECT * FROM users WHERE id = 1 OR 1=1", nil, nil)
+				Expect(err).To(HaveOccurred(), "SQL injection attempt should be blocked")
+				Expect(err.Error()).To(ContainSubstring("security validation failed"))
+			})
 		})
 
 		Context("Table Operations", func() {

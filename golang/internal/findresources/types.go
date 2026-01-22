@@ -56,7 +56,7 @@ type ResourceResult struct {
 	Status    *string                `json:"status,omitempty"`
 	Created   *time.Time             `json:"created,omitempty"`
 	Labels    map[string]string      `json:"labels,omitempty"`
-	Data      map[string]interface{} `json:"data"` // JSON data stored in database
+	Data      map[string]interface{} `json:"data"` // full JSON data
 }
 
 // CountResult represents a count entry for count mode

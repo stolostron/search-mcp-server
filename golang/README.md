@@ -35,6 +35,7 @@ DATABASE_URL="your-db-url" go run ./cmd/server --transport=stdio
   - **Basic filters**: kind, name, namespace, cluster, status
   - **Advanced filters**: labelSelector, clusterSelector, textSearch, ageNewerThan, ageOlderThan
   - **Output control**: outputMode (list/count/summary/health), groupBy, sortBy, sortOrder, limit, countOnly
+- **`query_database`** - Execute SQL queries on ACM search database (requires authentication + `db: show` header)
 
 ## Authentication (Production)
 
