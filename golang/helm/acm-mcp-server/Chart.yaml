@@ -1,0 +1,17 @@
+apiVersion: v2
+name: acm-mcp-server
+description: ACM Search MCP Server - Model Context Protocol server for ACM search functionality
+type: application
+version: 0.1.0
+appVersion: "dev"
+keywords:
+  - acm
+  - search
+  - mcp
+  - openshift
+home: https://github.com/stolostron/search-mcp-server
+sources:
+  - https://github.com/stolostron/search-mcp-server
+maintainers:
+  - name: ACM Team
+    email: acm-dev@redhat.com

@@ -1,0 +1,79 @@
+# Default values for acm-mcp-server
+replicaCount: 1
+
+image:
+  repository: quay.io/bjoydeep/acm-mcp-server-go
+  tag: dev
+  pullPolicy: Always
+
+nameOverride: ""
+fullnameOverride: ""
+
+# Database configuration
+database:
+  # Auto-discovery mode (default: true)
+  # When true, automatically finds ACM MultiClusterHub and extracts search-postgres credentials
+  # When false, requires manual database.url configuration
+  autoDiscover: true
+
+  # Manual database URL (used when autoDiscover: false)
+  # Format: postgresql://username:password@host:port/database
+  # Example: "postgresql://searchuser:pass123@search-postgres.open-cluster-management.svc.cluster.local:5432/search"
+  url: ""
+
+  # Secret name to create for database URL
+  secretName: acm-search-mcp-secret
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+# OpenShift Route configuration
+route:
+  enabled: true
+  host: ""  # Auto-generated if not specified
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+
+# Service Account and RBAC
+serviceAccount:
+  create: true
+  name: ""
+
+rbac:
+  create: true
+
+# Pod resources
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "100m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
+
+# Authentication configuration
+authentication:
+  # Enable authentication for production deployments
+  enabled: true
+  # Skip TLS verification when connecting to Kubernetes API (for testing/dev clusters)
+  skipTLS: true
+
+# Health check configuration
+healthCheck:
+  enabled: true
+  path: /health
+  port: 8080
+  initialDelaySeconds: 30
+  periodSeconds: 10
+
+# Pod security context
+podSecurityContext:
+  runAsNonRoot: true
+
+# Node selection
+nodeSelector: {}
+tolerations: []
+affinity: {}

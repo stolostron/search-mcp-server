@@ -1,0 +1,259 @@
+package auth
+
+import (
+	"encoding/json"
+	"fmt"
+	"log"
+	"net/http"
+	"strings"
+	"sync"
+	"time"
+)
+
+// AuthMiddleware handles HTTP authentication for MCP requests
+type AuthMiddleware struct {
+	validator    *KubernetesValidator
+	config       *AuthConfig
+	tokenCache   map[string]*cachedToken
+	cacheMutex   sync.RWMutex
+	cleanupTicker *time.Ticker
+}
+
+// cachedToken represents a cached token validation result
+type cachedToken struct {
+	result    *TokenValidationResult
+	expiresAt time.Time
+}
+
+// NewAuthMiddleware creates a new authentication middleware
+func NewAuthMiddleware(config *AuthConfig) (*AuthMiddleware, error) {
+	if !config.EnableAuth {
+		return &AuthMiddleware{config: config}, nil
+	}
+
+	k8sConfig, err := config.GetKubernetesConfig()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Kubernetes config: %w", err)
+	}
+
+	validator := NewKubernetesValidator(k8sConfig)
+
+	middleware := &AuthMiddleware{
+		validator:  validator,
+		config:     config,
+		tokenCache: make(map[string]*cachedToken),
+	}
+
+	// Start cache cleanup if caching is enabled
+	if config.CacheTokens {
+		middleware.cleanupTicker = time.NewTicker(time.Minute)
+		go middleware.cleanupExpiredTokens()
+	}
+
+	return middleware, nil
+}
+
+// Handler returns the HTTP middleware handler
+func (m *AuthMiddleware) Handler(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Skip authentication if disabled
+		if !m.config.EnableAuth {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Skip authentication for health check endpoint
+		if r.URL.Path == "/health" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		log.Printf("[AUTH] %s %s - Checking authorization", r.Method, r.URL.Path)
+
+		// Extract authorization header
+		authHeader, headerSource := m.extractAuthHeader(r)
+		if authHeader == "" {
+			log.Printf("[AUTH] Missing authorization header")
+			m.sendAuthError(w, "Missing authorization header",
+				`Either "Authorization: Bearer <token>" or "kubernetes-authorization: Bearer <token>" required`,
+				http.StatusUnauthorized)
+			return
+		}
+
+		// Validate token (with caching if enabled)
+		validationResult, err := m.validateToken(authHeader)
+		if err != nil {
+			log.Printf("[AUTH] Token validation error: %v", err)
+			m.sendAuthError(w, "Internal authentication error", err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		if !validationResult.Valid {
+			log.Printf("[AUTH] Token validation failed: %s", validationResult.Error)
+			m.sendAuthError(w, "Token validation failed", validationResult.Error, http.StatusUnauthorized)
+			return
+		}
+
+		// Update user context with header source
+		validationResult.User.HeaderSource = headerSource
+
+		// Check ACM admin permissions
+		userToken := strings.TrimPrefix(authHeader, "Bearer ")
+		hasACMAccess, err := m.validator.CheckACMAdminPermissions(validationResult.User, userToken)
+		if err != nil {
+			log.Printf("[AUTH] Permission check error for user %s: %v", validationResult.User.Username, err)
+			m.sendAuthError(w, "Permission check failed", err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		if !hasACMAccess {
+			log.Printf("[AUTH] ACM admin access denied for user: %s - insufficient permissions", validationResult.User.Username)
+			m.sendAuthError(w, "Access denied",
+				"ACM administrator permissions required. User must have permissions to create ManagedClusters or be in system:masters group.",
+				http.StatusForbidden)
+			return
+		}
+
+		log.Printf("[AUTH] Access granted for user: %s (via %s header)", validationResult.User.Username, headerSource)
+
+		// Add user context to request
+		ctx := WithUserContext(r.Context(), validationResult.User)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// extractAuthHeader extracts authorization header, supporting both standard and custom headers
+func (m *AuthMiddleware) extractAuthHeader(r *http.Request) (string, string) {
+	// Check standard Authorization header first
+	if authHeader := r.Header.Get("Authorization"); authHeader != "" {
+		return authHeader, "Authorization"
+	}
+
+	// Check custom kubernetes-authorization header
+	if authHeader := r.Header.Get("kubernetes-authorization"); authHeader != "" {
+		return authHeader, "kubernetes-authorization"
+	}
+
+	return "", ""
+}
+
+// validateToken validates a token with optional caching
+func (m *AuthMiddleware) validateToken(authHeader string) (*TokenValidationResult, error) {
+	// Check cache if enabled
+	if m.config.CacheTokens {
+		if result := m.getCachedToken(authHeader); result != nil {
+			return result, nil
+		}
+	}
+
+	// Validate token via Kubernetes API
+	result, err := m.validator.ValidateBearerToken(authHeader)
+	if err != nil {
+		return nil, err
+	}
+
+	// Cache result if enabled and valid
+	if m.config.CacheTokens && result.Valid {
+		m.cacheToken(authHeader, result)
+	}
+
+	return result, nil
+}
+
+// getCachedToken retrieves a cached token validation result
+func (m *AuthMiddleware) getCachedToken(authHeader string) *TokenValidationResult {
+	m.cacheMutex.RLock()
+	defer m.cacheMutex.RUnlock()
+
+	if cached, exists := m.tokenCache[authHeader]; exists {
+		if time.Now().Before(cached.expiresAt) {
+			return cached.result
+		}
+	}
+
+	return nil
+}
+
+// cacheToken caches a token validation result
+func (m *AuthMiddleware) cacheToken(authHeader string, result *TokenValidationResult) {
+	m.cacheMutex.Lock()
+	defer m.cacheMutex.Unlock()
+
+	m.tokenCache[authHeader] = &cachedToken{
+		result:    result,
+		expiresAt: time.Now().Add(m.config.CacheTTL),
+	}
+}
+
+// cleanupExpiredTokens removes expired tokens from cache
+func (m *AuthMiddleware) cleanupExpiredTokens() {
+	for range m.cleanupTicker.C {
+		m.cacheMutex.Lock()
+		now := time.Now()
+		for token, cached := range m.tokenCache {
+			if now.After(cached.expiresAt) {
+				delete(m.tokenCache, token)
+			}
+		}
+		m.cacheMutex.Unlock()
+	}
+}
+
+// sendAuthError sends a structured authentication error response
+func (m *AuthMiddleware) sendAuthError(w http.ResponseWriter, message, details string, statusCode int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+
+	errorResponse := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"error": map[string]interface{}{
+			"code":    -32001, // Custom authentication error code
+			"message": message,
+			"data": map[string]interface{}{
+				"details":    details,
+				"statusCode": statusCode,
+			},
+		},
+		"id": nil,
+	}
+
+	_ = json.NewEncoder(w).Encode(errorResponse)
+}
+
+// Close cleanups resources used by the middleware
+func (m *AuthMiddleware) Close() {
+	if m.cleanupTicker != nil {
+		m.cleanupTicker.Stop()
+	}
+}
+
+// GetUserContext is a helper function to extract user context from request
+func GetUserContext(r *http.Request) *UserContext {
+	return UserFromContext(r.Context())
+}
+
+// RequireAuth is a helper middleware for endpoints that require authentication
+func RequireAuth(authMiddleware *AuthMiddleware, next http.HandlerFunc) http.HandlerFunc {
+	return authMiddleware.Handler(http.HandlerFunc(next)).ServeHTTP
+}
+
+// hasDBHeader checks if request has database access header
+func HasDBHeader(r *http.Request) bool {
+	dbHeader := r.Header.Get("db")
+	return strings.ToLower(dbHeader) == "show"
+}
+
+// GetAuthorizedTools returns tools available to the authenticated user
+func GetAuthorizedTools(userCtx *UserContext, hasDBAccess bool) []string {
+	tools := []string{}
+
+	// Always allow find_resources
+	tools = append(tools, "find_resources")
+
+	// Database tools require ACM admin permissions + db header
+	if userCtx != nil && userCtx.HasACMAdmin() && hasDBAccess {
+		tools = append(tools, "query_database")
+	}
+
+	return tools
+}

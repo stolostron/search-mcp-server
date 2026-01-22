@@ -1,0 +1,16 @@
+//go:build integration
+
+package integration
+
+import (
+	"testing"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+)
+
+// TestIntegration runs all integration tests using the Ginkgo framework
+func TestIntegration(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Integration Suite")
+}

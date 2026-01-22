@@ -7,6 +7,21 @@ yarn-error.log*
 # Build outputs
 dist/
 build/
+bin/
+
+# Go build artifacts
+golang/bin/
+golang/mcp-server
+golang/examples
+golang/server
+golang/acm-mcp-server-go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+golang/*.test
+golang/*.out
 
 # Environment variables and secrets
 .env
@@ -82,4 +97,5 @@ golang-implementation.md
 status.md
 test-plan.md
 test.md
-STATUS_*.*
+STATUS_*.md
+STATUS_*.ts
