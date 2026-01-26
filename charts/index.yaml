@@ -1,0 +1,26 @@
+apiVersion: v1
+entries:
+  acm-mcp-server:
+  - apiVersion: v2
+    appVersion: dev
+    created: "2026-01-26T12:32:41.342381-08:00"
+    description: ACM Search MCP Server - Model Context Protocol server for ACM search
+      functionality
+    digest: 13839c6829050f06e71e81abc656c1d85a61b6580f8f595983f563e90730a193
+    home: https://github.com/stolostron/search-mcp-server
+    keywords:
+    - acm
+    - search
+    - mcp
+    - openshift
+    maintainers:
+    - email: acm-dev@redhat.com
+      name: ACM Team
+    name: acm-mcp-server
+    sources:
+    - https://github.com/stolostron/search-mcp-server
+    type: application
+    urls:
+    - https://raw.githubusercontent.com/stolostron/search-mcp-server/main/charts/acm-mcp-server-0.1.0.tgz
+    version: 0.1.0
+generated: "2026-01-26T12:32:41.34163-08:00"
