@@ -49,10 +49,8 @@ rbac:
 resources:
   requests:
     memory: "128Mi"
-    cpu: "100m"
-  limits:
-    memory: "512Mi"
-    cpu: "500m"
+    cpu: "25m"
+  # Following ACM practices, resource limits are not set
 
 # Authentication configuration
 authentication:

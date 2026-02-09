@@ -91,7 +91,7 @@ var (
 	ClusterAdminPermission = Permission{
 		Verb:     "*",
 		Resource: "*",
-		Group:    "",
+		Group:    "*",
 	}
 
 	ACMAdminPermission = Permission{
