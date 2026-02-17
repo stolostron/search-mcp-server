@@ -61,27 +61,29 @@ export function parseTimeFilters(ageNewerThan?: string, ageOlderThan?: string): 
  */
 export function timeFiltersToSQL(
   filters: TimeFilter[],
-  dataColumn: string = 'data'
-): { conditions: string[], params: any[] } {
+  dataColumn: string = 'data',
+  paramStartIndex: number = 1
+): { conditions: string[], params: any[], nextParamIndex: number } {
   const conditions: string[] = [];
   const params: any[] = [];
-  let paramIndex = 1;
+  let paramIndex = paramStartIndex;
 
   for (const filter of filters) {
     const fieldPath = filter.field === 'created' ? `${dataColumn}->>'created'` : `${dataColumn}->>'created'`;
 
+    // cast to timestamp for comparison
     switch (filter.operator) {
       case 'gt':
-        conditions.push(`${fieldPath}::timestamp > $${paramIndex}`);
+        conditions.push(`(${fieldPath})::timestamp > $${paramIndex}::timestamp`);
         break;
       case 'gte':
-        conditions.push(`${fieldPath}::timestamp >= $${paramIndex}`);
+        conditions.push(`(${fieldPath})::timestamp >= $${paramIndex}::timestamp`);
         break;
       case 'lt':
-        conditions.push(`${fieldPath}::timestamp < $${paramIndex}`);
+        conditions.push(`(${fieldPath})::timestamp < $${paramIndex}::timestamp`);
         break;
       case 'lte':
-        conditions.push(`${fieldPath}::timestamp <= $${paramIndex}`);
+        conditions.push(`(${fieldPath})::timestamp <= $${paramIndex}::timestamp`);
         break;
     }
 
@@ -89,7 +91,7 @@ export function timeFiltersToSQL(
     paramIndex++;
   }
 
-  return { conditions, params };
+  return { conditions, params, nextParamIndex: paramIndex };
 }
 
 /**

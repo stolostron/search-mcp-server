@@ -80,6 +80,19 @@ export class FindResourcesCore {
    * Validate input arguments
    */
   private async validateArgs(args: FindResourcesArgs): Promise<void> {
+    // convert "*" to empty string for non-pattern fields
+    if (args.labelSelector === '*') args.labelSelector = '';
+    if (args.clusterSelector === '*') args.clusterSelector = '';
+    if (args.status === '*') args.status = '';
+    if (args.textSearch === '*') args.textSearch = '';
+    if (args.ageNewerThan === '*') args.ageNewerThan = '';
+    if (args.ageOlderThan === '*') args.ageOlderThan = '';
+    
+    // also handle wildcards in name/namespace/cluster
+    if (args.name === '*') args.name = '';
+    if (args.namespace === '*') args.namespace = '';
+    if (args.cluster === '*') args.cluster = '';
+
     // Validate label selector
     if (args.labelSelector) {
       const validation = validateLabelSelector(args.labelSelector);
@@ -142,11 +155,6 @@ export class FindResourcesCore {
       conditions.push(...kindFilter.conditions);
       params.push(...kindFilter.params);
       paramIndex = kindFilter.nextParamIndex;
-
-      // Filter out ACM internal "cluster" config nodes (config.openshift.io Node resources)
-      if (args.kind === 'Node') {
-        conditions.push(`NOT (data->>'apigroup' = 'config.openshift.io' AND data->>'name' = 'cluster')`);
-      }
     }
 
     // Name filter
@@ -192,11 +200,9 @@ export class FindResourcesCore {
       paramIndex += labelFilter.params.length;
     }
 
-    // Status filter - now uses hybrid approach (mappings + textSearch fallback)
+    // Status filter
     if (args.status) {
-      // For hybrid status filtering, use the first kind if multiple kinds specified
-      const kindForStatusMapping = Array.isArray(args.kind) ? args.kind[0] : args.kind;
-      const statusFilter = buildStatusConditions(args.status, 'data', paramIndex, kindForStatusMapping);
+      const statusFilter = buildStatusConditions(args.status, 'data', paramIndex);
       conditions.push(...statusFilter.conditions);
       params.push(...statusFilter.params);
       paramIndex = statusFilter.nextParamIndex;
@@ -215,14 +221,22 @@ export class FindResourcesCore {
     // Time-based filters
     if (args.ageNewerThan || args.ageOlderThan) {
       const timeFilters = parseTimeFilters(args.ageNewerThan, args.ageOlderThan);
-      const timeSQL = timeFiltersToSQL(timeFilters, 'data');
-      conditions.push(...timeSQL.conditions);
-      params.push(...timeSQL.params);
-      paramIndex += timeSQL.params.length;
+      const timeSQL = timeFiltersToSQL(timeFilters, 'data', paramIndex);
+      if (timeSQL.conditions.length > 0) {
+        conditions.push(...timeSQL.conditions);
+        params.push(...timeSQL.params);
+        paramIndex = timeSQL.nextParamIndex;
+      }
     }
 
     // Combine all conditions
     sql += ` WHERE ${conditions.join(' AND ')}`;
+
+    // only log when debugging is enabled
+    if (process.env.DEBUG === 'true') {
+      console.log('[DEBUG] Generated SQL:', sql);
+      console.log('[DEBUG] Parameters:', params);
+    }
 
     // Handle different output modes
     if (args.outputMode === 'count' || args.outputMode === 'summary' || args.outputMode === 'health') {

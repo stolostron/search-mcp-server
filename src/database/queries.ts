@@ -122,17 +122,25 @@ export class DatabaseQueries {
         throw new Error(`Security validation failed: ${validation.error}`);
       }
 
+      // only log when debugging is enabled
+      if (process.env.DEBUG === 'true') {
+        console.log('[QUERY DEBUG] SQL:', sql);
+        console.log('[QUERY DEBUG] Parameters:', parameters);
+      }
+
       const result = await this.db.query(sql, parameters);
       
-      // Debug logging to understand the result structure
-      console.error('Query result structure:', {
-        hasRows: !!result.rows,
-        rowsType: typeof result.rows,
-        rowsIsArray: Array.isArray(result.rows),
-        rowsLength: result.rows?.length,
-        fields: result.fields?.length,
-        rowCount: result.rowCount
-      });
+      // log result structure for debugging
+      if (process.env.DEBUG === 'true') {
+        console.log('[QUERY DEBUG] Query result structure:', {
+          hasRows: !!result.rows,
+          rowsType: typeof result.rows,
+          rowsIsArray: Array.isArray(result.rows),
+          rowsLength: result.rows?.length,
+          fields: result.fields?.length,
+          rowCount: result.rowCount
+        });
+      }
       
       // Convert row objects to arrays if needed
       const rowsAsArrays = result.rows.map(row => {
