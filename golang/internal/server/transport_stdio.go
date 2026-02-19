@@ -98,8 +98,6 @@ func (t *STDIOTransport) registerTools() error {
 		// Map to appropriate handler
 		var handler func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error)
 		switch def.Name {
-		case "query_database":
-			handler = t.handleQueryDatabase
 		case "find_resources":
 			handler = t.handleFindResources
 		default:
@@ -117,28 +115,6 @@ func (t *STDIOTransport) registerTools() error {
 
 // Tool Handlers
 
-func (t *STDIOTransport) handleQueryDatabase(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	t.requestCount++
-
-	// Parse arguments
-	sql, err := request.RequireString("sql")
-	if err != nil {
-		t.errorCount++
-		return nil, fmt.Errorf("sql parameter is required: %w", err)
-	}
-
-	// Execute query
-	result, err := t.mcpServer.dbQueries.ExecuteQuery(ctx, sql, nil, &types.QueryOptions{})
-	if err != nil {
-		t.errorCount++
-		return nil, fmt.Errorf("query execution failed: %w", err)
-	}
-
-	// Format result
-	formattedResult := t.formatQueryResult(result)
-
-	return mcp.NewToolResultText(formattedResult), nil
-}
 
 func (t *STDIOTransport) handleFindResources(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	t.requestCount++

@@ -116,15 +116,12 @@ func (t *HTTPTransport) handleMCP(w http.ResponseWriter, r *http.Request) {
     // Extract user context (set by auth middleware)
     userCtx := auth.UserFromContext(r.Context())
 
-    // Check database access permissions
-    hasDBAccess := t.config.EnableAuth && auth.HasDBHeader(r)
-
     // Route to appropriate handler with user context
     switch method {
     case "tools/list":
-        t.handleToolsList(w, requestID, userCtx, hasDBAccess)
+        t.handleToolsList(w, requestID, userCtx)
     case "tools/call":
-        t.handleToolsCall(w, requestID, params, userCtx, hasDBAccess)
+        t.handleToolsCall(w, requestID, params, userCtx)
     }
 }
 ```
@@ -134,16 +131,11 @@ func (t *HTTPTransport) handleMCP(w http.ResponseWriter, r *http.Request) {
 Different tools require different permission levels:
 
 ```go
-func GetAuthorizedTools(userCtx *UserContext, hasDBAccess bool) []string {
+func GetAuthorizedTools(userCtx *UserContext) []string {
     tools := []string{}
 
     // Everyone gets find_resources (with potential filtering)
     tools = append(tools, "find_resources")
-
-    // Only ACM admins with explicit db header get query_database
-    if userCtx != nil && userCtx.HasACMAdmin() && hasDBAccess {
-        tools = append(tools, "query_database")
-    }
 
     return tools
 }
@@ -176,14 +168,13 @@ The current implementation uses **binary access control**:
 │   User Token    │───▶│   ACM Admin Check   │───▶│   Tool Access    │
 │                 │    │                     │    │                  │
 │ Bearer eyJ0...  │    │ ✓ system:masters    │    │ ✓ find_resources │
-│                 │    │ ✓ cluster-admins    │    │ ✓ query_database │
+│                 │    │ ✓ cluster-admins    │    │ ✓ find_resources │
 │                 │    │ ✗ regular user      │    │ ✓ find_resources │
 └─────────────────┘    └─────────────────────┘    └──────────────────┘
 ```
 
 **Current Logic:**
 - ✅ **All authenticated users** → `find_resources` access
-- ✅ **ACM admins + db header** → `query_database` access
 - ❌ **Unauthenticated** → No access
 
 ## Enhanced RBAC Architecture (Proposed)

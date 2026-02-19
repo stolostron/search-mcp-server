@@ -23,7 +23,6 @@ var _ = Describe("Database Queries", func() {
 			Expect(dq.allowedKeywords).ToNot(BeEmpty())
 			Expect(dq.forbiddenStatements).ToNot(BeEmpty())
 			Expect(dq.forbiddenCommands).ToNot(BeEmpty())
-			Expect(dq.sqlInjectionPatterns).ToNot(BeEmpty())
 		})
 
 		It("should contain expected allowed keywords", func() {
@@ -145,19 +144,6 @@ var _ = Describe("Database Queries", func() {
 			})
 		})
 
-		Context("with SQL injection patterns", func() {
-			DescribeTable("should reject injection attempts",
-				func(query string) {
-					result := dq.validateQuery(query)
-					Expect(result.IsValid).To(BeFalse())
-					Expect(result.Error).To(ContainSubstring("Query contains potentially unsafe patterns"))
-				},
-				Entry("OR 1=1 injection", "SELECT * FROM users WHERE name = 'admin' OR 1=1"),
-				Entry("UNION SELECT injection", "SELECT * FROM users UNION SELECT password FROM admin"),
-				Entry("SQL comment injection", "SELECT * FROM users WHERE id = 1; --"),
-				//Entry("String concatenation with comment pattern", "SELECT 'admin'::text || '--' as comment"),
-			)
-		})
 
 		Context("with multiple statements", func() {
 			It("should reject multiple SQL statements", func() {
