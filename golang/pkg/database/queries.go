@@ -1,4 +1,4 @@
-// Package database provides database query functionality with security validation
+// Package database provides database query functionality with read-only validation
 package database
 
 import (
@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -32,9 +31,6 @@ type DatabaseQueries struct {
 
 	// List of forbidden SQL commands that could appear anywhere
 	forbiddenCommands []string
-
-	// SQL injection detection patterns
-	sqlInjectionPatterns []*regexp.Regexp
 }
 
 // NewDatabaseQueries creates a new DatabaseQueries instance
@@ -60,29 +56,12 @@ func NewDatabaseQueries(db *DatabaseConnection) *DatabaseQueries {
 		},
 	}
 
-	// Compile SQL injection detection patterns
-	dq.sqlInjectionPatterns = []*regexp.Regexp{
-		regexp.MustCompile(`;[\s]*(--)"`),                          // SQL comments after semicolon
-		regexp.MustCompile(`;[\s]*(\/\*)`),                         // Block comments after semicolon
-		regexp.MustCompile(`(?i)[\s]+(OR|AND)[\s]+1[\s]*=[\s]*1`), // Classic OR 1=1 injection
-		regexp.MustCompile(`(?i)[\s]+(OR|AND)[\s]+\w+[\s]*=[\s]*\w+`), // Field=field injection
-		// UNION injection detection - be more specific to avoid legitimate uses
-		regexp.MustCompile(`(?i)[\s]+UNION[\s]+(ALL[\s]+)?SELECT[\s]+.*[\s]+(PASSWORD|PASSWD|ADMIN|LOGIN|TOKEN|SECRET|HASH)`), // UNION injection with suspicious keywords
-		regexp.MustCompile(`(?i)'[\s]*UNION[\s]+SELECT`),          // UNION injection after quote
-		regexp.MustCompile(`(?i)[\s]+UNION[\s]+SELECT[\s]+[^,\s]+[\s]+FROM[\s]+[^,\s]+(PASSWORD|PASSWD|ADMIN|LOGIN|TOKEN|SECRET|HASH)`), // Direct UNION SELECT pattern
-		regexp.MustCompile(`(?i)'[\s]*(OR|AND)[\s]*'`),            // Quote-based injection
-		regexp.MustCompile(`--[\s]*$`),                            // SQL comments at end
-		regexp.MustCompile(`(?s)\/\*.*\*\/`),                      // Block comments
-		regexp.MustCompile(`[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]`),   // Control characters
-		regexp.MustCompile(`(?i)exec[\s]*\(`),                     // EXEC function calls
-		regexp.MustCompile(`(?i)sp_`),                             // Stored procedure calls
-		regexp.MustCompile(`(?i)xp_`),                             // Extended stored procedures
-	}
 
 	return dq
 }
 
-// validateQuery validates SQL query for security and read-only compliance
+// validateQuery validates SQL query for read-only compliance
+// NOTE: SQL injection protection comes from parameterized queries, NOT pattern detection
 func (dq *DatabaseQueries) validateQuery(sql string) SecurityValidationResult {
 	// Normalize the SQL query
 	normalizedSQL := strings.TrimSpace(strings.ToUpper(sql))
@@ -115,15 +94,6 @@ func (dq *DatabaseQueries) validateQuery(sql string) SecurityValidationResult {
 		}
 	}
 
-	// Check for SQL injection patterns
-	for _, pattern := range dq.sqlInjectionPatterns {
-		if pattern.MatchString(sql) {
-			return SecurityValidationResult{
-				IsValid: false,
-				Error:   "Query contains potentially unsafe patterns and has been blocked for security.",
-			}
-		}
-	}
 
 	// Ensure query starts with SELECT or WITH (for CTEs)
 	if !strings.HasPrefix(normalizedSQL, "SELECT") && !strings.HasPrefix(normalizedSQL, "WITH") {

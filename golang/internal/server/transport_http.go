@@ -228,8 +228,6 @@ func (t *HTTPTransport) registerTools() error {
 		// Map to appropriate handler
 		var handler func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error)
 		switch def.Name {
-		case "query_database":
-			handler = t.handleQueryDatabase
 		case "find_resources":
 			handler = t.handleFindResources
 		default:
@@ -276,9 +274,6 @@ func (t *HTTPTransport) handleMCP(w http.ResponseWriter, r *http.Request) {
 	// Extract user context (set by auth middleware)
 	userCtx := auth.UserFromContext(r.Context())
 
-	// Check if database access is requested
-	// DB access requires authentication AND explicit db:show header
-	hasDBAccess := t.config.EnableAuth && auth.HasDBHeader(r)
 
 	// Handle different MCP methods
 	w.Header().Set("Content-Type", "application/json")
@@ -287,9 +282,9 @@ func (t *HTTPTransport) handleMCP(w http.ResponseWriter, r *http.Request) {
 	case "initialize":
 		t.handleInitialize(w, requestID, params)
 	case "tools/list":
-		t.handleToolsList(w, requestID, userCtx, hasDBAccess)
+		t.handleToolsList(w, requestID, userCtx)
 	case "tools/call":
-		t.handleToolsCall(w, requestID, params, userCtx, hasDBAccess)
+		t.handleToolsCall(w, requestID, params, userCtx)
 	default:
 		t.sendJSONRPCError(w, requestID, -32601, fmt.Sprintf("Method not found: %s", method), http.StatusNotFound)
 	}
@@ -297,23 +292,6 @@ func (t *HTTPTransport) handleMCP(w http.ResponseWriter, r *http.Request) {
 
 // Tool Handlers (reusing the patterns from STDIO transport)
 
-func (t *HTTPTransport) handleQueryDatabase(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	// Parse arguments
-	sql, err := request.RequireString("sql")
-	if err != nil {
-		return nil, fmt.Errorf("sql parameter is required: %w", err)
-	}
-
-	// Execute query
-	result, err := t.mcpServer.dbQueries.ExecuteQuery(ctx, sql, nil, &types.QueryOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("query execution failed: %w", err)
-	}
-
-	// Format result
-	formattedResult := t.formatQueryResult(result)
-	return mcp.NewToolResultText(formattedResult), nil
-}
 
 func (t *HTTPTransport) handleFindResources(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	// Parse arguments using shared function (eliminates duplication)
@@ -423,12 +401,12 @@ func (t *HTTPTransport) handleInitialize(w http.ResponseWriter, requestID interf
 	t.sendJSONRPCResult(w, requestID, result)
 }
 
-func (t *HTTPTransport) handleToolsList(w http.ResponseWriter, requestID interface{}, userCtx *auth.UserContext, hasDBAccess bool) {
+func (t *HTTPTransport) handleToolsList(w http.ResponseWriter, requestID interface{}, userCtx *auth.UserContext) {
 	// Get authorized tools based on user context
-	authorizedToolNames := auth.GetAuthorizedTools(userCtx, hasDBAccess)
+	authorizedToolNames := auth.GetAuthorizedTools(userCtx)
 
-	log.Printf("[TOOLS] User: %s, DB access: %t, Authorized tools: %v",
-		getUsernameForLogging(userCtx), hasDBAccess, authorizedToolNames)
+	log.Printf("[TOOLS] User: %s, Authorized tools: %v",
+		getUsernameForLogging(userCtx), authorizedToolNames)
 
 	// Get all tool definitions and filter by authorization
 	allDefinitions := GetCentralizedToolDefinitions()
@@ -468,7 +446,7 @@ func (t *HTTPTransport) handleToolsList(w http.ResponseWriter, requestID interfa
 }
 
 
-func (t *HTTPTransport) handleToolsCall(w http.ResponseWriter, requestID interface{}, params map[string]interface{}, userCtx *auth.UserContext, hasDBAccess bool) {
+func (t *HTTPTransport) handleToolsCall(w http.ResponseWriter, requestID interface{}, params map[string]interface{}, userCtx *auth.UserContext) {
 	if params == nil {
 		t.sendJSONRPCError(w, requestID, -32602, "Missing params", http.StatusBadRequest)
 		return
@@ -480,8 +458,15 @@ func (t *HTTPTransport) handleToolsCall(w http.ResponseWriter, requestID interfa
 		return
 	}
 
+	// SECURITY FIX: Ensure authentication when auth is enabled
+	if t.config.EnableAuth && userCtx == nil {
+		log.Printf("[SECURITY] Unauthenticated tool call blocked: tool=%s", name)
+		t.sendJSONRPCError(w, requestID, -32001, "Authentication required", http.StatusUnauthorized)
+		return
+	}
+
 	// Check if user is authorized to call this tool
-	authorizedTools := auth.GetAuthorizedTools(userCtx, hasDBAccess)
+	authorizedTools := auth.GetAuthorizedTools(userCtx)
 	isAuthorized := false
 	for _, authorizedTool := range authorizedTools {
 		if authorizedTool == name {
@@ -491,16 +476,16 @@ func (t *HTTPTransport) handleToolsCall(w http.ResponseWriter, requestID interfa
 	}
 
 	if !isAuthorized {
-		log.Printf("[AUTH] Tool access denied for user %s: tool=%s, hasDBAccess=%t",
-			getUsernameForLogging(userCtx), name, hasDBAccess)
+		log.Printf("[AUTH] Tool access denied for user %s: tool=%s",
+			getUsernameForLogging(userCtx), name)
 		t.sendJSONRPCError(w, requestID, -32003,
-			fmt.Sprintf("Access denied for tool: %s. Check your permissions and db header.", name),
+			fmt.Sprintf("Access denied for tool: %s. Check your permissions.", name),
 			http.StatusForbidden)
 		return
 	}
 
-	log.Printf("[TOOL] Tool call authorized: user=%s, tool=%s, hasDBAccess=%t",
-		getUsernameForLogging(userCtx), name, hasDBAccess)
+	log.Printf("[TOOL] Tool call authorized: user=%s, tool=%s",
+		getUsernameForLogging(userCtx), name)
 
 	arguments, _ := params["arguments"].(map[string]interface{})
 	if arguments == nil {
@@ -521,8 +506,6 @@ func (t *HTTPTransport) handleToolsCall(w http.ResponseWriter, requestID interfa
 
 	ctx := context.Background()
 	switch name {
-	case "query_database":
-		result, err = t.handleQueryDatabase(ctx, mcpRequest)
 	case "find_resources":
 		result, err = t.handleFindResources(ctx, mcpRequest)
 	default:
