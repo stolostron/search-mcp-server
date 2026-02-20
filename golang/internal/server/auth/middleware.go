@@ -237,23 +237,19 @@ func RequireAuth(authMiddleware *AuthMiddleware, next http.HandlerFunc) http.Han
 	return authMiddleware.Handler(http.HandlerFunc(next)).ServeHTTP
 }
 
-// hasDBHeader checks if request has database access header
-func HasDBHeader(r *http.Request) bool {
-	dbHeader := r.Header.Get("db")
-	return strings.ToLower(dbHeader) == "show"
-}
 
 // GetAuthorizedTools returns tools available to the authenticated user
-func GetAuthorizedTools(userCtx *UserContext, hasDBAccess bool) []string {
+func GetAuthorizedTools(userCtx *UserContext) []string {
+	// SECURITY FIX: Require valid authentication
+	if userCtx == nil {
+		log.Printf("[SECURITY] GetAuthorizedTools called with nil userCtx - denying all access")
+		return []string{} // Return empty list - no tools authorized
+	}
+
 	tools := []string{}
 
-	// Always allow find_resources
+	// Authenticated users get find_resources
 	tools = append(tools, "find_resources")
-
-	// Database tools require ACM admin permissions + db header
-	if userCtx != nil && userCtx.HasACMAdmin() && hasDBAccess {
-		tools = append(tools, "query_database")
-	}
 
 	return tools
 }
