@@ -44,7 +44,7 @@ func (t *HTTPTransport) Start(ctx context.Context, mcpServer *PostgresMCPServer)
 	}
 
 	// Create MCP server using mark3labs library
-	t.mcpLib = server.NewMCPServer("ACM Search MCP Server", "1.0.0")
+	t.mcpLib = server.NewMCPServer(t.config.AppDisplayName, t.config.AppVersion)
 
 	// Remove auto-generated database resources to maintain transport consistency
 	t.mcpLib.DeleteResources("database://tables", "database://stats")

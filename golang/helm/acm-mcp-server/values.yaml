@@ -31,6 +31,9 @@ app:
   # Note: Can be changed via kubectl edit deployment for troubleshooting
   logLevel: "info"
 
+  # Application display name (shown in logs and MCP server info)
+  displayName: "MCP Server for Red Hat ACM"
+
 service:
   type: ClusterIP
   port: 80

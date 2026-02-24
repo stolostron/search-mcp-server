@@ -37,7 +37,7 @@ spec:
         - name: APP_NAME
           value: {{ .Chart.Name | quote }}
         - name: APP_DISPLAY_NAME
-          value: "MCP Server for Red Hat ACM"
+          value: {{ .Values.app.displayName | quote }}
         - name: APP_DESCRIPTION
           value: {{ .Chart.Description | quote }}
         - name: APP_VERSION

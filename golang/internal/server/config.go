@@ -54,7 +54,7 @@ type ServerConfig struct {
 	AppName        string `env:"APP_NAME" default:"acm-mcp-server"`
 	AppDisplayName string `env:"APP_DISPLAY_NAME" default:"MCP Server for Red Hat ACM"`
 	AppDescription string `env:"APP_DESCRIPTION" default:"MCP server for ACM search functionality"`
-	AppVersion     string `env:"APP_VERSION" default:"dev"`
+	AppVersion     string `env:"APP_VERSION" default:"0.1.0"`
 }
 
 // LoadServerConfig loads configuration from environment variables with defaults
@@ -110,7 +110,7 @@ func LoadServerConfig() *ServerConfig {
 	config.AppName = getEnvOrDefault("APP_NAME", "acm-mcp-server")
 	config.AppDisplayName = getEnvOrDefault("APP_DISPLAY_NAME", "MCP Server for Red Hat ACM")
 	config.AppDescription = getEnvOrDefault("APP_DESCRIPTION", "MCP server for ACM search functionality")
-	config.AppVersion = getEnvOrDefault("APP_VERSION", "dev")
+	config.AppVersion = getEnvOrDefault("APP_VERSION", "0.1.0")
 
 	return config
 }
