@@ -1,4 +1,4 @@
-# ACM Search MCP Server (Go)
+# MCP Server for Red Hat ACM (Go)
 
 Model Context Protocol (MCP) server providing access to Red Hat Advanced Cluster Management (ACM) search database and Kubernetes resources across managed clusters.
 
@@ -7,13 +7,19 @@ Model Context Protocol (MCP) server providing access to Red Hat Advanced Cluster
 ### Production Deployment (Recommended)
 
 ```bash
-# One-command deployment with ACM auto-discovery
+# Option 1: From packaged repository (recommended)
+helm repo add acm-search https://stolostron.github.io/search-mcp-server
+helm repo update
+helm install acm-mcp-server acm-search/acm-mcp-server --create-namespace --namespace acm-search
+
+# Option 2: From local chart
 helm install acm-mcp-server ./helm/acm-mcp-server --create-namespace --namespace acm-search
 
-# Or with custom registry
-helm install acm-mcp-server ./helm/acm-mcp-server \
+# With custom configuration
+helm install acm-mcp-server acm-search/acm-mcp-server \
   --create-namespace --namespace acm-search \
-  --set image.repository=quay.io/yourorg/acm-mcp-server-go
+  --set image.repository=quay.io/yourorg/acm-mcp-server-go \
+  --set logLevel=debug
 ```
 
 ### Development/Testing
@@ -35,7 +41,6 @@ DATABASE_URL="your-db-url" go run ./cmd/server --transport=stdio
   - **Basic filters**: kind, name, namespace, cluster, status
   - **Advanced filters**: labelSelector, clusterSelector, textSearch, ageNewerThan, ageOlderThan
   - **Output control**: outputMode (list/count/summary/health), groupBy, sortBy, sortOrder, limit, countOnly
-- **`query_database`** - Execute SQL queries on ACM search database (requires authentication + `db: show` header)
 
 ## Authentication (Production)
 
@@ -89,15 +94,32 @@ make test-mcp-deployed     # Test deployed server
 
 ## Configuration
 
-All configuration via environment variables.
+All configuration via environment variables or Helm values.
 
 **Required:**
-- `DATABASE_URL` - PostgreSQL connection to ACM search database
+- `DATABASE_URL` - PostgreSQL connection to ACM search database (auto-discovered in Helm)
 
 **Common Options:**
 - `MCP_TRANSPORT_MODE=auto|http|stdio` (default: auto)
 - `MCP_ENABLE_AUTH=true|false` (default: auto-detect)
 - `MCP_HTTP_PORT=8080` (HTTP transport port)
+- `LOG_LEVEL=info|debug` (default: info) - Controls logging verbosity
+
+**Chart.yaml-Driven Configuration:**
+All app metadata is sourced from Chart.yaml:
+- `APP_NAME` - Application name (from chart name)
+- `APP_DISPLAY_NAME` - Display name (from chart metadata)
+- `APP_DESCRIPTION` - Application description (from chart description)
+- `APP_VERSION` - Version (from chart appVersion)
+
+**Debug Configuration:**
+```bash
+# Enable debug logging for troubleshooting
+helm install acm-mcp-server acm-search/acm-mcp-server \
+  --set logLevel=debug \
+  --namespace acm-search
+# Shows: configuration dump, database connectivity details, health check logs
+```
 
 ## Examples
 

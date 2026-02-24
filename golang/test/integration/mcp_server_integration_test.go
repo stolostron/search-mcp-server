@@ -146,7 +146,7 @@ var _ = Describe("MCP Server Integration Tests", func() {
 			Expect(result).To(HaveKey("serverInfo"))
 		})
 
-		It("should list tools", func() {
+		It("should deny tool access to unauthenticated requests", func() {
 			// Use JSON-RPC format
 			reqBody := map[string]interface{}{
 				"jsonrpc": "2.0",
@@ -170,18 +170,11 @@ var _ = Describe("MCP Server Integration Tests", func() {
 			Expect(result).To(HaveKey("tools"))
 			tools := result["tools"].([]interface{})
 
-			// With auth disabled, only find_resources should be available
-			Expect(len(tools)).To(BeNumerically(">=", 1))
-
-			toolNames := make([]string, len(tools))
-			for i, tool := range tools {
-				toolMap := tool.(map[string]interface{})
-				toolNames[i] = toolMap["name"].(string)
-			}
-			Expect(toolNames).To(ContainElements("find_resources"))
+			// With no authentication, no tools should be available (secure behavior)
+			Expect(len(tools)).To(Equal(0))
 		})
 
-		It("should handle tool calls", func() {
+		It("should deny unauthenticated tool calls", func() {
 			// Use JSON-RPC format
 			reqBody := map[string]interface{}{
 				"jsonrpc": "2.0",
@@ -210,8 +203,8 @@ var _ = Describe("MCP Server Integration Tests", func() {
 				result := response["result"].(map[string]interface{})
 				Expect(result).To(HaveKey("content"))
 			} else {
-				// Tool call failed (e.g., database not accessible) - that's okay for integration tests
-				Expect(resp.StatusCode).To(Equal(http.StatusInternalServerError))
+				// Tool call denied due to lack of authentication (secure behavior)
+				Expect(resp.StatusCode).To(Equal(http.StatusForbidden))
 			}
 		})
 

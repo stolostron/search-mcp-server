@@ -34,6 +34,16 @@ spec:
             secretKeyRef:
               name: {{ .Values.database.secretName }}
               key: database-url
+        - name: APP_NAME
+          value: {{ .Chart.Name | quote }}
+        - name: APP_DISPLAY_NAME
+          value: "MCP Server for Red Hat ACM"
+        - name: APP_DESCRIPTION
+          value: {{ .Chart.Description | quote }}
+        - name: APP_VERSION
+          value: {{ .Chart.AppVersion | quote }}
+        - name: LOG_LEVEL
+          value: {{ .Values.app.logLevel | default "info" | quote }}
         - name: PORT
           value: "{{ .Values.service.targetPort }}"
         - name: NODE_ENV

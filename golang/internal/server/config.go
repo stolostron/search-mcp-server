@@ -49,6 +49,12 @@ type ServerConfig struct {
 	LogLevel         string `env:"LOG_LEVEL" default:"info"`
 	EnableMetrics    bool   `env:"MCP_ENABLE_METRICS" default:"true"`
 	EnableHealthCheck bool   `env:"MCP_ENABLE_HEALTH" default:"true"`
+
+	// Application Metadata (from Helm Chart)
+	AppName        string `env:"APP_NAME" default:"acm-mcp-server"`
+	AppDisplayName string `env:"APP_DISPLAY_NAME" default:"MCP Server for Red Hat ACM"`
+	AppDescription string `env:"APP_DESCRIPTION" default:"MCP server for ACM search functionality"`
+	AppVersion     string `env:"APP_VERSION" default:"dev"`
 }
 
 // LoadServerConfig loads configuration from environment variables with defaults
@@ -99,6 +105,12 @@ func LoadServerConfig() *ServerConfig {
 	config.LogLevel = getEnvOrDefault("LOG_LEVEL", "info")
 	config.EnableMetrics = getEnvBoolOrDefault("MCP_ENABLE_METRICS", true)
 	config.EnableHealthCheck = getEnvBoolOrDefault("MCP_ENABLE_HEALTH", true)
+
+	// Application Metadata Configuration
+	config.AppName = getEnvOrDefault("APP_NAME", "acm-mcp-server")
+	config.AppDisplayName = getEnvOrDefault("APP_DISPLAY_NAME", "MCP Server for Red Hat ACM")
+	config.AppDescription = getEnvOrDefault("APP_DESCRIPTION", "MCP server for ACM search functionality")
+	config.AppVersion = getEnvOrDefault("APP_VERSION", "dev")
 
 	return config
 }

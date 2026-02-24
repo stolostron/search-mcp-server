@@ -1,8 +1,8 @@
-# ACM MCP Server - Helm Installation Guide
+# MCP Server for Red Hat ACM - Helm Installation Guide
 
 ## Overview
 
-The ACM Search MCP (Model Context Protocol) Server provides access to ACM search data through a standardized MCP interface. This guide covers installation using Helm with **automatic ACM database discovery**.
+The MCP (Model Context Protocol) Server for Red Hat ACM  provides access to ACM search data through a standardized MCP interface. This guide covers installation using Helm with **automatic ACM database discovery**.
 
 ## Prerequisites
 
@@ -12,17 +12,17 @@ The ACM Search MCP (Model Context Protocol) Server provides access to ACM search
 
 ## Installation Methods
 
-### 🚀 Current Installation (Local Chart)
+### 🚀 Recommended Installation (Helm Repository)
 
-Since the Helm chart is not yet published to a repository, use the local chart:
+Install from the published Helm repository:
 
 ```bash
-# Clone the repository (if not already done)
-git clone https://github.com/stolostron/search-mcp-server.git
-cd search-mcp-server/golang
+# Add the ACM MCP Helm repository
+helm repo add acm-search https://stolostron.github.io/search-mcp-server
+helm repo update
 
 # Install with auto-discovery (recommended)
-helm install acm-mcp-server ./helm/acm-mcp-server \
+helm install acm-mcp-server acm-search/acm-mcp-server \
   --create-namespace \
   --namespace acm-search
 
@@ -33,21 +33,19 @@ helm install acm-mcp-server ./helm/acm-mcp-server \
 # - Deploys the MCP server with proper configuration
 ```
 
-### 🎯 Future Installation (Helm Repository)
+### 🔧 Local Development Installation
 
-*Once the chart is published to a Helm repository:*
+For development or when using local chart modifications:
 
 ```bash
-# Add the ACM MCP Helm repository
-helm repo add acm-mcp https://charts.example.com  # (when published)
-helm repo update
+# Clone the repository
+git clone https://github.com/stolostron/search-mcp-server.git
+cd search-mcp-server/golang
 
-# Install with auto-discovery
-helm install acm-mcp-server acm-mcp/acm-mcp-server \
+# Install with auto-discovery from local chart
+helm install acm-mcp-server ./helm/acm-mcp-server \
   --create-namespace \
   --namespace acm-search
-
-# ↑ This just works - no Makefile, no manual secrets!
 ```
 
 ## Configuration Options
@@ -159,6 +157,63 @@ make test-mcp-deployed
 - Ensure your user has cluster-admin or sufficient RBAC permissions
 - The Helm client needs to read MultiClusterHub and Secret resources cluster-wide
 
+### Pod Startup Issues
+
+**Problem**: Pod fails to start or shows connection errors
+
+**Debug Steps**:
+1. **Enable debug logging**:
+   ```bash
+   helm upgrade acm-mcp-server acm-search/acm-mcp-server --set logLevel=debug -n acm-search
+   ```
+
+2. **Check configuration dump**:
+   ```bash
+   kubectl logs -l app.kubernetes.io/name=acm-mcp-server -n acm-search | head -20
+   # Look for: "MCP Server initialized: ServerConfig{...}"
+   ```
+
+3. **Verify database connectivity**:
+   ```bash
+   kubectl logs -l app.kubernetes.io/name=acm-mcp-server -n acm-search | grep -i "database\|connection"
+   # Look for: "[MCP-SERVER-DEBUG] Database connection test result: true"
+   ```
+
+## Debugging and Logging
+
+### Enable Debug Logging
+
+For troubleshooting, enable debug logging to see detailed configuration and database connectivity:
+
+```bash
+# Install with debug logging
+helm install acm-mcp-server acm-search/acm-mcp-server \
+  --set logLevel=debug \
+  --namespace acm-search
+
+# Or upgrade existing installation
+helm upgrade acm-mcp-server acm-search/acm-mcp-server \
+  --set logLevel=debug \
+  --namespace acm-search
+
+# Check debug logs
+kubectl logs -l app.kubernetes.io/name=acm-mcp-server -n acm-search --tail=50
+```
+
+**Debug logging shows:**
+- Complete configuration dump at startup
+- Database connectivity test results
+- Pool statistics and health checks
+- Detailed MCP request/response logging
+
+### Log Level Options
+
+```yaml
+# values.yaml or --set logLevel=<value>
+logLevel: "info"    # Default: standard operational logs
+logLevel: "debug"   # Verbose: includes configuration dump, connectivity details
+```
+
 ## Advanced Configuration
 
 ### Custom Image Repository
@@ -181,12 +236,32 @@ helm install acm-mcp-server ./helm/acm-mcp-server \
 
 ```bash
 # Enable authentication (for production)
-helm install acm-mcp-server ./helm/acm-mcp-server \
+helm install acm-mcp-server acm-search/acm-mcp-server \
   --set authentication.enabled=true
 
 # Disable authentication (for testing)
-helm install acm-mcp-server ./helm/acm-mcp-server \
+helm install acm-mcp-server acm-search/acm-mcp-server \
   --set authentication.enabled=false
+```
+
+### Chart-Driven Configuration
+
+The application metadata is automatically sourced from Chart.yaml, ensuring consistency:
+
+- **App Name**: `acm-mcp-server` (from Chart name)
+- **Display Name**: `MCP Server for Red Hat ACM` (from Chart metadata)
+- **Description**: Auto-sourced from Chart description
+- **Version**: Always matches Chart `appVersion`
+
+This eliminates hardcoded values and ensures version consistency across deployments.
+
+**Environment Variables Set:**
+```bash
+APP_NAME=acm-mcp-server
+APP_DISPLAY_NAME=MCP Server for Red Hat ACM
+APP_DESCRIPTION=MCP server for Red Hat Advanced Cluster Management...
+APP_VERSION=0.1.0  # Matches Chart appVersion
+LOG_LEVEL=info     # From values.yaml
 ```
 
 ## Uninstallation

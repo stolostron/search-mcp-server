@@ -13,7 +13,8 @@ import (
 
 // isVerboseLoggingEnabled checks if verbose server logging is enabled
 func isVerboseServerLoggingEnabled() bool {
-	return os.Getenv("TEST_MCP_VERBOSE") == "true"
+	logLevel := os.Getenv("LOG_LEVEL")
+	return logLevel == "debug"
 }
 
 // logIfVerboseServer prints debug messages only if verbose logging is enabled
@@ -49,6 +50,25 @@ func NewPostgresMCPServer(databaseURL string) (*PostgresMCPServer, error) {
 	serverConfig := LoadServerConfig()
 	if databaseURL != "" {
 		serverConfig.DatabaseURL = databaseURL
+	}
+
+	// Debug: Dump configuration if debug logging is enabled
+	if serverConfig.LogLevel == "debug" {
+		log.Printf("[MCP-SERVER-DEBUG] === Server Configuration Dump ===")
+		log.Printf("[MCP-SERVER-DEBUG] Transport Mode: %s", serverConfig.TransportMode)
+		log.Printf("[MCP-SERVER-DEBUG] HTTP Host: %s", serverConfig.HTTPHost)
+		log.Printf("[MCP-SERVER-DEBUG] HTTP Port: %s", serverConfig.HTTPPort)
+		log.Printf("[MCP-SERVER-DEBUG] Log Level: %s", serverConfig.LogLevel)
+		log.Printf("[MCP-SERVER-DEBUG] Enable Auth: %t", serverConfig.EnableAuth)
+		log.Printf("[MCP-SERVER-DEBUG] Enable Streaming: %t", serverConfig.EnableStreaming)
+		log.Printf("[MCP-SERVER-DEBUG] Stream Buffer Size: %d", serverConfig.StreamBufferSize)
+		log.Printf("[MCP-SERVER-DEBUG] Max Response Size: %d", serverConfig.MaxResponseSize)
+		log.Printf("[MCP-SERVER-DEBUG] Enable CORS: %t", serverConfig.EnableCORS)
+		log.Printf("[MCP-SERVER-DEBUG] Request Timeout: %v", serverConfig.RequestTimeout)
+		log.Printf("[MCP-SERVER-DEBUG] Stream Timeout: %v", serverConfig.StreamTimeout)
+		log.Printf("[MCP-SERVER-DEBUG] Auth Timeout: %v", serverConfig.AuthTimeout)
+		log.Printf("[MCP-SERVER-DEBUG] Database URL: [REDACTED]")
+		log.Printf("[MCP-SERVER-DEBUG] === End Configuration Dump ===")
 	}
 
 	// Validate configuration

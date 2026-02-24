@@ -49,8 +49,8 @@ func main() {
 
 	// Print startup information
 	serverConfig := mcpServer.GetConfig()
-	log.Printf("=== ACM Search MCP Server ===")
-	log.Printf("Version: 1.0.0")
+	log.Printf("=== %s ===", serverConfig.AppDisplayName)
+	log.Printf("Version: %s", serverConfig.AppVersion)
 	log.Printf("Transport Mode: %s", serverConfig.TransportMode)
 	log.Printf("Database: %s", redactDatabaseURL(cfg.ConnectionString))
 	log.Printf("Streaming Enabled: %t", mcpServer.IsStreamingEnabled())
@@ -77,7 +77,9 @@ func main() {
 }
 
 func printUsage() {
-	fmt.Fprintf(os.Stderr, `ACM Search MCP Server
+	// Load server config to get app metadata
+	serverConfig := server.LoadServerConfig()
+	fmt.Fprintf(os.Stderr, `%s
 
 Usage:
   %s <database_url>
@@ -93,7 +95,7 @@ Environment Variables:
   MCP_ENABLE_STREAMING      Enable streaming for large datasets (default: true)
   MCP_STREAM_BUFFER         Resources per chunk (default: 100)
   MCP_MAX_RESPONSE_SIZE     Max resources before streaming (default: 1000)
-  LOG_LEVEL                 Log level: debug, info, warn, error (default: info)
+  LOG_LEVEL                 Log level: debug, info (default: info)
 
 Examples:
   # STDIO mode (for Claude Desktop)
@@ -108,7 +110,7 @@ Examples:
   %s
 
 For more information, see: https://github.com/stolostron/search-mcp-server
-`, os.Args[0], os.Args[0], os.Args[0], os.Args[0])
+`, serverConfig.AppDisplayName, os.Args[0], os.Args[0], os.Args[0], os.Args[0])
 }
 
 func redactDatabaseURL(url string) string {

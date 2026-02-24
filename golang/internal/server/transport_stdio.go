@@ -28,7 +28,8 @@ func (t *STDIOTransport) Start(ctx context.Context, mcpServer *PostgresMCPServer
 	t.mcpServer = mcpServer
 
 	// Create MCP server
-	t.server = server.NewMCPServer("ACM Search MCP Server", "1.0.0")
+	serverConfig := mcpServer.GetConfig()
+	t.server = server.NewMCPServer(serverConfig.AppDisplayName, serverConfig.AppVersion)
 
 	// Register MCP tools
 	if err := t.registerTools(); err != nil {
