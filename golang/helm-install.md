@@ -282,13 +282,9 @@ After successful installation, connect to Claude Code MCP:
 # Get the route URL
 ROUTE_URL=$(oc get route acm-mcp-server -n acm-search -o jsonpath='{.spec.host}')
 
-# Add to Claude Code (authentication disabled)
-claude mcp add --transport http acm-search \
-  "https://$ROUTE_URL/mcp"
-
 # For authenticated setup (when enabled)
 TOKEN=$(oc whoami -t)
-claude mcp add --transport http acm-search \
+claude mcp add --transport http -s project acm-search \
   "https://$ROUTE_URL/mcp" \
   --header "Authorization: Bearer $TOKEN"
 ```

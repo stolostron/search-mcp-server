@@ -281,6 +281,8 @@ func (t *HTTPTransport) handleMCP(w http.ResponseWriter, r *http.Request) {
 	switch method {
 	case "initialize":
 		t.handleInitialize(w, requestID, params)
+	case "notifications/initialized":
+		t.handleNotificationsInitialized(w, requestID)
 	case "tools/list":
 		t.handleToolsList(w, requestID, userCtx)
 	case "tools/call":
@@ -399,6 +401,14 @@ func (t *HTTPTransport) handleInitialize(w http.ResponseWriter, requestID interf
 	}
 
 	t.sendJSONRPCResult(w, requestID, result)
+}
+
+func (t *HTTPTransport) handleNotificationsInitialized(w http.ResponseWriter, requestID interface{}) {
+	// notifications/initialized is a JSON-RPC notification (not a request)
+	// According to JSON-RPC 2.0 spec: "The Server MUST NOT reply to a Notification"
+	// Just acknowledge receipt with HTTP 200 and no response body
+	w.WriteHeader(http.StatusOK)
+	// No JSON response - notifications are fire-and-forget
 }
 
 func (t *HTTPTransport) handleToolsList(w http.ResponseWriter, requestID interface{}, userCtx *auth.UserContext) {
