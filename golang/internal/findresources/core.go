@@ -3,10 +3,12 @@ package findresources
 import (
 	"context"
 	"fmt"
+	"log"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/stolostron/search-mcp-server/internal/server/auth"
 	"github.com/stolostron/search-mcp-server/internal/utils"
 	"github.com/stolostron/search-mcp-server/pkg/database"
 	"github.com/stolostron/search-mcp-server/pkg/types"
@@ -26,7 +28,7 @@ func NewFindResourcesCore(dbQueries *database.DatabaseQueries) *FindResourcesCor
 }
 
 // FindResources is the main entry point for the find_resources tool
-func (f *FindResourcesCore) FindResources(ctx context.Context, args FindResourcesArgs) (*FindResourcesResult, error) {
+func (f *FindResourcesCore) FindResources(ctx context.Context, args FindResourcesArgs, userCtx *auth.UserContext) (*FindResourcesResult, error) {
 	startTime := time.Now()
 
 	// Step 1: Validate arguments
@@ -51,10 +53,10 @@ func (f *FindResourcesCore) FindResources(ctx context.Context, args FindResource
 		}
 	}
 
-	// Step 4: Build SQL query
-	query, err := f.buildQuery(normalizedArgs, targetClusters)
+	// Step 4: Build authorized SQL query with user permissions
+	query, err := f.buildAuthorizedQuery(normalizedArgs, targetClusters, userCtx)
 	if err != nil {
-		return nil, fmt.Errorf("query building failed: %w", err)
+		return nil, fmt.Errorf("authorized query building failed: %w", err)
 	}
 
 	// Step 5: Execute query
@@ -334,6 +336,296 @@ func (f *FindResourcesCore) buildQuery(args FindResourcesArgs, targetClusters []
 		SQL:    sqlQuery.String(),
 		Params: params,
 	}, nil
+}
+
+// buildAuthorizedQuery builds a SQL query with authorization filters applied first
+func (f *FindResourcesCore) buildAuthorizedQuery(args FindResourcesArgs, targetClusters []string, userCtx *auth.UserContext) (*QueryPlan, error) {
+	// Initialize SQL builder for WHERE conditions
+	sqlBuilder := utils.NewSQLBuilder(1) // Start with parameter index 1
+
+	// STEP 1: Apply authorization filters FIRST (before user-requested filters)
+	if userCtx != nil {
+		// When auth is enabled (HTTP with auth), QueryFilters must exist
+		if userCtx.QueryFilters == nil {
+			// SECURITY: Auth was enabled but permission resolution failed
+			// Deny access rather than falling back to unrestricted access
+			return &QueryPlan{
+				SQL:    "SELECT uid, cluster, data FROM search.resources WHERE FALSE", // No results
+				Params: []interface{}{},
+			}, nil
+		}
+
+		// Apply granular RBAC authorization filters
+		if err := f.applyAuthorizationFilters(userCtx.QueryFilters, args.Kind, sqlBuilder); err != nil {
+			return nil, fmt.Errorf("authorization filter failed: %w", err)
+		}
+	}
+	// If userCtx is nil (STDIO transport with no auth), operate without restrictions
+	// This is an explicit design choice for the new feature
+
+	// Base SELECT clause (without FROM - that's added later)
+	var selectClause string
+	if args.OutputMode == OutputModeList {
+		selectClause = "SELECT uid, cluster, data"
+	} else {
+		// For aggregation modes, we still need all data for processing
+		selectClause = "SELECT uid, cluster, data"
+	}
+
+	// STEP 2: Apply user-requested filters (using existing logic from buildQuery)
+
+	// 1. Kind filter
+	if args.Kind != nil {
+		err := f.buildKindConditions(args.Kind, sqlBuilder)
+		if err != nil {
+			return nil, fmt.Errorf("kind filter failed: %w", err)
+		}
+	}
+
+	// 2. Name filter
+	if args.Name != "" {
+		err := f.buildNameConditions(args.Name, sqlBuilder)
+		if err != nil {
+			return nil, fmt.Errorf("name filter failed: %w", err)
+		}
+	}
+
+	// 3. Namespace filter
+	if args.Namespace != nil {
+		err := f.buildNamespaceConditions(args.Namespace, sqlBuilder)
+		if err != nil {
+			return nil, fmt.Errorf("namespace filter failed: %w", err)
+		}
+	}
+
+	// 4. Cluster filter (combine explicit clusters with targetClusters from clusterSelector)
+	clusterList := f.combineClusterFilters(args.Cluster, targetClusters)
+	if len(clusterList) > 0 {
+		err := f.buildClusterConditions(clusterList, sqlBuilder)
+		if err != nil {
+			return nil, fmt.Errorf("cluster filter failed: %w", err)
+		}
+	}
+
+	// 5. Label selector filter
+	if args.LabelSelector != "" {
+		err := f.buildLabelConditions(args.LabelSelector, sqlBuilder)
+		if err != nil {
+			return nil, fmt.Errorf("label selector filter failed: %w", err)
+		}
+	}
+
+	// 6. Status filter
+	if args.Status != nil {
+		err := f.buildStatusConditions(args.Status, args.Kind, sqlBuilder)
+		if err != nil {
+			return nil, fmt.Errorf("status filter failed: %w", err)
+		}
+	}
+
+	// 7. Text search filter
+	if args.TextSearch != "" {
+		err := f.buildTextSearchConditions(args.TextSearch, sqlBuilder)
+		if err != nil {
+			return nil, fmt.Errorf("text search filter failed: %w", err)
+		}
+	}
+
+	// 8. Time filters
+	if args.AgeNewerThan != "" || args.AgeOlderThan != "" {
+		err := f.buildTimeConditions(args.AgeNewerThan, args.AgeOlderThan, sqlBuilder)
+		if err != nil {
+			return nil, fmt.Errorf("time filter failed: %w", err)
+		}
+	}
+
+	// Build complete SQL query
+	var sqlQuery strings.Builder
+	sqlQuery.WriteString(selectClause)
+	sqlQuery.WriteString(" FROM search.resources")
+
+	// Add WHERE clause if there are conditions
+	whereClause, params := sqlBuilder.BuildConditions()
+	if whereClause != "" {
+		sqlQuery.WriteString(" WHERE ")
+		sqlQuery.WriteString(whereClause)
+	}
+
+	// Add ORDER BY clause for list mode
+	if args.OutputMode == OutputModeList {
+		orderBy := f.buildOrderByClause(args.SortBy, args.SortOrder)
+		sqlQuery.WriteString(" ORDER BY ")
+		sqlQuery.WriteString(orderBy)
+
+		// Add LIMIT clause
+		sqlQuery.WriteString(fmt.Sprintf(" LIMIT %d", args.Limit))
+	}
+
+	return &QueryPlan{
+		SQL:    sqlQuery.String(),
+		Params: params,
+	}, nil
+}
+
+// applyAuthorizationFilters applies user authorization filters to the SQL builder
+func (f *FindResourcesCore) applyAuthorizationFilters(filters *auth.QueryFilters, kindFilter interface{}, builder *utils.SQLBuilder) error {
+	// Apply cluster restrictions (if not wildcard)
+	if len(filters.AllowedClusters) > 0 && !f.containsWildcard(filters.AllowedClusters) {
+		clusterConditions := []string{}
+		clusterParams := []interface{}{}
+
+		for _, clusterPattern := range filters.AllowedClusters {
+			if strings.Contains(clusterPattern, "*") {
+				// Wildcard pattern: "prod-*" becomes "cluster LIKE 'prod-%'"
+				likePattern := strings.ReplaceAll(clusterPattern, "*", "%")
+				clusterConditions = append(clusterConditions, "cluster LIKE %s")
+				clusterParams = append(clusterParams, likePattern)
+			} else {
+				// Exact match: "prod-east" becomes "cluster = 'prod-east'"
+				clusterConditions = append(clusterConditions, "cluster = %s")
+				clusterParams = append(clusterParams, clusterPattern)
+			}
+		}
+
+		if len(clusterConditions) > 0 {
+			condition := "(" + strings.Join(clusterConditions, " OR ") + ")"
+			builder.AddCondition(condition, clusterParams...)
+		}
+	}
+
+	// Apply namespace restrictions using resource-specific permissions
+	f.applyNamespaceFiltering(filters, kindFilter, builder)
+
+	// Apply resource kind restrictions (if not wildcard)
+	if len(filters.AllowedResources) > 0 && !f.containsWildcard(filters.AllowedResources) {
+		kindConditions := []string{}
+		kindParams := []interface{}{}
+		kindPath := "data->>'kind'"
+
+		for _, resource := range filters.AllowedResources {
+			kindConditions = append(kindConditions, kindPath+" = %s")
+			kindParams = append(kindParams, resource)
+		}
+
+		if len(kindConditions) > 0 {
+			condition := "(" + strings.Join(kindConditions, " OR ") + ")"
+			builder.AddCondition(condition, kindParams...)
+		}
+	}
+
+	return nil
+}
+
+// applyNamespaceFiltering applies resource-specific namespace filtering
+func (f *FindResourcesCore) applyNamespaceFiltering(filters *auth.QueryFilters, kindFilter interface{}, builder *utils.SQLBuilder) {
+	// Extract the specific resource kinds being queried
+	queriedKinds := f.extractQueriedKinds(kindFilter)
+
+	// For each queried kind, check its specific namespace permissions
+	allowedNamespaces := make(map[string]bool)
+	hasWildcardAccess := false
+
+	for _, kind := range queriedKinds {
+		if filters.HasNamespaceWildcardForResource(kind) {
+			// This specific resource type has wildcard namespace access
+			hasWildcardAccess = true
+			break
+		}
+
+		// Add allowed namespaces for this resource type
+		resourceNamespaces := filters.GetAllowedNamespacesForResource(kind)
+		for _, ns := range resourceNamespaces {
+			if ns != "*" { // Don't add wildcard to the specific namespace list
+				allowedNamespaces[ns] = true
+			}
+		}
+	}
+
+	// If no specific kinds are being queried, fall back to global namespace permissions
+	if len(queriedKinds) == 0 {
+		if len(filters.AllowedNamespaces) > 0 && !f.containsWildcard(filters.AllowedNamespaces) {
+			for _, ns := range filters.AllowedNamespaces {
+				if ns != "*" {
+					allowedNamespaces[ns] = true
+				}
+			}
+		} else {
+			hasWildcardAccess = f.containsWildcard(filters.AllowedNamespaces)
+		}
+	}
+
+	// Apply namespace filtering only if there's no wildcard access
+	if !hasWildcardAccess && len(allowedNamespaces) > 0 {
+		namespaceConditions := []string{}
+		namespaceParams := []interface{}{}
+		namespacePath := "data->>'namespace'"
+
+		for ns := range allowedNamespaces {
+			if strings.Contains(ns, "*") {
+				// Wildcard pattern: "app-*" becomes "data->>'namespace' LIKE 'app-%'"
+				likePattern := strings.ReplaceAll(ns, "*", "%")
+				namespaceConditions = append(namespaceConditions, namespacePath+" LIKE %s")
+				namespaceParams = append(namespaceParams, likePattern)
+			} else {
+				// Exact match: "default" becomes "data->>'namespace' = 'default'"
+				namespaceConditions = append(namespaceConditions, namespacePath+" = %s")
+				namespaceParams = append(namespaceParams, ns)
+			}
+		}
+
+		if len(namespaceConditions) > 0 {
+			condition := "(" + strings.Join(namespaceConditions, " OR ") + ")"
+			builder.AddCondition(condition, namespaceParams...)
+		}
+	}
+
+	// Debug logging
+	if hasWildcardAccess {
+		log.Printf("[RBAC-DEBUG] Wildcard namespace access granted for queried resource types: %v", queriedKinds)
+	} else if len(allowedNamespaces) > 0 {
+		nsSlice := make([]string, 0, len(allowedNamespaces))
+		for ns := range allowedNamespaces {
+			nsSlice = append(nsSlice, ns)
+		}
+		log.Printf("[RBAC-DEBUG] Applying namespace filter for resource types %v: %v", queriedKinds, nsSlice)
+	} else {
+		log.Printf("[RBAC-DEBUG] No namespace permissions found for resource types: %v", queriedKinds)
+	}
+}
+
+// extractQueriedKinds extracts the resource kinds being queried from the kind filter
+func (f *FindResourcesCore) extractQueriedKinds(kindFilter interface{}) []string {
+	if kindFilter == nil {
+		return []string{} // No specific kind filter = querying all kinds
+	}
+
+	switch filter := kindFilter.(type) {
+	case string:
+		return []string{filter}
+	case []string:
+		return filter
+	case []interface{}:
+		var kinds []string
+		for _, k := range filter {
+			if kindStr, ok := k.(string); ok {
+				kinds = append(kinds, kindStr)
+			}
+		}
+		return kinds
+	default:
+		log.Printf("[RBAC-DEBUG] Unknown kind filter type: %T, value: %v", kindFilter, kindFilter)
+		return []string{}
+	}
+}
+
+// containsWildcard checks if a string slice contains "*" wildcard
+func (f *FindResourcesCore) containsWildcard(slice []string) bool {
+	for _, s := range slice {
+		if s == "*" {
+			return true
+		}
+	}
+	return false
 }
 
 // Helper methods for building individual filter conditions will follow...

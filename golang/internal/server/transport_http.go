@@ -229,7 +229,11 @@ func (t *HTTPTransport) registerTools() error {
 		var handler func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error)
 		switch def.Name {
 		case "find_resources":
-			handler = t.handleFindResources
+			// Create wrapper to adapt the signature and extract user context
+			handler = func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+				userCtx := auth.UserFromContext(ctx)
+				return t.handleFindResources(ctx, request, userCtx)
+			}
 		default:
 			log.Printf("Warning: No handler found for tool: %s", def.Name)
 			continue
@@ -295,15 +299,15 @@ func (t *HTTPTransport) handleMCP(w http.ResponseWriter, r *http.Request) {
 // Tool Handlers (reusing the patterns from STDIO transport)
 
 
-func (t *HTTPTransport) handleFindResources(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (t *HTTPTransport) handleFindResources(ctx context.Context, request mcp.CallToolRequest, userCtx *auth.UserContext) (*mcp.CallToolResult, error) {
 	// Parse arguments using shared function (eliminates duplication)
 	args, err := ParseFindResourcesArgs(request)
 	if err != nil {
 		return nil, fmt.Errorf("invalid find_resources arguments: %w", err)
 	}
 
-	// Execute find resources
-	result, err := t.mcpServer.findCore.FindResources(ctx, args)
+	// Execute find resources with user context for authorization filtering
+	result, err := t.mcpServer.findCore.FindResources(ctx, args, userCtx)
 	if err != nil {
 		return nil, fmt.Errorf("find_resources execution failed: %w", err)
 	}
@@ -514,10 +518,11 @@ func (t *HTTPTransport) handleToolsCall(w http.ResponseWriter, requestID interfa
 	var result *mcp.CallToolResult
 	var err error
 
+	// Use context that can carry user information if needed
 	ctx := context.Background()
 	switch name {
 	case "find_resources":
-		result, err = t.handleFindResources(ctx, mcpRequest)
+		result, err = t.handleFindResources(ctx, mcpRequest, userCtx)
 	default:
 		t.sendJSONRPCError(w, requestID, -32601, fmt.Sprintf("Unknown tool: %s", name), http.StatusNotFound)
 		return
@@ -538,7 +543,6 @@ func (t *HTTPTransport) handleToolsCall(w http.ResponseWriter, requestID interfa
 
 	t.sendJSONRPCResult(w, requestID, jsonResult)
 }
-
 
 
 // Middleware and utility functions

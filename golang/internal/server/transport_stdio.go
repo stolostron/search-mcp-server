@@ -127,8 +127,8 @@ func (t *STDIOTransport) handleFindResources(ctx context.Context, request mcp.Ca
 		return nil, fmt.Errorf("invalid find_resources arguments: %w", err)
 	}
 
-	// Execute find resources
-	result, err := t.mcpServer.findCore.FindResources(ctx, args)
+	// Execute find resources (STDIO transport has no auth middleware, so userCtx is nil)
+	result, err := t.mcpServer.findCore.FindResources(ctx, args, nil)
 	if err != nil {
 		t.errorCount++
 		return nil, fmt.Errorf("find_resources execution failed: %w", err)
