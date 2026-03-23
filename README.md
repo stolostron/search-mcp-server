@@ -46,9 +46,11 @@ export ROUTE_URL=$(oc get route acm-search-mcp-server-route -n acm-search -o jso
 # Option A: HTTPS Route (requires certificate handling)
 # this env has to be exported if using the https route
 export NODE_TLS_REJECT_UNAUTHORIZED=0
-claude mcp add --env NODE_TLS_REJECT_UNAUTHORIZED=0 --scope project \
-  --transport sse acm-search \
-  https://$ROUTE_URL/sse \
+claude mcp add \
+  --transport http \
+  --scope project \
+  acm-search \
+  https://$ROUTE_URL/mcp \
   --header "Authorization: Bearer $TOKEN"
 
 # Option B: HTTP Port-forward (no certificate issues)
