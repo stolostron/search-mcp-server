@@ -1,0 +1,1665 @@
+go test ./test/integration -v -tags=integration
+=== RUN   TestAuthMiddlewareIntegration
+=== RUN   TestAuthMiddlewareIntegration/cluster_admin_authentication
+2026/03/23 16:24:04 [AUTH] POST /mcp - Checking authorization
+2026/03/23 16:24:04 [RBAC-DEBUG] Starting permission resolution for user token (first 20 chars): Bearer cluster-admin...
+2026/03/23 16:24:04 [RBAC-DEBUG] Initialized resource discovery with user token
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API CALL ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Calling userpermission.GetSelfPermissionRules with:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Host: https://127.0.0.1:63039
+2026/03/23 16:24:04 [RBAC-DEBUG]   BearerToken: cluster-admin-token... (first 20 chars)
+2026/03/23 16:24:04 [RBAC-DEBUG]   Timeout: 5s
+2026/03/23 16:24:04 [RBAC-DEBUG]   TLS Insecure: true
+2026/03/23 16:24:04 [RBAC-DEBUG]   Interested Verbs: [get, list] (read-only access)
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API RESPONSE ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Raw UserPermission API returned 1 permission rules
+2026/03/23 16:24:04 [RBAC-DEBUG] UserPermission Rule[0]:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Verbs: [get list]
+2026/03/23 16:24:04 [RBAC-DEBUG]   APIGroups: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resources: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   ResourceNames: []
+2026/03/23 16:24:04 [RBAC-DEBUG]   Clusters: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Namespaces: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   ----
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-DEBUG] Converting UserPermission rule 0 to PermissionRule format
+2026/03/23 16:24:04 [RBAC-DEBUG] ✅ Converted rule 0: verbs=[get list], groups=[*], resources=[*], clusters=[*], namespaces=[*]
+2026/03/23 16:24:04 [RBAC-DEBUG] Total permissions discovered via UserPermission API: 1 rules
+2026/03/23 16:24:04 [RBAC-DEBUG] Raw permissions discovered: 1 rules
+2026/03/23 16:24:04 [RBAC-DEBUG] Permission[0]: Verbs=[get list], APIGroups=[*], Resources=[*], Clusters=[*], Namespaces=[*]
+2026/03/23 16:24:04 [RBAC-DEBUG] Converting 1 permission rules to query filters
+2026/03/23 16:24:04 [RBAC-DEBUG] Processing permission rule 0:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Verbs: [get list]
+2026/03/23 16:24:04 [RBAC-DEBUG]   APIGroups: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resources: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Clusters: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Namespaces: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding cluster: *
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding namespace: *
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Getting kind for resource: * (group: *)
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Starting live resource discovery...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Calling ServerPreferredResources()...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery returned partial results: unable to retrieve the complete list of server APIs: cluster.open-cluster-management.io/v1alpha1: not found, clusterview.open-cluster-management.io/v1alpha1: no kind "UserPermissionList" is registered for version "clusterview.open-cluster-management.io/v1alpha1" in scheme "pkg/runtime/scheme.go:110"
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Processing API group: v1
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery complete: 0 resource mappings found
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Cache updated with 0 resource mappings (TTL: 1h0m0s)
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ⚠️  Algorithmic fallback: * → *
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ❌ Algorithmic fallback: */* → * (discovery failed)
+2026/03/23 16:24:04 [RBAC-DEBUG]   Mapped */* → Kind: *
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource * can access namespace: *
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource * allowed namespaces: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG] Final query filters:
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedClusters (1): [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedNamespaces (1): [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedResources (1): [*]
+2026/03/23 16:24:04 [RBAC] Resolved 1 permission rules, filters: clusters=1, namespaces=1, resources=1
+2026/03/23 16:24:04 [RBAC] Successfully resolved permissions for user system:admin: clusters=[*], namespaces=[*], resources=[*]
+2026/03/23 16:24:04 [AUTH] Access granted for user: system:admin (via Authorization header)
+=== RUN   TestAuthMiddlewareIntegration/developer_authentication
+2026/03/23 16:24:04 [AUTH] POST /mcp - Checking authorization
+2026/03/23 16:24:04 [RBAC-DEBUG] Starting permission resolution for user token (first 20 chars): Bearer developer-tok...
+2026/03/23 16:24:04 [RBAC-DEBUG] Initialized resource discovery with user token
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API CALL ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Calling userpermission.GetSelfPermissionRules with:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Host: https://127.0.0.1:63039
+2026/03/23 16:24:04 [RBAC-DEBUG]   BearerToken: developer-token... (first 20 chars)
+2026/03/23 16:24:04 [RBAC-DEBUG]   Timeout: 5s
+2026/03/23 16:24:04 [RBAC-DEBUG]   TLS Insecure: true
+2026/03/23 16:24:04 [RBAC-DEBUG]   Interested Verbs: [get, list] (read-only access)
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API RESPONSE ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Raw UserPermission API returned 2 permission rules
+2026/03/23 16:24:04 [RBAC-DEBUG] UserPermission Rule[0]:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Verbs: [get list]
+2026/03/23 16:24:04 [RBAC-DEBUG]   APIGroups: []
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resources: [configmaps]
+2026/03/23 16:24:04 [RBAC-DEBUG]   ResourceNames: []
+2026/03/23 16:24:04 [RBAC-DEBUG]   Clusters: [dev-cluster]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Namespaces: [my-app]
+2026/03/23 16:24:04 [RBAC-DEBUG]   ----
+2026/03/23 16:24:04 [RBAC-DEBUG] UserPermission Rule[1]:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Verbs: [get list]
+2026/03/23 16:24:04 [RBAC-DEBUG]   APIGroups: []
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resources: [pods services]
+2026/03/23 16:24:04 [RBAC-DEBUG]   ResourceNames: []
+2026/03/23 16:24:04 [RBAC-DEBUG]   Clusters: [dev-cluster]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Namespaces: [my-app shared-tools]
+2026/03/23 16:24:04 [RBAC-DEBUG]   ----
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-DEBUG] Converting UserPermission rule 0 to PermissionRule format
+2026/03/23 16:24:04 [RBAC-DEBUG] ✅ Converted rule 0: verbs=[get list], groups=[], resources=[configmaps], clusters=[dev-cluster], namespaces=[my-app]
+2026/03/23 16:24:04 [RBAC-DEBUG] Converting UserPermission rule 1 to PermissionRule format
+2026/03/23 16:24:04 [RBAC-DEBUG] ✅ Converted rule 1: verbs=[get list], groups=[], resources=[pods services], clusters=[dev-cluster], namespaces=[my-app shared-tools]
+2026/03/23 16:24:04 [RBAC-DEBUG] Total permissions discovered via UserPermission API: 2 rules
+2026/03/23 16:24:04 [RBAC-DEBUG] Raw permissions discovered: 2 rules
+2026/03/23 16:24:04 [RBAC-DEBUG] Permission[0]: Verbs=[get list], APIGroups=[], Resources=[configmaps], Clusters=[dev-cluster], Namespaces=[my-app]
+2026/03/23 16:24:04 [RBAC-DEBUG] Permission[1]: Verbs=[get list], APIGroups=[], Resources=[pods services], Clusters=[dev-cluster], Namespaces=[my-app shared-tools]
+2026/03/23 16:24:04 [RBAC-DEBUG] Converting 2 permission rules to query filters
+2026/03/23 16:24:04 [RBAC-DEBUG] Processing permission rule 0:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Verbs: [get list]
+2026/03/23 16:24:04 [RBAC-DEBUG]   APIGroups: []
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resources: [configmaps]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Clusters: [dev-cluster]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Namespaces: [my-app]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding cluster: dev-cluster
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding namespace: my-app
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Getting kind for resource: configmaps (group: )
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Starting live resource discovery...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Calling ServerPreferredResources()...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery returned partial results: unable to retrieve the complete list of server APIs: cluster.open-cluster-management.io/v1alpha1: not found, clusterview.open-cluster-management.io/v1alpha1: no kind "UserPermissionList" is registered for version "clusterview.open-cluster-management.io/v1alpha1" in scheme "pkg/runtime/scheme.go:110"
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Processing API group: v1
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery complete: 0 resource mappings found
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Cache updated with 0 resource mappings (TTL: 1h0m0s)
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ✅ Hardcoded fallback: configmaps → ConfigMap
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ⚠️  Hardcoded fallback: /configmaps → ConfigMap
+2026/03/23 16:24:04 [RBAC-DEBUG]   Mapped /configmaps → Kind: ConfigMap
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource ConfigMap can access namespace: my-app
+2026/03/23 16:24:04 [RBAC-DEBUG] Processing permission rule 1:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Verbs: [get list]
+2026/03/23 16:24:04 [RBAC-DEBUG]   APIGroups: []
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resources: [pods services]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Clusters: [dev-cluster]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Namespaces: [my-app shared-tools]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding cluster: dev-cluster
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding namespace: my-app
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding namespace: shared-tools
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Getting kind for resource: pods (group: )
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Starting live resource discovery...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Calling ServerPreferredResources()...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery returned partial results: unable to retrieve the complete list of server APIs: cluster.open-cluster-management.io/v1alpha1: not found, clusterview.open-cluster-management.io/v1alpha1: no kind "UserPermissionList" is registered for version "clusterview.open-cluster-management.io/v1alpha1" in scheme "pkg/runtime/scheme.go:110"
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Processing API group: v1
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery complete: 0 resource mappings found
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Cache updated with 0 resource mappings (TTL: 1h0m0s)
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ✅ Hardcoded fallback: pods → Pod
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ⚠️  Hardcoded fallback: /pods → Pod
+2026/03/23 16:24:04 [RBAC-DEBUG]   Mapped /pods → Kind: Pod
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Pod can access namespace: my-app
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Pod can access namespace: shared-tools
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Getting kind for resource: services (group: )
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Starting live resource discovery...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Calling ServerPreferredResources()...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery returned partial results: unable to retrieve the complete list of server APIs: cluster.open-cluster-management.io/v1alpha1: not found, clusterview.open-cluster-management.io/v1alpha1: no kind "UserPermissionList" is registered for version "clusterview.open-cluster-management.io/v1alpha1" in scheme "pkg/runtime/scheme.go:110"
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Processing API group: v1
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery complete: 0 resource mappings found
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Cache updated with 0 resource mappings (TTL: 1h0m0s)
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ✅ Hardcoded fallback: services → Service
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ⚠️  Hardcoded fallback: /services → Service
+2026/03/23 16:24:04 [RBAC-DEBUG]   Mapped /services → Kind: Service
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Service can access namespace: my-app
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Service can access namespace: shared-tools
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Service allowed namespaces: [my-app shared-tools]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource ConfigMap allowed namespaces: [my-app]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Pod allowed namespaces: [my-app shared-tools]
+2026/03/23 16:24:04 [RBAC-DEBUG] Final query filters:
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedClusters (1): [dev-cluster]
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedNamespaces (2): [my-app shared-tools]
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedResources (3): [ConfigMap Pod Service]
+2026/03/23 16:24:04 [RBAC] Resolved 2 permission rules, filters: clusters=1, namespaces=2, resources=3
+2026/03/23 16:24:04 [RBAC] Successfully resolved permissions for user alice-developer: clusters=[dev-cluster], namespaces=[my-app shared-tools], resources=[ConfigMap Pod Service]
+2026/03/23 16:24:04 [AUTH] Access granted for user: alice-developer (via Authorization header)
+=== RUN   TestAuthMiddlewareIntegration/namespace_admin_authentication
+2026/03/23 16:24:04 [AUTH] POST /mcp - Checking authorization
+2026/03/23 16:24:04 [RBAC-DEBUG] Starting permission resolution for user token (first 20 chars): Bearer namespace-adm...
+2026/03/23 16:24:04 [RBAC-DEBUG] Initialized resource discovery with user token
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API CALL ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Calling userpermission.GetSelfPermissionRules with:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Host: https://127.0.0.1:63039
+2026/03/23 16:24:04 [RBAC-DEBUG]   BearerToken: namespace-admin-toke... (first 20 chars)
+2026/03/23 16:24:04 [RBAC-DEBUG]   Timeout: 5s
+2026/03/23 16:24:04 [RBAC-DEBUG]   TLS Insecure: true
+2026/03/23 16:24:04 [RBAC-DEBUG]   Interested Verbs: [get, list] (read-only access)
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API RESPONSE ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Raw UserPermission API returned 1 permission rules
+2026/03/23 16:24:04 [RBAC-DEBUG] UserPermission Rule[0]:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Verbs: [get list]
+2026/03/23 16:24:04 [RBAC-DEBUG]   APIGroups: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resources: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   ResourceNames: []
+2026/03/23 16:24:04 [RBAC-DEBUG]   Clusters: [prod-cluster]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Namespaces: [app-frontend app-backend]
+2026/03/23 16:24:04 [RBAC-DEBUG]   ----
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-DEBUG] Converting UserPermission rule 0 to PermissionRule format
+2026/03/23 16:24:04 [RBAC-DEBUG] ✅ Converted rule 0: verbs=[get list], groups=[*], resources=[*], clusters=[prod-cluster], namespaces=[app-frontend app-backend]
+2026/03/23 16:24:04 [RBAC-DEBUG] Total permissions discovered via UserPermission API: 1 rules
+2026/03/23 16:24:04 [RBAC-DEBUG] Raw permissions discovered: 1 rules
+2026/03/23 16:24:04 [RBAC-DEBUG] Permission[0]: Verbs=[get list], APIGroups=[*], Resources=[*], Clusters=[prod-cluster], Namespaces=[app-frontend app-backend]
+2026/03/23 16:24:04 [RBAC-DEBUG] Converting 1 permission rules to query filters
+2026/03/23 16:24:04 [RBAC-DEBUG] Processing permission rule 0:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Verbs: [get list]
+2026/03/23 16:24:04 [RBAC-DEBUG]   APIGroups: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resources: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Clusters: [prod-cluster]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Namespaces: [app-frontend app-backend]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding cluster: prod-cluster
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding namespace: app-frontend
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding namespace: app-backend
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Getting kind for resource: * (group: *)
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Starting live resource discovery...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Calling ServerPreferredResources()...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery returned partial results: unable to retrieve the complete list of server APIs: cluster.open-cluster-management.io/v1alpha1: not found, clusterview.open-cluster-management.io/v1alpha1: no kind "UserPermissionList" is registered for version "clusterview.open-cluster-management.io/v1alpha1" in scheme "pkg/runtime/scheme.go:110"
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Processing API group: v1
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery complete: 0 resource mappings found
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Cache updated with 0 resource mappings (TTL: 1h0m0s)
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ⚠️  Algorithmic fallback: * → *
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ❌ Algorithmic fallback: */* → * (discovery failed)
+2026/03/23 16:24:04 [RBAC-DEBUG]   Mapped */* → Kind: *
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource * can access namespace: app-frontend
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource * can access namespace: app-backend
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource * allowed namespaces: [app-frontend app-backend]
+2026/03/23 16:24:04 [RBAC-DEBUG] Final query filters:
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedClusters (1): [prod-cluster]
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedNamespaces (2): [app-frontend app-backend]
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedResources (1): [*]
+2026/03/23 16:24:04 [RBAC] Resolved 1 permission rules, filters: clusters=1, namespaces=2, resources=1
+2026/03/23 16:24:04 [RBAC] Successfully resolved permissions for user bob-admin: clusters=[prod-cluster], namespaces=[app-frontend app-backend], resources=[*]
+2026/03/23 16:24:04 [AUTH] Access granted for user: bob-admin (via Authorization header)
+=== RUN   TestAuthMiddlewareIntegration/readonly_user_authentication
+2026/03/23 16:24:04 [AUTH] POST /mcp - Checking authorization
+2026/03/23 16:24:04 [RBAC-DEBUG] Starting permission resolution for user token (first 20 chars): Bearer readonly-toke...
+2026/03/23 16:24:04 [RBAC-DEBUG] Initialized resource discovery with user token
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API CALL ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Calling userpermission.GetSelfPermissionRules with:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Host: https://127.0.0.1:63039
+2026/03/23 16:24:04 [RBAC-DEBUG]   BearerToken: readonly-token... (first 20 chars)
+2026/03/23 16:24:04 [RBAC-DEBUG]   Timeout: 5s
+2026/03/23 16:24:04 [RBAC-DEBUG]   TLS Insecure: true
+2026/03/23 16:24:04 [RBAC-DEBUG]   Interested Verbs: [get, list] (read-only access)
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API RESPONSE ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Raw UserPermission API returned 1 permission rules
+2026/03/23 16:24:04 [RBAC-DEBUG] UserPermission Rule[0]:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Verbs: [get list]
+2026/03/23 16:24:04 [RBAC-DEBUG]   APIGroups: []
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resources: [pods services events]
+2026/03/23 16:24:04 [RBAC-DEBUG]   ResourceNames: []
+2026/03/23 16:24:04 [RBAC-DEBUG]   Clusters: [monitoring-cluster vm-cluster]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Namespaces: [monitoring prometheus grafana *]
+2026/03/23 16:24:04 [RBAC-DEBUG]   ----
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-DEBUG] Converting UserPermission rule 0 to PermissionRule format
+2026/03/23 16:24:04 [RBAC-DEBUG] ✅ Converted rule 0: verbs=[get list], groups=[], resources=[pods services events], clusters=[monitoring-cluster vm-cluster], namespaces=[monitoring prometheus grafana *]
+2026/03/23 16:24:04 [RBAC-DEBUG] Total permissions discovered via UserPermission API: 1 rules
+2026/03/23 16:24:04 [RBAC-DEBUG] Raw permissions discovered: 1 rules
+2026/03/23 16:24:04 [RBAC-DEBUG] Permission[0]: Verbs=[get list], APIGroups=[], Resources=[pods services events], Clusters=[monitoring-cluster vm-cluster], Namespaces=[monitoring prometheus grafana *]
+2026/03/23 16:24:04 [RBAC-DEBUG] Converting 1 permission rules to query filters
+2026/03/23 16:24:04 [RBAC-DEBUG] Processing permission rule 0:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Verbs: [get list]
+2026/03/23 16:24:04 [RBAC-DEBUG]   APIGroups: []
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resources: [pods services events]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Clusters: [monitoring-cluster vm-cluster]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Namespaces: [monitoring prometheus grafana *]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding cluster: monitoring-cluster
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding cluster: vm-cluster
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding namespace: monitoring
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding namespace: prometheus
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding namespace: grafana
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding namespace: *
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Getting kind for resource: pods (group: )
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Starting live resource discovery...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Calling ServerPreferredResources()...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery returned partial results: unable to retrieve the complete list of server APIs: cluster.open-cluster-management.io/v1alpha1: not found, clusterview.open-cluster-management.io/v1alpha1: no kind "UserPermissionList" is registered for version "clusterview.open-cluster-management.io/v1alpha1" in scheme "pkg/runtime/scheme.go:110"
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Processing API group: v1
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery complete: 0 resource mappings found
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Cache updated with 0 resource mappings (TTL: 1h0m0s)
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ✅ Hardcoded fallback: pods → Pod
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ⚠️  Hardcoded fallback: /pods → Pod
+2026/03/23 16:24:04 [RBAC-DEBUG]   Mapped /pods → Kind: Pod
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Pod can access namespace: monitoring
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Pod can access namespace: prometheus
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Pod can access namespace: grafana
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Pod can access namespace: *
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Getting kind for resource: services (group: )
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Starting live resource discovery...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Calling ServerPreferredResources()...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery returned partial results: unable to retrieve the complete list of server APIs: cluster.open-cluster-management.io/v1alpha1: not found, clusterview.open-cluster-management.io/v1alpha1: no kind "UserPermissionList" is registered for version "clusterview.open-cluster-management.io/v1alpha1" in scheme "pkg/runtime/scheme.go:110"
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Processing API group: v1
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery complete: 0 resource mappings found
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Cache updated with 0 resource mappings (TTL: 1h0m0s)
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ✅ Hardcoded fallback: services → Service
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ⚠️  Hardcoded fallback: /services → Service
+2026/03/23 16:24:04 [RBAC-DEBUG]   Mapped /services → Kind: Service
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Service can access namespace: monitoring
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Service can access namespace: prometheus
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Service can access namespace: grafana
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Service can access namespace: *
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Getting kind for resource: events (group: )
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Starting live resource discovery...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Calling ServerPreferredResources()...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery returned partial results: unable to retrieve the complete list of server APIs: cluster.open-cluster-management.io/v1alpha1: not found, clusterview.open-cluster-management.io/v1alpha1: no kind "UserPermissionList" is registered for version "clusterview.open-cluster-management.io/v1alpha1" in scheme "pkg/runtime/scheme.go:110"
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Processing API group: v1
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery complete: 0 resource mappings found
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Cache updated with 0 resource mappings (TTL: 1h0m0s)
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ✅ Hardcoded fallback: events → Event
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ⚠️  Hardcoded fallback: /events → Event
+2026/03/23 16:24:04 [RBAC-DEBUG]   Mapped /events → Kind: Event
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Event can access namespace: monitoring
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Event can access namespace: prometheus
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Event can access namespace: grafana
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Event can access namespace: *
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Event allowed namespaces: [monitoring prometheus grafana *]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Pod allowed namespaces: [monitoring prometheus grafana *]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Service allowed namespaces: [prometheus grafana * monitoring]
+2026/03/23 16:24:04 [RBAC-DEBUG] Final query filters:
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedClusters (2): [monitoring-cluster vm-cluster]
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedNamespaces (4): [monitoring prometheus grafana *]
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedResources (3): [Pod Service Event]
+2026/03/23 16:24:04 [RBAC] Resolved 1 permission rules, filters: clusters=2, namespaces=4, resources=3
+2026/03/23 16:24:04 [RBAC] Successfully resolved permissions for user monitor-user: clusters=[monitoring-cluster vm-cluster], namespaces=[monitoring prometheus grafana *], resources=[Pod Service Event]
+2026/03/23 16:24:04 [AUTH] Access granted for user: monitor-user (via Authorization header)
+=== RUN   TestAuthMiddlewareIntegration/invalid_token_rejection
+2026/03/23 16:24:04 [AUTH] POST /mcp - Checking authorization
+2026/03/23 16:24:04 [AUTH] Token validation failed: Token not authenticated by Kubernetes API
+=== RUN   TestAuthMiddlewareIntegration/missing_authorization_header
+2026/03/23 16:24:04 [AUTH] POST /mcp - Checking authorization
+2026/03/23 16:24:04 [AUTH] Missing authorization header
+=== RUN   TestAuthMiddlewareIntegration/no_permissions_token
+2026/03/23 16:24:04 [AUTH] POST /mcp - Checking authorization
+2026/03/23 16:24:04 [RBAC-DEBUG] Starting permission resolution for user token (first 20 chars): Bearer no-permission...
+2026/03/23 16:24:04 [RBAC-DEBUG] Initialized resource discovery with user token
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API CALL ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Calling userpermission.GetSelfPermissionRules with:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Host: https://127.0.0.1:63039
+2026/03/23 16:24:04 [RBAC-DEBUG]   BearerToken: no-permissions-token... (first 20 chars)
+2026/03/23 16:24:04 [RBAC-DEBUG]   Timeout: 5s
+2026/03/23 16:24:04 [RBAC-DEBUG]   TLS Insecure: true
+2026/03/23 16:24:04 [RBAC-DEBUG]   Interested Verbs: [get, list] (read-only access)
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API RESPONSE ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Raw UserPermission API returned 0 permission rules
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-DEBUG] Total permissions discovered via UserPermission API: 0 rules
+2026/03/23 16:24:04 [RBAC-DEBUG] Raw permissions discovered: 0 rules
+2026/03/23 16:24:04 [RBAC-DEBUG] Converting 0 permission rules to query filters
+2026/03/23 16:24:04 [RBAC-DEBUG] Final query filters:
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedClusters (0): []
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedNamespaces (0): []
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedResources (0): []
+2026/03/23 16:24:04 [RBAC-DEBUG] No permissions found - returning empty filters (access denied)
+2026/03/23 16:24:04 [RBAC] Resolved 0 permission rules, filters: clusters=0, namespaces=0, resources=0
+2026/03/23 16:24:04 [RBAC] No ACM permissions found for user: no-access-user - denying access
+=== RUN   TestAuthMiddlewareIntegration/kubernetes_api_failure_simulation
+2026/03/23 16:24:04 [AUTH] POST /mcp - Checking authorization
+2026/03/23 16:24:04 [RBAC-DEBUG] Starting permission resolution for user token (first 20 chars): Bearer auth-failure-...
+2026/03/23 16:24:04 [RBAC-DEBUG] Initialized resource discovery with user token
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API CALL ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Calling userpermission.GetSelfPermissionRules with:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Host: https://127.0.0.1:63039
+2026/03/23 16:24:04 [RBAC-DEBUG]   BearerToken: auth-failure-token... (first 20 chars)
+2026/03/23 16:24:04 [RBAC-DEBUG]   Timeout: 5s
+2026/03/23 16:24:04 [RBAC-DEBUG]   TLS Insecure: true
+2026/03/23 16:24:04 [RBAC-DEBUG]   Interested Verbs: [get, list] (read-only access)
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-SECURITY] Failed to get UserPermission rules: an error on the server ("Internal server error") has prevented the request from succeeding (get userpermissions.clusterview.open-cluster-management.io)
+2026/03/23 16:24:04 [RBAC-SECURITY] FAIL-SECURE: Denying access due to UserPermission API failure
+2026/03/23 16:24:04 [RBAC-SECURITY] Permission resolution failed for user token, denying access: UserPermission API failed, access denied for security: an error on the server ("Internal server error") has prevented the request from succeeding (get userpermissions.clusterview.open-cluster-management.io)
+2026/03/23 16:24:04 [RBAC-SECURITY] This is a security-first design choice - K8s API failures result in access denial
+2026/03/23 16:24:04 [RBAC-SECURITY] Permission resolution failed for user auth-fail-user, denying access: permission resolution failed, access denied for security: UserPermission API failed, access denied for security: an error on the server ("Internal server error") has prevented the request from succeeding (get userpermissions.clusterview.open-cluster-management.io)
+2026/03/23 16:24:04 [RBAC-SECURITY] Security-first design: K8s API failures result in authentication failure
+=== RUN   TestAuthMiddlewareIntegration/kubernetes_authorization_header
+2026/03/23 16:24:04 [AUTH] POST /mcp - Checking authorization
+2026/03/23 16:24:04 [RBAC-DEBUG] Starting permission resolution for user token (first 20 chars): Bearer cluster-admin...
+2026/03/23 16:24:04 [RBAC-DEBUG] Initialized resource discovery with user token
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API CALL ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Calling userpermission.GetSelfPermissionRules with:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Host: https://127.0.0.1:63039
+2026/03/23 16:24:04 [RBAC-DEBUG]   BearerToken: cluster-admin-token... (first 20 chars)
+2026/03/23 16:24:04 [RBAC-DEBUG]   Timeout: 5s
+2026/03/23 16:24:04 [RBAC-DEBUG]   TLS Insecure: true
+2026/03/23 16:24:04 [RBAC-DEBUG]   Interested Verbs: [get, list] (read-only access)
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API RESPONSE ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Raw UserPermission API returned 1 permission rules
+2026/03/23 16:24:04 [RBAC-DEBUG] UserPermission Rule[0]:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Verbs: [get list]
+2026/03/23 16:24:04 [RBAC-DEBUG]   APIGroups: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resources: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   ResourceNames: []
+2026/03/23 16:24:04 [RBAC-DEBUG]   Clusters: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Namespaces: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   ----
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-DEBUG] Converting UserPermission rule 0 to PermissionRule format
+2026/03/23 16:24:04 [RBAC-DEBUG] ✅ Converted rule 0: verbs=[get list], groups=[*], resources=[*], clusters=[*], namespaces=[*]
+2026/03/23 16:24:04 [RBAC-DEBUG] Total permissions discovered via UserPermission API: 1 rules
+2026/03/23 16:24:04 [RBAC-DEBUG] Raw permissions discovered: 1 rules
+2026/03/23 16:24:04 [RBAC-DEBUG] Permission[0]: Verbs=[get list], APIGroups=[*], Resources=[*], Clusters=[*], Namespaces=[*]
+2026/03/23 16:24:04 [RBAC-DEBUG] Converting 1 permission rules to query filters
+2026/03/23 16:24:04 [RBAC-DEBUG] Processing permission rule 0:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Verbs: [get list]
+2026/03/23 16:24:04 [RBAC-DEBUG]   APIGroups: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resources: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Clusters: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Namespaces: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding cluster: *
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding namespace: *
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Getting kind for resource: * (group: *)
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Starting live resource discovery...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Calling ServerPreferredResources()...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery returned partial results: unable to retrieve the complete list of server APIs: cluster.open-cluster-management.io/v1alpha1: not found, clusterview.open-cluster-management.io/v1alpha1: no kind "UserPermissionList" is registered for version "clusterview.open-cluster-management.io/v1alpha1" in scheme "pkg/runtime/scheme.go:110"
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Processing API group: v1
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery complete: 0 resource mappings found
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Cache updated with 0 resource mappings (TTL: 1h0m0s)
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ⚠️  Algorithmic fallback: * → *
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ❌ Algorithmic fallback: */* → * (discovery failed)
+2026/03/23 16:24:04 [RBAC-DEBUG]   Mapped */* → Kind: *
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource * can access namespace: *
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource * allowed namespaces: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG] Final query filters:
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedClusters (1): [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedNamespaces (1): [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedResources (1): [*]
+2026/03/23 16:24:04 [RBAC] Resolved 1 permission rules, filters: clusters=1, namespaces=1, resources=1
+2026/03/23 16:24:04 [RBAC] Successfully resolved permissions for user system:admin: clusters=[*], namespaces=[*], resources=[*]
+2026/03/23 16:24:04 [AUTH] Access granted for user: system:admin (via kubernetes-authorization header)
+=== RUN   TestAuthMiddlewareIntegration/health_endpoint_bypass
+--- PASS: TestAuthMiddlewareIntegration (0.02s)
+    --- PASS: TestAuthMiddlewareIntegration/cluster_admin_authentication (0.01s)
+    --- PASS: TestAuthMiddlewareIntegration/developer_authentication (0.00s)
+    --- PASS: TestAuthMiddlewareIntegration/namespace_admin_authentication (0.00s)
+    --- PASS: TestAuthMiddlewareIntegration/readonly_user_authentication (0.00s)
+    --- PASS: TestAuthMiddlewareIntegration/invalid_token_rejection (0.00s)
+    --- PASS: TestAuthMiddlewareIntegration/missing_authorization_header (0.00s)
+    --- PASS: TestAuthMiddlewareIntegration/no_permissions_token (0.00s)
+    --- PASS: TestAuthMiddlewareIntegration/kubernetes_api_failure_simulation (0.00s)
+    --- PASS: TestAuthMiddlewareIntegration/kubernetes_authorization_header (0.00s)
+    --- PASS: TestAuthMiddlewareIntegration/health_endpoint_bypass (0.00s)
+=== RUN   TestAuthMiddlewareDisabled
+=== RUN   TestAuthMiddlewareDisabled/disabled_auth_allows_access
+--- PASS: TestAuthMiddlewareDisabled (0.00s)
+    --- PASS: TestAuthMiddlewareDisabled/disabled_auth_allows_access (0.00s)
+=== RUN   TestAuthMiddlewareTokenCaching
+=== RUN   TestAuthMiddlewareTokenCaching/token_caching_works
+2026/03/23 16:24:04 [AUTH] POST /mcp - Checking authorization
+2026/03/23 16:24:04 [RBAC-DEBUG] Starting permission resolution for user token (first 20 chars): Bearer cluster-admin...
+2026/03/23 16:24:04 [RBAC-DEBUG] Initialized resource discovery with user token
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API CALL ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Calling userpermission.GetSelfPermissionRules with:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Host: https://127.0.0.1:63047
+2026/03/23 16:24:04 [RBAC-DEBUG]   BearerToken: cluster-admin-token... (first 20 chars)
+2026/03/23 16:24:04 [RBAC-DEBUG]   Timeout: 5s
+2026/03/23 16:24:04 [RBAC-DEBUG]   TLS Insecure: true
+2026/03/23 16:24:04 [RBAC-DEBUG]   Interested Verbs: [get, list] (read-only access)
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API RESPONSE ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Raw UserPermission API returned 1 permission rules
+2026/03/23 16:24:04 [RBAC-DEBUG] UserPermission Rule[0]:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Verbs: [get list]
+2026/03/23 16:24:04 [RBAC-DEBUG]   APIGroups: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resources: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   ResourceNames: []
+2026/03/23 16:24:04 [RBAC-DEBUG]   Clusters: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Namespaces: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   ----
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-DEBUG] Converting UserPermission rule 0 to PermissionRule format
+2026/03/23 16:24:04 [RBAC-DEBUG] ✅ Converted rule 0: verbs=[get list], groups=[*], resources=[*], clusters=[*], namespaces=[*]
+2026/03/23 16:24:04 [RBAC-DEBUG] Total permissions discovered via UserPermission API: 1 rules
+2026/03/23 16:24:04 [RBAC-DEBUG] Raw permissions discovered: 1 rules
+2026/03/23 16:24:04 [RBAC-DEBUG] Permission[0]: Verbs=[get list], APIGroups=[*], Resources=[*], Clusters=[*], Namespaces=[*]
+2026/03/23 16:24:04 [RBAC-DEBUG] Converting 1 permission rules to query filters
+2026/03/23 16:24:04 [RBAC-DEBUG] Processing permission rule 0:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Verbs: [get list]
+2026/03/23 16:24:04 [RBAC-DEBUG]   APIGroups: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resources: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Clusters: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Namespaces: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding cluster: *
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding namespace: *
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Getting kind for resource: * (group: *)
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Starting live resource discovery...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Calling ServerPreferredResources()...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery returned partial results: unable to retrieve the complete list of server APIs: cluster.open-cluster-management.io/v1alpha1: not found, clusterview.open-cluster-management.io/v1alpha1: no kind "UserPermissionList" is registered for version "clusterview.open-cluster-management.io/v1alpha1" in scheme "pkg/runtime/scheme.go:110"
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Processing API group: v1
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery complete: 0 resource mappings found
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Cache updated with 0 resource mappings (TTL: 1h0m0s)
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ⚠️  Algorithmic fallback: * → *
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ❌ Algorithmic fallback: */* → * (discovery failed)
+2026/03/23 16:24:04 [RBAC-DEBUG]   Mapped */* → Kind: *
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource * can access namespace: *
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource * allowed namespaces: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG] Final query filters:
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedClusters (1): [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedNamespaces (1): [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedResources (1): [*]
+2026/03/23 16:24:04 [RBAC] Resolved 1 permission rules, filters: clusters=1, namespaces=1, resources=1
+2026/03/23 16:24:04 [RBAC] Successfully resolved permissions for user system:admin: clusters=[*], namespaces=[*], resources=[*]
+2026/03/23 16:24:04 [AUTH] Access granted for user: system:admin (via Authorization header)
+2026/03/23 16:24:04 [AUTH] POST /mcp - Checking authorization
+2026/03/23 16:24:04 [RBAC-DEBUG] Starting permission resolution for user token (first 20 chars): Bearer cluster-admin...
+2026/03/23 16:24:04 [RBAC-DEBUG] Initialized resource discovery with user token
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API CALL ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Calling userpermission.GetSelfPermissionRules with:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Host: https://127.0.0.1:63047
+2026/03/23 16:24:04 [RBAC-DEBUG]   BearerToken: cluster-admin-token... (first 20 chars)
+2026/03/23 16:24:04 [RBAC-DEBUG]   Timeout: 5s
+2026/03/23 16:24:04 [RBAC-DEBUG]   TLS Insecure: true
+2026/03/23 16:24:04 [RBAC-DEBUG]   Interested Verbs: [get, list] (read-only access)
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API RESPONSE ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Raw UserPermission API returned 1 permission rules
+2026/03/23 16:24:04 [RBAC-DEBUG] UserPermission Rule[0]:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Verbs: [get list]
+2026/03/23 16:24:04 [RBAC-DEBUG]   APIGroups: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resources: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   ResourceNames: []
+2026/03/23 16:24:04 [RBAC-DEBUG]   Clusters: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Namespaces: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   ----
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-DEBUG] Converting UserPermission rule 0 to PermissionRule format
+2026/03/23 16:24:04 [RBAC-DEBUG] ✅ Converted rule 0: verbs=[get list], groups=[*], resources=[*], clusters=[*], namespaces=[*]
+2026/03/23 16:24:04 [RBAC-DEBUG] Total permissions discovered via UserPermission API: 1 rules
+2026/03/23 16:24:04 [RBAC-DEBUG] Raw permissions discovered: 1 rules
+2026/03/23 16:24:04 [RBAC-DEBUG] Permission[0]: Verbs=[get list], APIGroups=[*], Resources=[*], Clusters=[*], Namespaces=[*]
+2026/03/23 16:24:04 [RBAC-DEBUG] Converting 1 permission rules to query filters
+2026/03/23 16:24:04 [RBAC-DEBUG] Processing permission rule 0:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Verbs: [get list]
+2026/03/23 16:24:04 [RBAC-DEBUG]   APIGroups: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resources: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Clusters: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Namespaces: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding cluster: *
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding namespace: *
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Getting kind for resource: * (group: *)
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Starting live resource discovery...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Calling ServerPreferredResources()...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery returned partial results: unable to retrieve the complete list of server APIs: cluster.open-cluster-management.io/v1alpha1: not found, clusterview.open-cluster-management.io/v1alpha1: no kind "UserPermissionList" is registered for version "clusterview.open-cluster-management.io/v1alpha1" in scheme "pkg/runtime/scheme.go:110"
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Processing API group: v1
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery complete: 0 resource mappings found
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Cache updated with 0 resource mappings (TTL: 1h0m0s)
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ⚠️  Algorithmic fallback: * → *
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ❌ Algorithmic fallback: */* → * (discovery failed)
+2026/03/23 16:24:04 [RBAC-DEBUG]   Mapped */* → Kind: *
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource * can access namespace: *
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource * allowed namespaces: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG] Final query filters:
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedClusters (1): [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedNamespaces (1): [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedResources (1): [*]
+2026/03/23 16:24:04 [RBAC] Resolved 1 permission rules, filters: clusters=1, namespaces=1, resources=1
+2026/03/23 16:24:04 [RBAC] Successfully resolved permissions for user system:admin: clusters=[*], namespaces=[*], resources=[*]
+2026/03/23 16:24:04 [AUTH] Access granted for user: system:admin (via Authorization header)
+    auth_middleware_test.go:362: First request: 4.72075ms, Second request: 2.463458ms
+--- PASS: TestAuthMiddlewareTokenCaching (0.01s)
+    --- PASS: TestAuthMiddlewareTokenCaching/token_caching_works (0.01s)
+=== RUN   TestRBACResolver
+=== RUN   TestRBACResolver/cluster_admin_permission_resolution
+2026/03/23 16:24:04 [RBAC-DEBUG] Starting permission resolution for user token (first 20 chars): Bearer cluster-admin...
+2026/03/23 16:24:04 [RBAC-DEBUG] Initialized resource discovery with user token
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API CALL ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Calling userpermission.GetSelfPermissionRules with:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Host: https://127.0.0.1:63056
+2026/03/23 16:24:04 [RBAC-DEBUG]   BearerToken: cluster-admin-token... (first 20 chars)
+2026/03/23 16:24:04 [RBAC-DEBUG]   Timeout: 5s
+2026/03/23 16:24:04 [RBAC-DEBUG]   TLS Insecure: true
+2026/03/23 16:24:04 [RBAC-DEBUG]   Interested Verbs: [get, list] (read-only access)
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API RESPONSE ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Raw UserPermission API returned 1 permission rules
+2026/03/23 16:24:04 [RBAC-DEBUG] UserPermission Rule[0]:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Verbs: [get list]
+2026/03/23 16:24:04 [RBAC-DEBUG]   APIGroups: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resources: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   ResourceNames: []
+2026/03/23 16:24:04 [RBAC-DEBUG]   Clusters: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Namespaces: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   ----
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-DEBUG] Converting UserPermission rule 0 to PermissionRule format
+2026/03/23 16:24:04 [RBAC-DEBUG] ✅ Converted rule 0: verbs=[get list], groups=[*], resources=[*], clusters=[*], namespaces=[*]
+2026/03/23 16:24:04 [RBAC-DEBUG] Total permissions discovered via UserPermission API: 1 rules
+2026/03/23 16:24:04 [RBAC-DEBUG] Raw permissions discovered: 1 rules
+2026/03/23 16:24:04 [RBAC-DEBUG] Permission[0]: Verbs=[get list], APIGroups=[*], Resources=[*], Clusters=[*], Namespaces=[*]
+2026/03/23 16:24:04 [RBAC-DEBUG] Converting 1 permission rules to query filters
+2026/03/23 16:24:04 [RBAC-DEBUG] Processing permission rule 0:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Verbs: [get list]
+2026/03/23 16:24:04 [RBAC-DEBUG]   APIGroups: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resources: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Clusters: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Namespaces: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding cluster: *
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding namespace: *
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Getting kind for resource: * (group: *)
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Starting live resource discovery...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Calling ServerPreferredResources()...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery returned partial results: unable to retrieve the complete list of server APIs: cluster.open-cluster-management.io/v1alpha1: not found, clusterview.open-cluster-management.io/v1alpha1: no kind "UserPermissionList" is registered for version "clusterview.open-cluster-management.io/v1alpha1" in scheme "pkg/runtime/scheme.go:110"
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Processing API group: v1
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery complete: 0 resource mappings found
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Cache updated with 0 resource mappings (TTL: 1h0m0s)
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ⚠️  Algorithmic fallback: * → *
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ❌ Algorithmic fallback: */* → * (discovery failed)
+2026/03/23 16:24:04 [RBAC-DEBUG]   Mapped */* → Kind: *
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource * can access namespace: *
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource * allowed namespaces: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG] Final query filters:
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedClusters (1): [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedNamespaces (1): [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedResources (1): [*]
+2026/03/23 16:24:04 [RBAC] Resolved 1 permission rules, filters: clusters=1, namespaces=1, resources=1
+=== RUN   TestRBACResolver/developer_permission_resolution
+2026/03/23 16:24:04 [RBAC-DEBUG] Starting permission resolution for user token (first 20 chars): Bearer developer-tok...
+2026/03/23 16:24:04 [RBAC-DEBUG] Initialized resource discovery with user token
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API CALL ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Calling userpermission.GetSelfPermissionRules with:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Host: https://127.0.0.1:63056
+2026/03/23 16:24:04 [RBAC-DEBUG]   BearerToken: developer-token... (first 20 chars)
+2026/03/23 16:24:04 [RBAC-DEBUG]   Timeout: 5s
+2026/03/23 16:24:04 [RBAC-DEBUG]   TLS Insecure: true
+2026/03/23 16:24:04 [RBAC-DEBUG]   Interested Verbs: [get, list] (read-only access)
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API RESPONSE ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Raw UserPermission API returned 2 permission rules
+2026/03/23 16:24:04 [RBAC-DEBUG] UserPermission Rule[0]:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Verbs: [get list]
+2026/03/23 16:24:04 [RBAC-DEBUG]   APIGroups: []
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resources: [pods services]
+2026/03/23 16:24:04 [RBAC-DEBUG]   ResourceNames: []
+2026/03/23 16:24:04 [RBAC-DEBUG]   Clusters: [dev-cluster]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Namespaces: [my-app shared-tools]
+2026/03/23 16:24:04 [RBAC-DEBUG]   ----
+2026/03/23 16:24:04 [RBAC-DEBUG] UserPermission Rule[1]:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Verbs: [get list]
+2026/03/23 16:24:04 [RBAC-DEBUG]   APIGroups: []
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resources: [configmaps]
+2026/03/23 16:24:04 [RBAC-DEBUG]   ResourceNames: []
+2026/03/23 16:24:04 [RBAC-DEBUG]   Clusters: [dev-cluster]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Namespaces: [my-app]
+2026/03/23 16:24:04 [RBAC-DEBUG]   ----
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-DEBUG] Converting UserPermission rule 0 to PermissionRule format
+2026/03/23 16:24:04 [RBAC-DEBUG] ✅ Converted rule 0: verbs=[get list], groups=[], resources=[pods services], clusters=[dev-cluster], namespaces=[my-app shared-tools]
+2026/03/23 16:24:04 [RBAC-DEBUG] Converting UserPermission rule 1 to PermissionRule format
+2026/03/23 16:24:04 [RBAC-DEBUG] ✅ Converted rule 1: verbs=[get list], groups=[], resources=[configmaps], clusters=[dev-cluster], namespaces=[my-app]
+2026/03/23 16:24:04 [RBAC-DEBUG] Total permissions discovered via UserPermission API: 2 rules
+2026/03/23 16:24:04 [RBAC-DEBUG] Raw permissions discovered: 2 rules
+2026/03/23 16:24:04 [RBAC-DEBUG] Permission[0]: Verbs=[get list], APIGroups=[], Resources=[pods services], Clusters=[dev-cluster], Namespaces=[my-app shared-tools]
+2026/03/23 16:24:04 [RBAC-DEBUG] Permission[1]: Verbs=[get list], APIGroups=[], Resources=[configmaps], Clusters=[dev-cluster], Namespaces=[my-app]
+2026/03/23 16:24:04 [RBAC-DEBUG] Converting 2 permission rules to query filters
+2026/03/23 16:24:04 [RBAC-DEBUG] Processing permission rule 0:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Verbs: [get list]
+2026/03/23 16:24:04 [RBAC-DEBUG]   APIGroups: []
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resources: [pods services]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Clusters: [dev-cluster]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Namespaces: [my-app shared-tools]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding cluster: dev-cluster
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding namespace: my-app
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding namespace: shared-tools
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Getting kind for resource: pods (group: )
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Starting live resource discovery...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Calling ServerPreferredResources()...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery returned partial results: unable to retrieve the complete list of server APIs: cluster.open-cluster-management.io/v1alpha1: not found, clusterview.open-cluster-management.io/v1alpha1: no kind "UserPermissionList" is registered for version "clusterview.open-cluster-management.io/v1alpha1" in scheme "pkg/runtime/scheme.go:110"
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Processing API group: v1
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery complete: 0 resource mappings found
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Cache updated with 0 resource mappings (TTL: 1h0m0s)
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ✅ Hardcoded fallback: pods → Pod
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ⚠️  Hardcoded fallback: /pods → Pod
+2026/03/23 16:24:04 [RBAC-DEBUG]   Mapped /pods → Kind: Pod
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Pod can access namespace: my-app
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Pod can access namespace: shared-tools
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Getting kind for resource: services (group: )
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Starting live resource discovery...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Calling ServerPreferredResources()...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery returned partial results: unable to retrieve the complete list of server APIs: cluster.open-cluster-management.io/v1alpha1: not found, clusterview.open-cluster-management.io/v1alpha1: no kind "UserPermissionList" is registered for version "clusterview.open-cluster-management.io/v1alpha1" in scheme "pkg/runtime/scheme.go:110"
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Processing API group: v1
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery complete: 0 resource mappings found
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Cache updated with 0 resource mappings (TTL: 1h0m0s)
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ✅ Hardcoded fallback: services → Service
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ⚠️  Hardcoded fallback: /services → Service
+2026/03/23 16:24:04 [RBAC-DEBUG]   Mapped /services → Kind: Service
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Service can access namespace: my-app
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Service can access namespace: shared-tools
+2026/03/23 16:24:04 [RBAC-DEBUG] Processing permission rule 1:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Verbs: [get list]
+2026/03/23 16:24:04 [RBAC-DEBUG]   APIGroups: []
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resources: [configmaps]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Clusters: [dev-cluster]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Namespaces: [my-app]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding cluster: dev-cluster
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding namespace: my-app
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Getting kind for resource: configmaps (group: )
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Starting live resource discovery...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Calling ServerPreferredResources()...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery returned partial results: unable to retrieve the complete list of server APIs: cluster.open-cluster-management.io/v1alpha1: not found, clusterview.open-cluster-management.io/v1alpha1: no kind "UserPermissionList" is registered for version "clusterview.open-cluster-management.io/v1alpha1" in scheme "pkg/runtime/scheme.go:110"
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Processing API group: v1
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery complete: 0 resource mappings found
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Cache updated with 0 resource mappings (TTL: 1h0m0s)
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ✅ Hardcoded fallback: configmaps → ConfigMap
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ⚠️  Hardcoded fallback: /configmaps → ConfigMap
+2026/03/23 16:24:04 [RBAC-DEBUG]   Mapped /configmaps → Kind: ConfigMap
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource ConfigMap can access namespace: my-app
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Pod allowed namespaces: [shared-tools my-app]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Service allowed namespaces: [my-app shared-tools]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource ConfigMap allowed namespaces: [my-app]
+2026/03/23 16:24:04 [RBAC-DEBUG] Final query filters:
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedClusters (1): [dev-cluster]
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedNamespaces (2): [my-app shared-tools]
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedResources (3): [ConfigMap Pod Service]
+2026/03/23 16:24:04 [RBAC] Resolved 2 permission rules, filters: clusters=1, namespaces=2, resources=3
+=== RUN   TestRBACResolver/namespace_admin_permission_resolution
+2026/03/23 16:24:04 [RBAC-DEBUG] Starting permission resolution for user token (first 20 chars): Bearer namespace-adm...
+2026/03/23 16:24:04 [RBAC-DEBUG] Initialized resource discovery with user token
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API CALL ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Calling userpermission.GetSelfPermissionRules with:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Host: https://127.0.0.1:63056
+2026/03/23 16:24:04 [RBAC-DEBUG]   BearerToken: namespace-admin-toke... (first 20 chars)
+2026/03/23 16:24:04 [RBAC-DEBUG]   Timeout: 5s
+2026/03/23 16:24:04 [RBAC-DEBUG]   TLS Insecure: true
+2026/03/23 16:24:04 [RBAC-DEBUG]   Interested Verbs: [get, list] (read-only access)
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API RESPONSE ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Raw UserPermission API returned 1 permission rules
+2026/03/23 16:24:04 [RBAC-DEBUG] UserPermission Rule[0]:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Verbs: [get list]
+2026/03/23 16:24:04 [RBAC-DEBUG]   APIGroups: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resources: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   ResourceNames: []
+2026/03/23 16:24:04 [RBAC-DEBUG]   Clusters: [prod-cluster]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Namespaces: [app-frontend app-backend]
+2026/03/23 16:24:04 [RBAC-DEBUG]   ----
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-DEBUG] Converting UserPermission rule 0 to PermissionRule format
+2026/03/23 16:24:04 [RBAC-DEBUG] ✅ Converted rule 0: verbs=[get list], groups=[*], resources=[*], clusters=[prod-cluster], namespaces=[app-frontend app-backend]
+2026/03/23 16:24:04 [RBAC-DEBUG] Total permissions discovered via UserPermission API: 1 rules
+2026/03/23 16:24:04 [RBAC-DEBUG] Raw permissions discovered: 1 rules
+2026/03/23 16:24:04 [RBAC-DEBUG] Permission[0]: Verbs=[get list], APIGroups=[*], Resources=[*], Clusters=[prod-cluster], Namespaces=[app-frontend app-backend]
+2026/03/23 16:24:04 [RBAC-DEBUG] Converting 1 permission rules to query filters
+2026/03/23 16:24:04 [RBAC-DEBUG] Processing permission rule 0:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Verbs: [get list]
+2026/03/23 16:24:04 [RBAC-DEBUG]   APIGroups: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resources: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Clusters: [prod-cluster]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Namespaces: [app-frontend app-backend]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding cluster: prod-cluster
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding namespace: app-frontend
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding namespace: app-backend
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Getting kind for resource: * (group: *)
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Starting live resource discovery...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Calling ServerPreferredResources()...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery returned partial results: unable to retrieve the complete list of server APIs: cluster.open-cluster-management.io/v1alpha1: not found, clusterview.open-cluster-management.io/v1alpha1: no kind "UserPermissionList" is registered for version "clusterview.open-cluster-management.io/v1alpha1" in scheme "pkg/runtime/scheme.go:110"
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Processing API group: v1
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery complete: 0 resource mappings found
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Cache updated with 0 resource mappings (TTL: 1h0m0s)
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ⚠️  Algorithmic fallback: * → *
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ❌ Algorithmic fallback: */* → * (discovery failed)
+2026/03/23 16:24:04 [RBAC-DEBUG]   Mapped */* → Kind: *
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource * can access namespace: app-frontend
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource * can access namespace: app-backend
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource * allowed namespaces: [app-frontend app-backend]
+2026/03/23 16:24:04 [RBAC-DEBUG] Final query filters:
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedClusters (1): [prod-cluster]
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedNamespaces (2): [app-frontend app-backend]
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedResources (1): [*]
+2026/03/23 16:24:04 [RBAC] Resolved 1 permission rules, filters: clusters=1, namespaces=2, resources=1
+=== RUN   TestRBACResolver/readonly_user_permission_resolution
+2026/03/23 16:24:04 [RBAC-DEBUG] Starting permission resolution for user token (first 20 chars): Bearer readonly-toke...
+2026/03/23 16:24:04 [RBAC-DEBUG] Initialized resource discovery with user token
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API CALL ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Calling userpermission.GetSelfPermissionRules with:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Host: https://127.0.0.1:63056
+2026/03/23 16:24:04 [RBAC-DEBUG]   BearerToken: readonly-token... (first 20 chars)
+2026/03/23 16:24:04 [RBAC-DEBUG]   Timeout: 5s
+2026/03/23 16:24:04 [RBAC-DEBUG]   TLS Insecure: true
+2026/03/23 16:24:04 [RBAC-DEBUG]   Interested Verbs: [get, list] (read-only access)
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API RESPONSE ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Raw UserPermission API returned 1 permission rules
+2026/03/23 16:24:04 [RBAC-DEBUG] UserPermission Rule[0]:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Verbs: [get list]
+2026/03/23 16:24:04 [RBAC-DEBUG]   APIGroups: []
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resources: [pods services events]
+2026/03/23 16:24:04 [RBAC-DEBUG]   ResourceNames: []
+2026/03/23 16:24:04 [RBAC-DEBUG]   Clusters: [monitoring-cluster vm-cluster]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Namespaces: [monitoring prometheus grafana *]
+2026/03/23 16:24:04 [RBAC-DEBUG]   ----
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-DEBUG] Converting UserPermission rule 0 to PermissionRule format
+2026/03/23 16:24:04 [RBAC-DEBUG] ✅ Converted rule 0: verbs=[get list], groups=[], resources=[pods services events], clusters=[monitoring-cluster vm-cluster], namespaces=[monitoring prometheus grafana *]
+2026/03/23 16:24:04 [RBAC-DEBUG] Total permissions discovered via UserPermission API: 1 rules
+2026/03/23 16:24:04 [RBAC-DEBUG] Raw permissions discovered: 1 rules
+2026/03/23 16:24:04 [RBAC-DEBUG] Permission[0]: Verbs=[get list], APIGroups=[], Resources=[pods services events], Clusters=[monitoring-cluster vm-cluster], Namespaces=[monitoring prometheus grafana *]
+2026/03/23 16:24:04 [RBAC-DEBUG] Converting 1 permission rules to query filters
+2026/03/23 16:24:04 [RBAC-DEBUG] Processing permission rule 0:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Verbs: [get list]
+2026/03/23 16:24:04 [RBAC-DEBUG]   APIGroups: []
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resources: [pods services events]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Clusters: [monitoring-cluster vm-cluster]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Namespaces: [monitoring prometheus grafana *]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding cluster: monitoring-cluster
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding cluster: vm-cluster
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding namespace: monitoring
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding namespace: prometheus
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding namespace: grafana
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding namespace: *
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Getting kind for resource: pods (group: )
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Starting live resource discovery...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Calling ServerPreferredResources()...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery returned partial results: unable to retrieve the complete list of server APIs: cluster.open-cluster-management.io/v1alpha1: not found, clusterview.open-cluster-management.io/v1alpha1: no kind "UserPermissionList" is registered for version "clusterview.open-cluster-management.io/v1alpha1" in scheme "pkg/runtime/scheme.go:110"
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Processing API group: v1
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery complete: 0 resource mappings found
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Cache updated with 0 resource mappings (TTL: 1h0m0s)
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ✅ Hardcoded fallback: pods → Pod
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ⚠️  Hardcoded fallback: /pods → Pod
+2026/03/23 16:24:04 [RBAC-DEBUG]   Mapped /pods → Kind: Pod
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Pod can access namespace: monitoring
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Pod can access namespace: prometheus
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Pod can access namespace: grafana
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Pod can access namespace: *
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Getting kind for resource: services (group: )
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Starting live resource discovery...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Calling ServerPreferredResources()...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery returned partial results: unable to retrieve the complete list of server APIs: cluster.open-cluster-management.io/v1alpha1: not found, clusterview.open-cluster-management.io/v1alpha1: no kind "UserPermissionList" is registered for version "clusterview.open-cluster-management.io/v1alpha1" in scheme "pkg/runtime/scheme.go:110"
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Processing API group: v1
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery complete: 0 resource mappings found
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Cache updated with 0 resource mappings (TTL: 1h0m0s)
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ✅ Hardcoded fallback: services → Service
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ⚠️  Hardcoded fallback: /services → Service
+2026/03/23 16:24:04 [RBAC-DEBUG]   Mapped /services → Kind: Service
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Service can access namespace: monitoring
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Service can access namespace: prometheus
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Service can access namespace: grafana
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Service can access namespace: *
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Getting kind for resource: events (group: )
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Starting live resource discovery...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Calling ServerPreferredResources()...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery returned partial results: unable to retrieve the complete list of server APIs: cluster.open-cluster-management.io/v1alpha1: not found, clusterview.open-cluster-management.io/v1alpha1: no kind "UserPermissionList" is registered for version "clusterview.open-cluster-management.io/v1alpha1" in scheme "pkg/runtime/scheme.go:110"
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Processing API group: v1
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery complete: 0 resource mappings found
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Cache updated with 0 resource mappings (TTL: 1h0m0s)
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ✅ Hardcoded fallback: events → Event
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ⚠️  Hardcoded fallback: /events → Event
+2026/03/23 16:24:04 [RBAC-DEBUG]   Mapped /events → Kind: Event
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Event can access namespace: monitoring
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Event can access namespace: prometheus
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Event can access namespace: grafana
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Event can access namespace: *
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Pod allowed namespaces: [monitoring prometheus grafana *]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Service allowed namespaces: [monitoring prometheus grafana *]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Event allowed namespaces: [monitoring prometheus grafana *]
+2026/03/23 16:24:04 [RBAC-DEBUG] Final query filters:
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedClusters (2): [monitoring-cluster vm-cluster]
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedNamespaces (4): [monitoring prometheus grafana *]
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedResources (3): [Pod Service Event]
+2026/03/23 16:24:04 [RBAC] Resolved 1 permission rules, filters: clusters=2, namespaces=4, resources=3
+=== RUN   TestRBACResolver/invalid_token_rejection
+2026/03/23 16:24:04 [RBAC-DEBUG] Starting permission resolution for user token (first 20 chars): Bearer invalid-token...
+2026/03/23 16:24:04 [RBAC-DEBUG] Initialized resource discovery with user token
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API CALL ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Calling userpermission.GetSelfPermissionRules with:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Host: https://127.0.0.1:63056
+2026/03/23 16:24:04 [RBAC-DEBUG]   BearerToken: invalid-token... (first 20 chars)
+2026/03/23 16:24:04 [RBAC-DEBUG]   Timeout: 5s
+2026/03/23 16:24:04 [RBAC-DEBUG]   TLS Insecure: true
+2026/03/23 16:24:04 [RBAC-DEBUG]   Interested Verbs: [get, list] (read-only access)
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API RESPONSE ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Raw UserPermission API returned 0 permission rules
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-DEBUG] Total permissions discovered via UserPermission API: 0 rules
+2026/03/23 16:24:04 [RBAC-DEBUG] Raw permissions discovered: 0 rules
+2026/03/23 16:24:04 [RBAC-DEBUG] Converting 0 permission rules to query filters
+2026/03/23 16:24:04 [RBAC-DEBUG] Final query filters:
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedClusters (0): []
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedNamespaces (0): []
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedResources (0): []
+2026/03/23 16:24:04 [RBAC-DEBUG] No permissions found - returning empty filters (access denied)
+2026/03/23 16:24:04 [RBAC] Resolved 0 permission rules, filters: clusters=0, namespaces=0, resources=0
+=== RUN   TestRBACResolver/no_permissions_token
+2026/03/23 16:24:04 [RBAC-DEBUG] Starting permission resolution for user token (first 20 chars): Bearer no-permission...
+2026/03/23 16:24:04 [RBAC-DEBUG] Initialized resource discovery with user token
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API CALL ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Calling userpermission.GetSelfPermissionRules with:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Host: https://127.0.0.1:63056
+2026/03/23 16:24:04 [RBAC-DEBUG]   BearerToken: no-permissions-token... (first 20 chars)
+2026/03/23 16:24:04 [RBAC-DEBUG]   Timeout: 5s
+2026/03/23 16:24:04 [RBAC-DEBUG]   TLS Insecure: true
+2026/03/23 16:24:04 [RBAC-DEBUG]   Interested Verbs: [get, list] (read-only access)
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API RESPONSE ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Raw UserPermission API returned 0 permission rules
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-DEBUG] Total permissions discovered via UserPermission API: 0 rules
+2026/03/23 16:24:04 [RBAC-DEBUG] Raw permissions discovered: 0 rules
+2026/03/23 16:24:04 [RBAC-DEBUG] Converting 0 permission rules to query filters
+2026/03/23 16:24:04 [RBAC-DEBUG] Final query filters:
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedClusters (0): []
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedNamespaces (0): []
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedResources (0): []
+2026/03/23 16:24:04 [RBAC-DEBUG] No permissions found - returning empty filters (access denied)
+2026/03/23 16:24:04 [RBAC] Resolved 0 permission rules, filters: clusters=0, namespaces=0, resources=0
+    auth_rbac_test.go:187: 
+        	Error Trace:	/Users/jbanerje/code/search-mcp-server/golang/test/integration/auth_rbac_test.go:187
+        	Error:      	Should be false
+        	Test:       	TestRBACResolver/no_permissions_token
+    auth_rbac_test.go:193: 
+        	Error Trace:	/Users/jbanerje/code/search-mcp-server/golang/test/integration/auth_rbac_test.go:193
+        	Error:      	Should be false
+        	Test:       	TestRBACResolver/no_permissions_token
+    auth_rbac_test.go:194: 
+        	Error Trace:	/Users/jbanerje/code/search-mcp-server/golang/test/integration/auth_rbac_test.go:194
+        	Error:      	Should be false
+        	Test:       	TestRBACResolver/no_permissions_token
+    auth_rbac_test.go:195: 
+        	Error Trace:	/Users/jbanerje/code/search-mcp-server/golang/test/integration/auth_rbac_test.go:195
+        	Error:      	Should be false
+        	Test:       	TestRBACResolver/no_permissions_token
+=== RUN   TestRBACResolver/api_failure_fail_secure
+2026/03/23 16:24:04 [RBAC-DEBUG] Starting permission resolution for user token (first 20 chars): Bearer auth-failure-...
+2026/03/23 16:24:04 [RBAC-DEBUG] Initialized resource discovery with user token
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API CALL ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Calling userpermission.GetSelfPermissionRules with:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Host: https://127.0.0.1:63056
+2026/03/23 16:24:04 [RBAC-DEBUG]   BearerToken: auth-failure-token... (first 20 chars)
+2026/03/23 16:24:04 [RBAC-DEBUG]   Timeout: 5s
+2026/03/23 16:24:04 [RBAC-DEBUG]   TLS Insecure: true
+2026/03/23 16:24:04 [RBAC-DEBUG]   Interested Verbs: [get, list] (read-only access)
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-SECURITY] Failed to get UserPermission rules: an error on the server ("Internal server error") has prevented the request from succeeding (get userpermissions.clusterview.open-cluster-management.io)
+2026/03/23 16:24:04 [RBAC-SECURITY] FAIL-SECURE: Denying access due to UserPermission API failure
+2026/03/23 16:24:04 [RBAC-SECURITY] Permission resolution failed for user token, denying access: UserPermission API failed, access denied for security: an error on the server ("Internal server error") has prevented the request from succeeding (get userpermissions.clusterview.open-cluster-management.io)
+2026/03/23 16:24:04 [RBAC-SECURITY] This is a security-first design choice - K8s API failures result in access denial
+--- FAIL: TestRBACResolver (0.01s)
+    --- PASS: TestRBACResolver/cluster_admin_permission_resolution (0.00s)
+    --- PASS: TestRBACResolver/developer_permission_resolution (0.00s)
+    --- PASS: TestRBACResolver/namespace_admin_permission_resolution (0.00s)
+    --- PASS: TestRBACResolver/readonly_user_permission_resolution (0.00s)
+    --- PASS: TestRBACResolver/invalid_token_rejection (0.00s)
+    --- FAIL: TestRBACResolver/no_permissions_token (0.00s)
+    --- PASS: TestRBACResolver/api_failure_fail_secure (0.00s)
+=== RUN   TestRBACResolverResourceDiscovery
+=== RUN   TestRBACResolverResourceDiscovery/resource_discovery_integration
+2026/03/23 16:24:04 [RBAC-DEBUG] Starting permission resolution for user token (first 20 chars): Bearer kubevirt-user...
+2026/03/23 16:24:04 [RBAC-DEBUG] Initialized resource discovery with user token
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API CALL ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Calling userpermission.GetSelfPermissionRules with:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Host: https://127.0.0.1:63064
+2026/03/23 16:24:04 [RBAC-DEBUG]   BearerToken: kubevirt-user-token... (first 20 chars)
+2026/03/23 16:24:04 [RBAC-DEBUG]   Timeout: 5s
+2026/03/23 16:24:04 [RBAC-DEBUG]   TLS Insecure: true
+2026/03/23 16:24:04 [RBAC-DEBUG]   Interested Verbs: [get, list] (read-only access)
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API RESPONSE ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Raw UserPermission API returned 2 permission rules
+2026/03/23 16:24:04 [RBAC-DEBUG] UserPermission Rule[0]:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Verbs: [get list]
+2026/03/23 16:24:04 [RBAC-DEBUG]   APIGroups: [kubevirt.io]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resources: [virtualmachines virtualmachineinstances]
+2026/03/23 16:24:04 [RBAC-DEBUG]   ResourceNames: []
+2026/03/23 16:24:04 [RBAC-DEBUG]   Clusters: [vm-cluster]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Namespaces: [vm-production]
+2026/03/23 16:24:04 [RBAC-DEBUG]   ----
+2026/03/23 16:24:04 [RBAC-DEBUG] UserPermission Rule[1]:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Verbs: [get list]
+2026/03/23 16:24:04 [RBAC-DEBUG]   APIGroups: [snapshot.kubevirt.io]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resources: [virtualmachinesnapshots]
+2026/03/23 16:24:04 [RBAC-DEBUG]   ResourceNames: []
+2026/03/23 16:24:04 [RBAC-DEBUG]   Clusters: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Namespaces: [backup-*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   ----
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-DEBUG] Converting UserPermission rule 0 to PermissionRule format
+2026/03/23 16:24:04 [RBAC-DEBUG] ✅ Converted rule 0: verbs=[get list], groups=[kubevirt.io], resources=[virtualmachines virtualmachineinstances], clusters=[vm-cluster], namespaces=[vm-production]
+2026/03/23 16:24:04 [RBAC-DEBUG] Converting UserPermission rule 1 to PermissionRule format
+2026/03/23 16:24:04 [RBAC-DEBUG] ✅ Converted rule 1: verbs=[get list], groups=[snapshot.kubevirt.io], resources=[virtualmachinesnapshots], clusters=[*], namespaces=[backup-*]
+2026/03/23 16:24:04 [RBAC-DEBUG] Total permissions discovered via UserPermission API: 2 rules
+2026/03/23 16:24:04 [RBAC-DEBUG] Raw permissions discovered: 2 rules
+2026/03/23 16:24:04 [RBAC-DEBUG] Permission[0]: Verbs=[get list], APIGroups=[kubevirt.io], Resources=[virtualmachines virtualmachineinstances], Clusters=[vm-cluster], Namespaces=[vm-production]
+2026/03/23 16:24:04 [RBAC-DEBUG] Permission[1]: Verbs=[get list], APIGroups=[snapshot.kubevirt.io], Resources=[virtualmachinesnapshots], Clusters=[*], Namespaces=[backup-*]
+2026/03/23 16:24:04 [RBAC-DEBUG] Converting 2 permission rules to query filters
+2026/03/23 16:24:04 [RBAC-DEBUG] Processing permission rule 0:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Verbs: [get list]
+2026/03/23 16:24:04 [RBAC-DEBUG]   APIGroups: [kubevirt.io]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resources: [virtualmachines virtualmachineinstances]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Clusters: [vm-cluster]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Namespaces: [vm-production]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding cluster: vm-cluster
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding namespace: vm-production
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Getting kind for resource: virtualmachines (group: kubevirt.io)
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Starting live resource discovery...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Calling ServerPreferredResources()...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery returned partial results: unable to retrieve the complete list of server APIs: cluster.open-cluster-management.io/v1alpha1: not found, clusterview.open-cluster-management.io/v1alpha1: no kind "UserPermissionList" is registered for version "clusterview.open-cluster-management.io/v1alpha1" in scheme "pkg/runtime/scheme.go:110"
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Processing API group: v1
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery complete: 0 resource mappings found
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Cache updated with 0 resource mappings (TTL: 1h0m0s)
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ✅ Hardcoded fallback: virtualmachines → VirtualMachine
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ⚠️  Hardcoded fallback: kubevirt.io/virtualmachines → VirtualMachine
+2026/03/23 16:24:04 [RBAC-DEBUG]   Mapped kubevirt.io/virtualmachines → Kind: VirtualMachine
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource VirtualMachine can access namespace: vm-production
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Getting kind for resource: virtualmachineinstances (group: )
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Starting live resource discovery...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Calling ServerPreferredResources()...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery returned partial results: unable to retrieve the complete list of server APIs: cluster.open-cluster-management.io/v1alpha1: not found, clusterview.open-cluster-management.io/v1alpha1: no kind "UserPermissionList" is registered for version "clusterview.open-cluster-management.io/v1alpha1" in scheme "pkg/runtime/scheme.go:110"
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Processing API group: v1
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery complete: 0 resource mappings found
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Cache updated with 0 resource mappings (TTL: 1h0m0s)
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ✅ Hardcoded fallback: virtualmachineinstances → VirtualMachineInstance
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ⚠️  Hardcoded fallback: /virtualmachineinstances → VirtualMachineInstance
+2026/03/23 16:24:04 [RBAC-DEBUG]   Mapped /virtualmachineinstances → Kind: VirtualMachineInstance
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource VirtualMachineInstance can access namespace: vm-production
+2026/03/23 16:24:04 [RBAC-DEBUG] Processing permission rule 1:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Verbs: [get list]
+2026/03/23 16:24:04 [RBAC-DEBUG]   APIGroups: [snapshot.kubevirt.io]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resources: [virtualmachinesnapshots]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Clusters: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Namespaces: [backup-*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding cluster: *
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding namespace: backup-*
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Getting kind for resource: virtualmachinesnapshots (group: snapshot.kubevirt.io)
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Starting live resource discovery...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Calling ServerPreferredResources()...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery returned partial results: unable to retrieve the complete list of server APIs: cluster.open-cluster-management.io/v1alpha1: not found, clusterview.open-cluster-management.io/v1alpha1: no kind "UserPermissionList" is registered for version "clusterview.open-cluster-management.io/v1alpha1" in scheme "pkg/runtime/scheme.go:110"
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Processing API group: v1
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery complete: 0 resource mappings found
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Cache updated with 0 resource mappings (TTL: 1h0m0s)
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ✅ Hardcoded fallback: virtualmachinesnapshots → VirtualMachineSnapshot
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ⚠️  Hardcoded fallback: snapshot.kubevirt.io/virtualmachinesnapshots → VirtualMachineSnapshot
+2026/03/23 16:24:04 [RBAC-DEBUG]   Mapped snapshot.kubevirt.io/virtualmachinesnapshots → Kind: VirtualMachineSnapshot
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource VirtualMachineSnapshot can access namespace: backup-*
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource VirtualMachine allowed namespaces: [vm-production]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource VirtualMachineInstance allowed namespaces: [vm-production]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource VirtualMachineSnapshot allowed namespaces: [backup-*]
+2026/03/23 16:24:04 [RBAC-DEBUG] Final query filters:
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedClusters (2): [vm-cluster *]
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedNamespaces (2): [backup-* vm-production]
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedResources (3): [VirtualMachine VirtualMachineInstance VirtualMachineSnapshot]
+2026/03/23 16:24:04 [RBAC] Resolved 2 permission rules, filters: clusters=2, namespaces=2, resources=3
+    auth_rbac_test.go:251: 
+        	Error Trace:	/Users/jbanerje/code/search-mcp-server/golang/test/integration/auth_rbac_test.go:251
+        	Error:      	[]string{"VirtualMachine", "VirtualMachineInstance", "VirtualMachineSnapshot"} does not contain "virtualmachines"
+        	Test:       	TestRBACResolverResourceDiscovery/resource_discovery_integration
+    auth_rbac_test.go:252: 
+        	Error Trace:	/Users/jbanerje/code/search-mcp-server/golang/test/integration/auth_rbac_test.go:252
+        	Error:      	[]string{"VirtualMachine", "VirtualMachineInstance", "VirtualMachineSnapshot"} does not contain "virtualmachineinstances"
+        	Test:       	TestRBACResolverResourceDiscovery/resource_discovery_integration
+    auth_rbac_test.go:253: 
+        	Error Trace:	/Users/jbanerje/code/search-mcp-server/golang/test/integration/auth_rbac_test.go:253
+        	Error:      	[]string{"VirtualMachine", "VirtualMachineInstance", "VirtualMachineSnapshot"} does not contain "virtualmachinesnapshots"
+        	Test:       	TestRBACResolverResourceDiscovery/resource_discovery_integration
+    auth_rbac_test.go:261: 
+        	Error Trace:	/Users/jbanerje/code/search-mcp-server/golang/test/integration/auth_rbac_test.go:261
+        	Error:      	elements differ
+        	            	
+        	            	extra elements in list A:
+        	            	([]interface {}) (len=1) {
+        	            	 (string) (len=13) "vm-production"
+        	            	}
+        	            	
+        	            	
+        	            	listA:
+        	            	([]string) (len=1) {
+        	            	 (string) (len=13) "vm-production"
+        	            	}
+        	            	
+        	            	
+        	            	listB:
+        	            	([]string) {
+        	            	}
+        	Test:       	TestRBACResolverResourceDiscovery/resource_discovery_integration
+    auth_rbac_test.go:264: 
+        	Error Trace:	/Users/jbanerje/code/search-mcp-server/golang/test/integration/auth_rbac_test.go:264
+        	Error:      	elements differ
+        	            	
+        	            	extra elements in list A:
+        	            	([]interface {}) (len=1) {
+        	            	 (string) (len=13) "vm-production"
+        	            	}
+        	            	
+        	            	
+        	            	listA:
+        	            	([]string) (len=1) {
+        	            	 (string) (len=13) "vm-production"
+        	            	}
+        	            	
+        	            	
+        	            	listB:
+        	            	([]string) {
+        	            	}
+        	Test:       	TestRBACResolverResourceDiscovery/resource_discovery_integration
+    auth_rbac_test.go:267: 
+        	Error Trace:	/Users/jbanerje/code/search-mcp-server/golang/test/integration/auth_rbac_test.go:267
+        	Error:      	elements differ
+        	            	
+        	            	extra elements in list A:
+        	            	([]interface {}) (len=1) {
+        	            	 (string) (len=8) "backup-*"
+        	            	}
+        	            	
+        	            	
+        	            	listA:
+        	            	([]string) (len=1) {
+        	            	 (string) (len=8) "backup-*"
+        	            	}
+        	            	
+        	            	
+        	            	listB:
+        	            	([]string) {
+        	            	}
+        	Test:       	TestRBACResolverResourceDiscovery/resource_discovery_integration
+--- FAIL: TestRBACResolverResourceDiscovery (0.01s)
+    --- FAIL: TestRBACResolverResourceDiscovery/resource_discovery_integration (0.01s)
+=== RUN   TestRBACResolverSecurityEdgeCases
+=== RUN   TestRBACResolverSecurityEdgeCases/empty_token_rejection
+2026/03/23 16:24:04 [RBAC-DEBUG] Starting permission resolution for user token (first 20 chars): ...
+2026/03/23 16:24:04 [RBAC-DEBUG] Initialized resource discovery with user token
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API CALL ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Calling userpermission.GetSelfPermissionRules with:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Host: https://127.0.0.1:63072
+2026/03/23 16:24:04 [RBAC-DEBUG]   BearerToken: ... (first 20 chars)
+2026/03/23 16:24:04 [RBAC-DEBUG]   Timeout: 5s
+2026/03/23 16:24:04 [RBAC-DEBUG]   TLS Insecure: true
+2026/03/23 16:24:04 [RBAC-DEBUG]   Interested Verbs: [get, list] (read-only access)
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API RESPONSE ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Raw UserPermission API returned 0 permission rules
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-DEBUG] Total permissions discovered via UserPermission API: 0 rules
+2026/03/23 16:24:04 [RBAC-DEBUG] Raw permissions discovered: 0 rules
+2026/03/23 16:24:04 [RBAC-DEBUG] Converting 0 permission rules to query filters
+2026/03/23 16:24:04 [RBAC-DEBUG] Final query filters:
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedClusters (0): []
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedNamespaces (0): []
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedResources (0): []
+2026/03/23 16:24:04 [RBAC-DEBUG] No permissions found - returning empty filters (access denied)
+2026/03/23 16:24:04 [RBAC] Resolved 0 permission rules, filters: clusters=0, namespaces=0, resources=0
+=== RUN   TestRBACResolverSecurityEdgeCases/malformed_token_rejection
+2026/03/23 16:24:04 [RBAC-DEBUG] Starting permission resolution for user token (first 20 chars): NotABearerToken...
+2026/03/23 16:24:04 [RBAC-DEBUG] Initialized resource discovery with user token
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API CALL ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Calling userpermission.GetSelfPermissionRules with:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Host: https://127.0.0.1:63072
+2026/03/23 16:24:04 [RBAC-DEBUG]   BearerToken: NotABearerToken... (first 20 chars)
+2026/03/23 16:24:04 [RBAC-DEBUG]   Timeout: 5s
+2026/03/23 16:24:04 [RBAC-DEBUG]   TLS Insecure: true
+2026/03/23 16:24:04 [RBAC-DEBUG]   Interested Verbs: [get, list] (read-only access)
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API RESPONSE ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Raw UserPermission API returned 0 permission rules
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-DEBUG] Total permissions discovered via UserPermission API: 0 rules
+2026/03/23 16:24:04 [RBAC-DEBUG] Raw permissions discovered: 0 rules
+2026/03/23 16:24:04 [RBAC-DEBUG] Converting 0 permission rules to query filters
+2026/03/23 16:24:04 [RBAC-DEBUG] Final query filters:
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedClusters (0): []
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedNamespaces (0): []
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedResources (0): []
+2026/03/23 16:24:04 [RBAC-DEBUG] No permissions found - returning empty filters (access denied)
+2026/03/23 16:24:04 [RBAC] Resolved 0 permission rules, filters: clusters=0, namespaces=0, resources=0
+    auth_rbac_test.go:307: 
+        	Error Trace:	/Users/jbanerje/code/search-mcp-server/golang/test/integration/auth_rbac_test.go:307
+        	Error:      	An error is expected but got nil.
+        	Test:       	TestRBACResolverSecurityEdgeCases/malformed_token_rejection
+        	Messages:   	Malformed token should be rejected
+=== RUN   TestRBACResolverSecurityEdgeCases/bearer_prefix_handling
+2026/03/23 16:24:04 [RBAC-DEBUG] Starting permission resolution for user token (first 20 chars): Bearer cluster-admin...
+2026/03/23 16:24:04 [RBAC-DEBUG] Initialized resource discovery with user token
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API CALL ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Calling userpermission.GetSelfPermissionRules with:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Host: https://127.0.0.1:63072
+2026/03/23 16:24:04 [RBAC-DEBUG]   BearerToken: cluster-admin-token... (first 20 chars)
+2026/03/23 16:24:04 [RBAC-DEBUG]   Timeout: 5s
+2026/03/23 16:24:04 [RBAC-DEBUG]   TLS Insecure: true
+2026/03/23 16:24:04 [RBAC-DEBUG]   Interested Verbs: [get, list] (read-only access)
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API RESPONSE ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Raw UserPermission API returned 1 permission rules
+2026/03/23 16:24:04 [RBAC-DEBUG] UserPermission Rule[0]:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Verbs: [get list]
+2026/03/23 16:24:04 [RBAC-DEBUG]   APIGroups: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resources: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   ResourceNames: []
+2026/03/23 16:24:04 [RBAC-DEBUG]   Clusters: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Namespaces: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   ----
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-DEBUG] Converting UserPermission rule 0 to PermissionRule format
+2026/03/23 16:24:04 [RBAC-DEBUG] ✅ Converted rule 0: verbs=[get list], groups=[*], resources=[*], clusters=[*], namespaces=[*]
+2026/03/23 16:24:04 [RBAC-DEBUG] Total permissions discovered via UserPermission API: 1 rules
+2026/03/23 16:24:04 [RBAC-DEBUG] Raw permissions discovered: 1 rules
+2026/03/23 16:24:04 [RBAC-DEBUG] Permission[0]: Verbs=[get list], APIGroups=[*], Resources=[*], Clusters=[*], Namespaces=[*]
+2026/03/23 16:24:04 [RBAC-DEBUG] Converting 1 permission rules to query filters
+2026/03/23 16:24:04 [RBAC-DEBUG] Processing permission rule 0:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Verbs: [get list]
+2026/03/23 16:24:04 [RBAC-DEBUG]   APIGroups: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resources: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Clusters: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Namespaces: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding cluster: *
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding namespace: *
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Getting kind for resource: * (group: *)
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Starting live resource discovery...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Calling ServerPreferredResources()...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery returned partial results: unable to retrieve the complete list of server APIs: cluster.open-cluster-management.io/v1alpha1: not found, clusterview.open-cluster-management.io/v1alpha1: no kind "UserPermissionList" is registered for version "clusterview.open-cluster-management.io/v1alpha1" in scheme "pkg/runtime/scheme.go:110"
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Processing API group: v1
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery complete: 0 resource mappings found
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Cache updated with 0 resource mappings (TTL: 1h0m0s)
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ⚠️  Algorithmic fallback: * → *
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ❌ Algorithmic fallback: */* → * (discovery failed)
+2026/03/23 16:24:04 [RBAC-DEBUG]   Mapped */* → Kind: *
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource * can access namespace: *
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource * allowed namespaces: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG] Final query filters:
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedClusters (1): [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedNamespaces (1): [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedResources (1): [*]
+2026/03/23 16:24:04 [RBAC] Resolved 1 permission rules, filters: clusters=1, namespaces=1, resources=1
+2026/03/23 16:24:04 [RBAC-DEBUG] Starting permission resolution for user token (first 20 chars): cluster-admin-token...
+2026/03/23 16:24:04 [RBAC-DEBUG] Initialized resource discovery with user token
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API CALL ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Calling userpermission.GetSelfPermissionRules with:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Host: https://127.0.0.1:63072
+2026/03/23 16:24:04 [RBAC-DEBUG]   BearerToken: cluster-admin-token... (first 20 chars)
+2026/03/23 16:24:04 [RBAC-DEBUG]   Timeout: 5s
+2026/03/23 16:24:04 [RBAC-DEBUG]   TLS Insecure: true
+2026/03/23 16:24:04 [RBAC-DEBUG]   Interested Verbs: [get, list] (read-only access)
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API RESPONSE ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Raw UserPermission API returned 1 permission rules
+2026/03/23 16:24:04 [RBAC-DEBUG] UserPermission Rule[0]:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Verbs: [get list]
+2026/03/23 16:24:04 [RBAC-DEBUG]   APIGroups: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resources: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   ResourceNames: []
+2026/03/23 16:24:04 [RBAC-DEBUG]   Clusters: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Namespaces: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   ----
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-DEBUG] Converting UserPermission rule 0 to PermissionRule format
+2026/03/23 16:24:04 [RBAC-DEBUG] ✅ Converted rule 0: verbs=[get list], groups=[*], resources=[*], clusters=[*], namespaces=[*]
+2026/03/23 16:24:04 [RBAC-DEBUG] Total permissions discovered via UserPermission API: 1 rules
+2026/03/23 16:24:04 [RBAC-DEBUG] Raw permissions discovered: 1 rules
+2026/03/23 16:24:04 [RBAC-DEBUG] Permission[0]: Verbs=[get list], APIGroups=[*], Resources=[*], Clusters=[*], Namespaces=[*]
+2026/03/23 16:24:04 [RBAC-DEBUG] Converting 1 permission rules to query filters
+2026/03/23 16:24:04 [RBAC-DEBUG] Processing permission rule 0:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Verbs: [get list]
+2026/03/23 16:24:04 [RBAC-DEBUG]   APIGroups: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resources: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Clusters: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Namespaces: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding cluster: *
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding namespace: *
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Getting kind for resource: * (group: *)
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Starting live resource discovery...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Calling ServerPreferredResources()...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery returned partial results: unable to retrieve the complete list of server APIs: cluster.open-cluster-management.io/v1alpha1: not found, clusterview.open-cluster-management.io/v1alpha1: no kind "UserPermissionList" is registered for version "clusterview.open-cluster-management.io/v1alpha1" in scheme "pkg/runtime/scheme.go:110"
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Processing API group: v1
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery complete: 0 resource mappings found
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Cache updated with 0 resource mappings (TTL: 1h0m0s)
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ⚠️  Algorithmic fallback: * → *
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ❌ Algorithmic fallback: */* → * (discovery failed)
+2026/03/23 16:24:04 [RBAC-DEBUG]   Mapped */* → Kind: *
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource * can access namespace: *
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource * allowed namespaces: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG] Final query filters:
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedClusters (1): [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedNamespaces (1): [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedResources (1): [*]
+2026/03/23 16:24:04 [RBAC] Resolved 1 permission rules, filters: clusters=1, namespaces=1, resources=1
+=== RUN   TestRBACResolverSecurityEdgeCases/context_cancellation_handling
+2026/03/23 16:24:04 [RBAC-DEBUG] Starting permission resolution for user token (first 20 chars): Bearer cluster-admin...
+2026/03/23 16:24:04 [RBAC-DEBUG] Initialized resource discovery with user token
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API CALL ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Calling userpermission.GetSelfPermissionRules with:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Host: https://127.0.0.1:63072
+2026/03/23 16:24:04 [RBAC-DEBUG]   BearerToken: cluster-admin-token... (first 20 chars)
+2026/03/23 16:24:04 [RBAC-DEBUG]   Timeout: 5s
+2026/03/23 16:24:04 [RBAC-DEBUG]   TLS Insecure: true
+2026/03/23 16:24:04 [RBAC-DEBUG]   Interested Verbs: [get, list] (read-only access)
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-SECURITY] Failed to get UserPermission rules: client rate limiter Wait returned an error: context canceled
+2026/03/23 16:24:04 [RBAC-SECURITY] FAIL-SECURE: Denying access due to UserPermission API failure
+2026/03/23 16:24:04 [RBAC-SECURITY] Permission resolution failed for user token, denying access: UserPermission API failed, access denied for security: client rate limiter Wait returned an error: context canceled
+2026/03/23 16:24:04 [RBAC-SECURITY] This is a security-first design choice - K8s API failures result in access denial
+=== RUN   TestRBACResolverSecurityEdgeCases/timeout_handling
+2026/03/23 16:24:04 [RBAC-DEBUG] Starting permission resolution for user token (first 20 chars): Bearer cluster-admin...
+2026/03/23 16:24:04 [RBAC-DEBUG] Initialized resource discovery with user token
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API CALL ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Calling userpermission.GetSelfPermissionRules with:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Host: https://127.0.0.1:63072
+2026/03/23 16:24:04 [RBAC-DEBUG]   BearerToken: cluster-admin-token... (first 20 chars)
+2026/03/23 16:24:04 [RBAC-DEBUG]   Timeout: 1ns
+2026/03/23 16:24:04 [RBAC-DEBUG]   TLS Insecure: true
+2026/03/23 16:24:04 [RBAC-DEBUG]   Interested Verbs: [get, list] (read-only access)
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-SECURITY] Failed to get UserPermission rules: Get "https://127.0.0.1:63072/apis/clusterview.open-cluster-management.io/v1alpha1/userpermissions": context deadline exceeded
+2026/03/23 16:24:04 [RBAC-SECURITY] FAIL-SECURE: Denying access due to UserPermission API failure
+2026/03/23 16:24:04 [RBAC-SECURITY] Permission resolution failed for user token, denying access: UserPermission API failed, access denied for security: Get "https://127.0.0.1:63072/apis/clusterview.open-cluster-management.io/v1alpha1/userpermissions": context deadline exceeded
+2026/03/23 16:24:04 [RBAC-SECURITY] This is a security-first design choice - K8s API failures result in access denial
+    auth_rbac_test.go:349: 
+        	Error Trace:	/Users/jbanerje/code/search-mcp-server/golang/test/integration/auth_rbac_test.go:349
+        	Error:      	"permission resolution failed, access denied for security: UserPermission API failed, access denied for security: Get \"https://127.0.0.1:63072/apis/clusterview.open-cluster-management.io/v1alpha1/userpermissions\": context deadline exceeded" does not contain "timeout"
+        	Test:       	TestRBACResolverSecurityEdgeCases/timeout_handling
+        	Messages:   	Short timeout should cause timeout error
+=== RUN   TestRBACResolverSecurityEdgeCases/privilege_escalation_prevention
+2026/03/23 16:24:04 [RBAC-DEBUG] Starting permission resolution for user token (first 20 chars): Bearer mixed-permiss...
+2026/03/23 16:24:04 [RBAC-DEBUG] Initialized resource discovery with user token
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API CALL ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Calling userpermission.GetSelfPermissionRules with:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Host: https://127.0.0.1:63072
+2026/03/23 16:24:04 [RBAC-DEBUG]   BearerToken: mixed-permissions-to... (first 20 chars)
+2026/03/23 16:24:04 [RBAC-DEBUG]   Timeout: 5s
+2026/03/23 16:24:04 [RBAC-DEBUG]   TLS Insecure: true
+2026/03/23 16:24:04 [RBAC-DEBUG]   Interested Verbs: [get, list] (read-only access)
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-DEBUG] ==================== USER PERMISSION API RESPONSE ====================
+2026/03/23 16:24:04 [RBAC-DEBUG] Raw UserPermission API returned 2 permission rules
+2026/03/23 16:24:04 [RBAC-DEBUG] UserPermission Rule[0]:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Verbs: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   APIGroups: []
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resources: [secrets]
+2026/03/23 16:24:04 [RBAC-DEBUG]   ResourceNames: []
+2026/03/23 16:24:04 [RBAC-DEBUG]   Clusters: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Namespaces: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   ----
+2026/03/23 16:24:04 [RBAC-DEBUG] UserPermission Rule[1]:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Verbs: [get list]
+2026/03/23 16:24:04 [RBAC-DEBUG]   APIGroups: []
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resources: [pods services]
+2026/03/23 16:24:04 [RBAC-DEBUG]   ResourceNames: []
+2026/03/23 16:24:04 [RBAC-DEBUG]   Clusters: [restricted-cluster]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Namespaces: [restricted-namespace]
+2026/03/23 16:24:04 [RBAC-DEBUG]   ----
+2026/03/23 16:24:04 [RBAC-DEBUG] ================================================================
+2026/03/23 16:24:04 [RBAC-DEBUG] Converting UserPermission rule 0 to PermissionRule format
+2026/03/23 16:24:04 [RBAC-DEBUG] ✅ Converted rule 0: verbs=[*], groups=[], resources=[secrets], clusters=[*], namespaces=[*]
+2026/03/23 16:24:04 [RBAC-DEBUG] Converting UserPermission rule 1 to PermissionRule format
+2026/03/23 16:24:04 [RBAC-DEBUG] ✅ Converted rule 1: verbs=[get list], groups=[], resources=[pods services], clusters=[restricted-cluster], namespaces=[restricted-namespace]
+2026/03/23 16:24:04 [RBAC-DEBUG] Total permissions discovered via UserPermission API: 2 rules
+2026/03/23 16:24:04 [RBAC-DEBUG] Raw permissions discovered: 2 rules
+2026/03/23 16:24:04 [RBAC-DEBUG] Permission[0]: Verbs=[*], APIGroups=[], Resources=[secrets], Clusters=[*], Namespaces=[*]
+2026/03/23 16:24:04 [RBAC-DEBUG] Permission[1]: Verbs=[get list], APIGroups=[], Resources=[pods services], Clusters=[restricted-cluster], Namespaces=[restricted-namespace]
+2026/03/23 16:24:04 [RBAC-DEBUG] Converting 2 permission rules to query filters
+2026/03/23 16:24:04 [RBAC-DEBUG] Processing permission rule 0:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Verbs: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   APIGroups: []
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resources: [secrets]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Clusters: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Namespaces: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding cluster: *
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding namespace: *
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Getting kind for resource: secrets (group: )
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Starting live resource discovery...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Calling ServerPreferredResources()...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery returned partial results: unable to retrieve the complete list of server APIs: cluster.open-cluster-management.io/v1alpha1: not found, clusterview.open-cluster-management.io/v1alpha1: no kind "UserPermissionList" is registered for version "clusterview.open-cluster-management.io/v1alpha1" in scheme "pkg/runtime/scheme.go:110"
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Processing API group: v1
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery complete: 0 resource mappings found
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Cache updated with 0 resource mappings (TTL: 1h0m0s)
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ✅ Hardcoded fallback: secrets → Secret
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ⚠️  Hardcoded fallback: /secrets → Secret
+2026/03/23 16:24:04 [RBAC-DEBUG]   Mapped /secrets → Kind: Secret
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Secret can access namespace: *
+2026/03/23 16:24:04 [RBAC-DEBUG] Processing permission rule 1:
+2026/03/23 16:24:04 [RBAC-DEBUG]   Verbs: [get list]
+2026/03/23 16:24:04 [RBAC-DEBUG]   APIGroups: []
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resources: [pods services]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Clusters: [restricted-cluster]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Namespaces: [restricted-namespace]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding cluster: restricted-cluster
+2026/03/23 16:24:04 [RBAC-DEBUG]   Adding namespace: restricted-namespace
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Getting kind for resource: pods (group: )
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Starting live resource discovery...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Calling ServerPreferredResources()...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery returned partial results: unable to retrieve the complete list of server APIs: cluster.open-cluster-management.io/v1alpha1: not found, clusterview.open-cluster-management.io/v1alpha1: no kind "UserPermissionList" is registered for version "clusterview.open-cluster-management.io/v1alpha1" in scheme "pkg/runtime/scheme.go:110"
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Processing API group: v1
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery complete: 0 resource mappings found
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Cache updated with 0 resource mappings (TTL: 1h0m0s)
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ✅ Hardcoded fallback: pods → Pod
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ⚠️  Hardcoded fallback: /pods → Pod
+2026/03/23 16:24:04 [RBAC-DEBUG]   Mapped /pods → Kind: Pod
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Pod can access namespace: restricted-namespace
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Getting kind for resource: services (group: )
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Starting live resource discovery...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Calling ServerPreferredResources()...
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery returned partial results: unable to retrieve the complete list of server APIs: cluster.open-cluster-management.io/v1alpha1: not found, clusterview.open-cluster-management.io/v1alpha1: no kind "UserPermissionList" is registered for version "clusterview.open-cluster-management.io/v1alpha1" in scheme "pkg/runtime/scheme.go:110"
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Processing API group: v1
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Discovery complete: 0 resource mappings found
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] Cache updated with 0 resource mappings (TTL: 1h0m0s)
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ✅ Hardcoded fallback: services → Service
+2026/03/23 16:24:04 [DISCOVERY-DEBUG] ⚠️  Hardcoded fallback: /services → Service
+2026/03/23 16:24:04 [RBAC-DEBUG]   Mapped /services → Kind: Service
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Service can access namespace: restricted-namespace
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Secret allowed namespaces: [*]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Pod allowed namespaces: [restricted-namespace]
+2026/03/23 16:24:04 [RBAC-DEBUG]   Resource Service allowed namespaces: [restricted-namespace]
+2026/03/23 16:24:04 [RBAC-DEBUG] Final query filters:
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedClusters (2): [* restricted-cluster]
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedNamespaces (2): [restricted-namespace *]
+2026/03/23 16:24:04 [RBAC-DEBUG]   AllowedResources (3): [Secret Pod Service]
+2026/03/23 16:24:04 [RBAC] Resolved 2 permission rules, filters: clusters=2, namespaces=2, resources=3
+--- FAIL: TestRBACResolverSecurityEdgeCases (0.01s)
+    --- PASS: TestRBACResolverSecurityEdgeCases/empty_token_rejection (0.00s)
+    --- FAIL: TestRBACResolverSecurityEdgeCases/malformed_token_rejection (0.00s)
+    --- PASS: TestRBACResolverSecurityEdgeCases/bearer_prefix_handling (0.00s)
+    --- PASS: TestRBACResolverSecurityEdgeCases/context_cancellation_handling (0.00s)
+    --- FAIL: TestRBACResolverSecurityEdgeCases/timeout_handling (0.00s)
+    --- PASS: TestRBACResolverSecurityEdgeCases/privilege_escalation_prevention (0.00s)
+=== RUN   TestIntegration
+Running Suite: Integration Suite - /Users/jbanerje/code/search-mcp-server/golang/test/integration
+=================================================================================================
+Random Seed: [1m1774308244[0m
+
+Will run [1m64[0m of [1m64[0m specs
+2026/03/23 16:24:04 Database connection acquisition failed: closed pool
+[38;5;10m•[0m2026/03/23 16:24:04 Database connection acquisition failed: closed pool
+[38;5;10m•[0m2026/03/23 16:24:05 Database connection acquisition failed: closed pool
+[38;5;10m•[0m2026/03/23 16:24:05 [STATUS] Using kind-aware filtering for: Pod
+2026/03/23 16:24:05 [STATUS] Building kind-aware conditions for kind: Pod, status: Running
+Pod status SQL: SELECT data->>'name' as name, data->>'status' as status FROM test_resources WHERE data->>'kind' = $1 AND data->>'status' = $2
+Pod status params: [Pod Running]
+Pod status result: [[coredns-pod Running]]
+2026/03/23 16:24:05 Database connection acquisition failed: closed pool
+[38;5;10m•[0m2026/03/23 16:24:05 [STATUS] Using kind-aware filtering for: Deployment
+2026/03/23 16:24:05 [STATUS] Building kind-aware conditions for kind: Deployment, status: healthy
+2026/03/23 16:24:05 [STATUS] Status filtering for Deployment requires post-query processing
+2026/03/23 16:24:05 Database connection acquisition failed: closed pool
+[38;5;10m•[0m2026/03/23 16:24:05 [STATUS] Using textSearch fallback for kind: UnknownCustomResource
+2026/03/23 16:24:05 [STATUS] Using textSearch fallback for status values: [Active]
+2026/03/23 16:24:05 Database connection acquisition failed: closed pool
+[38;5;10m•[0m2026/03/23 16:24:05 Database connection acquisition failed: closed pool
+[38;5;10m•[0m2026/03/23 16:24:05 [STATUS] Using kind-aware filtering for: Pod
+2026/03/23 16:24:05 [STATUS] Building kind-aware conditions for kind: Pod, status: Running
+2026/03/23 16:24:05 Database connection acquisition failed: closed pool
+[38;5;10m•[0m2026/03/23 16:24:05 MCP Server initialized: ServerConfig{TransportMode:http, HTTPAddr:0.0.0.0:18080, DatabaseURL:[REDACTED]@localhost:5432/search?sslmode=disable, Streaming:true, Auth:false}
+2026/03/23 16:24:05 Starting MCP server with transport mode: http
+2026/03/23 16:24:05 Streaming mode: true
+2026/03/23 16:24:05 Registered MCP-compliant HTTP transport
+2026/03/23 16:24:05 Starting transport manager...
+2026/03/23 16:24:05 Starting single transport: http-mcp
+2026/03/23 16:24:05 Streaming mode: true
+2026/03/23 16:24:05 Registered MCP tool: find_resources
+2026/03/23 16:24:05 Authentication middleware initialized: enabled=false
+2026/03/23 16:24:05 Starting MCP-compliant HTTP transport on 0.0.0.0:18080
+2026/03/23 16:24:05 🚀 MCP Server READY - accepting connections on 0.0.0.0:18080
+2026/03/23 16:24:05 Context cancelled, shutting down HTTP server...
+2026/03/23 16:24:05 Stopping HTTP transport...
+2026/03/23 16:24:05 Closing auth middleware...
+2026/03/23 16:24:05 Auth middleware closed
+2026/03/23 16:24:05 Stopping MCP server...
+2026/03/23 16:24:05 Stopping transport manager...
+2026/03/23 16:24:05 Stopping HTTP transport...
+2026/03/23 16:24:05 Shutting down HTTP server...
+2026/03/23 16:24:05 Closing auth middleware...
+2026/03/23 16:24:05 Auth middleware closed
+2026/03/23 16:24:05 Shutting down HTTP server...
+2026/03/23 16:24:05 HTTP server shutdown complete
+2026/03/23 16:24:05 Transport manager stopped successfully
+2026/03/23 16:24:05 Closing database connection...
+2026/03/23 16:24:05 HTTP server shutdown complete
+2026/03/23 16:24:05 HTTP transport shutdown completed with result: <nil>
+2026/03/23 16:24:05 Transport manager returned with: <nil>
+2026/03/23 16:24:05 Database connection closed
+2026/03/23 16:24:05 MCP server stop completed
+[38;5;10m•[0m2026/03/23 16:24:05 MCP Server initialized: ServerConfig{TransportMode:http, HTTPAddr:0.0.0.0:18080, DatabaseURL:[REDACTED]@localhost:5432/search?sslmode=disable, Streaming:true, Auth:false}
+2026/03/23 16:24:05 Starting MCP server with transport mode: http
+2026/03/23 16:24:05 Streaming mode: true
+2026/03/23 16:24:05 Registered MCP-compliant HTTP transport
+2026/03/23 16:24:05 Starting transport manager...
+2026/03/23 16:24:05 Starting single transport: http-mcp
+2026/03/23 16:24:05 Streaming mode: true
+2026/03/23 16:24:05 Registered MCP tool: find_resources
+2026/03/23 16:24:05 Authentication middleware initialized: enabled=false
+2026/03/23 16:24:05 Starting MCP-compliant HTTP transport on 0.0.0.0:18080
+2026/03/23 16:24:05 🚀 MCP Server READY - accepting connections on 0.0.0.0:18080
+2026/03/23 16:24:05 [SECURITY] GetAuthorizedTools called with nil userCtx - denying all access
+2026/03/23 16:24:05 [TOOLS] User: <anonymous>, Authorized tools: []
+2026/03/23 16:24:05 Stopping MCP server...
+2026/03/23 16:24:05 Stopping transport manager...
+2026/03/23 16:24:05 Stopping HTTP transport...
+2026/03/23 16:24:05 Closing auth middleware...
+2026/03/23 16:24:05 Auth middleware closed
+2026/03/23 16:24:05 Shutting down HTTP server...
+2026/03/23 16:24:05 Context cancelled, shutting down HTTP server...
+2026/03/23 16:24:05 Stopping HTTP transport...
+2026/03/23 16:24:05 Closing auth middleware...
+2026/03/23 16:24:05 Auth middleware closed
+2026/03/23 16:24:05 Shutting down HTTP server...
+2026/03/23 16:24:05 HTTP server shutdown complete
+2026/03/23 16:24:05 Transport manager stopped successfully
+2026/03/23 16:24:05 Closing database connection...
+2026/03/23 16:24:05 HTTP server shutdown complete
+2026/03/23 16:24:05 HTTP transport shutdown completed with result: <nil>
+2026/03/23 16:24:05 Transport manager returned with: <nil>
+2026/03/23 16:24:05 Database connection closed
+2026/03/23 16:24:05 MCP server stop completed
+[38;5;10m•[0m2026/03/23 16:24:05 MCP Server initialized: ServerConfig{TransportMode:http, HTTPAddr:0.0.0.0:18080, DatabaseURL:[REDACTED]@localhost:5432/search?sslmode=disable, Streaming:true, Auth:false}
+2026/03/23 16:24:05 Starting MCP server with transport mode: http
+2026/03/23 16:24:05 Streaming mode: true
+2026/03/23 16:24:05 Registered MCP-compliant HTTP transport
+2026/03/23 16:24:05 Starting transport manager...
+2026/03/23 16:24:05 Starting single transport: http-mcp
+2026/03/23 16:24:05 Streaming mode: true
+2026/03/23 16:24:05 Registered MCP tool: find_resources
+2026/03/23 16:24:05 Authentication middleware initialized: enabled=false
+2026/03/23 16:24:05 Starting MCP-compliant HTTP transport on 0.0.0.0:18080
+2026/03/23 16:24:05 🚀 MCP Server READY - accepting connections on 0.0.0.0:18080
+2026/03/23 16:24:05 [SECURITY] GetAuthorizedTools called with nil userCtx - denying all access
+2026/03/23 16:24:05 [AUTH] Tool access denied for user <anonymous>: tool=find_resources
+2026/03/23 16:24:05 Stopping MCP server...
+2026/03/23 16:24:05 Stopping transport manager...
+2026/03/23 16:24:05 Stopping HTTP transport...
+2026/03/23 16:24:05 Closing auth middleware...
+2026/03/23 16:24:05 Auth middleware closed
+2026/03/23 16:24:05 Shutting down HTTP server...
+2026/03/23 16:24:05 Context cancelled, shutting down HTTP server...
+2026/03/23 16:24:05 Stopping HTTP transport...
+2026/03/23 16:24:05 Closing auth middleware...
+2026/03/23 16:24:05 Auth middleware closed
+2026/03/23 16:24:05 Shutting down HTTP server...
+2026/03/23 16:24:05 HTTP server shutdown complete
+2026/03/23 16:24:05 Transport manager stopped successfully
+2026/03/23 16:24:05 Closing database connection...
+2026/03/23 16:24:05 HTTP server shutdown complete
+2026/03/23 16:24:05 HTTP transport shutdown completed with result: <nil>
+2026/03/23 16:24:05 Transport manager returned with: <nil>
+2026/03/23 16:24:05 Database connection closed
+2026/03/23 16:24:05 MCP server stop completed
+[38;5;10m•[0m2026/03/23 16:24:05 MCP Server initialized: ServerConfig{TransportMode:http, HTTPAddr:0.0.0.0:18080, DatabaseURL:[REDACTED]@localhost:5432/search?sslmode=disable, Streaming:true, Auth:false}
+2026/03/23 16:24:05 Starting MCP server with transport mode: http
+2026/03/23 16:24:05 Streaming mode: true
+2026/03/23 16:24:05 Registered MCP-compliant HTTP transport
+2026/03/23 16:24:05 Starting transport manager...
+2026/03/23 16:24:05 Starting single transport: http-mcp
+2026/03/23 16:24:05 Streaming mode: true
+2026/03/23 16:24:05 Registered MCP tool: find_resources
+2026/03/23 16:24:05 Authentication middleware initialized: enabled=false
+2026/03/23 16:24:05 Starting MCP-compliant HTTP transport on 0.0.0.0:18080
+2026/03/23 16:24:05 🚀 MCP Server READY - accepting connections on 0.0.0.0:18080
+2026/03/23 16:24:05 Stopping MCP server...
+2026/03/23 16:24:05 Stopping transport manager...
+2026/03/23 16:24:05 Stopping HTTP transport...
+2026/03/23 16:24:05 Closing auth middleware...
+2026/03/23 16:24:05 Auth middleware closed
+2026/03/23 16:24:05 Shutting down HTTP server...
+2026/03/23 16:24:05 Context cancelled, shutting down HTTP server...
+2026/03/23 16:24:05 Stopping HTTP transport...
+2026/03/23 16:24:05 Closing auth middleware...
+2026/03/23 16:24:05 Auth middleware closed
+2026/03/23 16:24:05 Shutting down HTTP server...
+2026/03/23 16:24:05 HTTP server shutdown complete
+2026/03/23 16:24:05 HTTP transport shutdown completed with result: <nil>
+2026/03/23 16:24:05 HTTP server shutdown complete
+2026/03/23 16:24:05 Transport manager stopped successfully
+2026/03/23 16:24:05 Transport manager returned with: <nil>
+2026/03/23 16:24:05 Closing database connection...
+2026/03/23 16:24:05 Database connection closed
+2026/03/23 16:24:05 MCP server stop completed
+[38;5;10m•[0m2026/03/23 16:24:05 MCP Server initialized: ServerConfig{TransportMode:http, HTTPAddr:0.0.0.0:18080, DatabaseURL:[REDACTED]@localhost:5432/search?sslmode=disable, Streaming:true, Auth:false}
+2026/03/23 16:24:05 Starting MCP server with transport mode: http
+2026/03/23 16:24:05 Streaming mode: true
+2026/03/23 16:24:05 Registered MCP-compliant HTTP transport
+2026/03/23 16:24:05 Starting transport manager...
+2026/03/23 16:24:05 Starting single transport: http-mcp
+2026/03/23 16:24:05 Streaming mode: true
+2026/03/23 16:24:05 Registered MCP tool: find_resources
+2026/03/23 16:24:05 Authentication middleware initialized: enabled=false
+2026/03/23 16:24:05 Starting MCP-compliant HTTP transport on 0.0.0.0:18080
+2026/03/23 16:24:05 🚀 MCP Server READY - accepting connections on 0.0.0.0:18080
+2026/03/23 16:24:05 Stopping MCP server...
+2026/03/23 16:24:05 Stopping transport manager...
+2026/03/23 16:24:05 Stopping HTTP transport...
+2026/03/23 16:24:05 Closing auth middleware...
+2026/03/23 16:24:05 Auth middleware closed
+2026/03/23 16:24:05 Shutting down HTTP server...
+2026/03/23 16:24:05 Context cancelled, shutting down HTTP server...
+2026/03/23 16:24:05 Stopping HTTP transport...
+2026/03/23 16:24:05 Closing auth middleware...
+2026/03/23 16:24:05 Auth middleware closed
+2026/03/23 16:24:05 Shutting down HTTP server...
+2026/03/23 16:24:05 HTTP server shutdown complete
+2026/03/23 16:24:05 HTTP transport shutdown completed with result: <nil>
+2026/03/23 16:24:05 HTTP server shutdown complete
+2026/03/23 16:24:05 Transport manager stopped successfully
+2026/03/23 16:24:05 Closing database connection...
+2026/03/23 16:24:05 Transport manager returned with: <nil>
+2026/03/23 16:24:05 Database connection closed
+2026/03/23 16:24:05 MCP server stop completed
+[38;5;10m•[0m2026/03/23 16:24:05 MCP Server initialized: ServerConfig{TransportMode:http, HTTPAddr:0.0.0.0:18080, DatabaseURL:[REDACTED]@localhost:5432/search?sslmode=disable, Streaming:true, Auth:false}
+2026/03/23 16:24:05 Starting MCP server with transport mode: http
+2026/03/23 16:24:05 Streaming mode: true
+2026/03/23 16:24:05 Registered MCP-compliant HTTP transport
+2026/03/23 16:24:05 Starting transport manager...
+2026/03/23 16:24:05 Starting single transport: http-mcp
+2026/03/23 16:24:05 Streaming mode: true
+2026/03/23 16:24:05 Registered MCP tool: find_resources
+2026/03/23 16:24:05 Authentication middleware initialized: enabled=false
+2026/03/23 16:24:05 Starting MCP-compliant HTTP transport on 0.0.0.0:18080
+2026/03/23 16:24:05 🚀 MCP Server READY - accepting connections on 0.0.0.0:18080
+2026/03/23 16:24:05 Stopping MCP server...
+2026/03/23 16:24:05 Stopping transport manager...
+2026/03/23 16:24:05 Stopping HTTP transport...
+2026/03/23 16:24:05 Closing auth middleware...
+2026/03/23 16:24:05 Auth middleware closed
+2026/03/23 16:24:05 Context cancelled, shutting down HTTP server...
+2026/03/23 16:24:05 Shutting down HTTP server...
+2026/03/23 16:24:05 Stopping HTTP transport...
+2026/03/23 16:24:05 Closing auth middleware...
+2026/03/23 16:24:05 Auth middleware closed
+2026/03/23 16:24:05 Shutting down HTTP server...
+2026/03/23 16:24:05 HTTP server shutdown complete
+2026/03/23 16:24:05 HTTP transport shutdown completed with result: <nil>
+2026/03/23 16:24:05 HTTP server shutdown complete
+2026/03/23 16:24:05 Transport manager stopped successfully
+2026/03/23 16:24:05 Closing database connection...
+2026/03/23 16:24:05 Transport manager returned with: <nil>
+2026/03/23 16:24:05 Database connection closed
+2026/03/23 16:24:05 MCP server stop completed
+[38;5;10m•[0m2026/03/23 16:24:05 MCP Server initialized: ServerConfig{TransportMode:http, HTTPAddr:0.0.0.0:18080, DatabaseURL:[REDACTED]@localhost:5432/search?sslmode=disable, Streaming:true, Auth:false}
+2026/03/23 16:24:05 Starting MCP server with transport mode: http
+2026/03/23 16:24:05 Streaming mode: true
+2026/03/23 16:24:05 Registered MCP-compliant HTTP transport
+2026/03/23 16:24:05 Starting transport manager...
+2026/03/23 16:24:05 Starting single transport: http-mcp
+2026/03/23 16:24:05 Streaming mode: true
+2026/03/23 16:24:05 Registered MCP tool: find_resources
+2026/03/23 16:24:05 Authentication middleware initialized: enabled=false
+2026/03/23 16:24:05 Starting MCP-compliant HTTP transport on 0.0.0.0:18080
+2026/03/23 16:24:05 🚀 MCP Server READY - accepting connections on 0.0.0.0:18080
+2026/03/23 16:24:05 Stopping MCP server...
+2026/03/23 16:24:05 Stopping transport manager...
+2026/03/23 16:24:05 Stopping HTTP transport...
+2026/03/23 16:24:05 Closing auth middleware...
+2026/03/23 16:24:05 Auth middleware closed
+2026/03/23 16:24:05 Shutting down HTTP server...
+2026/03/23 16:24:05 Context cancelled, shutting down HTTP server...
+2026/03/23 16:24:05 Stopping HTTP transport...
+2026/03/23 16:24:05 Closing auth middleware...
+2026/03/23 16:24:05 Auth middleware closed
+2026/03/23 16:24:05 Shutting down HTTP server...
+2026/03/23 16:24:05 HTTP server shutdown complete
+2026/03/23 16:24:05 HTTP transport shutdown completed with result: <nil>
+2026/03/23 16:24:05 HTTP server shutdown complete
+2026/03/23 16:24:05 Transport manager stopped successfully
+2026/03/23 16:24:05 Closing database connection...
+2026/03/23 16:24:05 Transport manager returned with: <nil>
+2026/03/23 16:24:05 Database connection closed
+2026/03/23 16:24:05 MCP server stop completed
+[38;5;10m•[0m[38;5;10m•[0m[38;5;10m•[0m[38;5;10m•[0m[38;5;10m•[0m[38;5;10m•[0m[38;5;10m•[0m[38;5;10m•[0m[38;5;10m•[0m2026/03/23 16:24:05 Connection Pool Status: healthy (healthy=true)
+2026/03/23 16:24:05 Pool Stats: 0/20 connections acquired, 1 idle, 0.0% utilization
+2026/03/23 16:24:05 Response Time: 4.03025ms, Connectivity: true
+[38;5;10m•[0m[38;5;10m•[0m2026/03/23 16:24:05 Database connection acquisition failed: closed pool
+[38;5;10m•[0m2026/03/23 16:24:05 Database connection acquisition failed: closed pool
+[38;5;10m•[0m2026/03/23 16:24:05 Database connection acquisition failed: closed pool
+[38;5;10m•[0m2026/03/23 16:24:05 Database connection acquisition failed: closed pool
+[38;5;10m•[0m2026/03/23 16:24:05 Database connection acquisition failed: closed pool
+[38;5;10m•[0m2026/03/23 16:24:05 Database connection acquisition failed: closed pool
+[38;5;14mS[0m2026/03/23 16:24:05 Database connection acquisition failed: closed pool
+[38;5;10m•[0m2026/03/23 16:24:05 Database connection acquisition failed: closed pool
+[38;5;10m•[0m2026/03/23 16:24:05 Database connection acquisition failed: closed pool
+[38;5;10m•[0m2026/03/23 16:24:05 Database connection acquisition failed: closed pool
+[38;5;10m•[0m2026/03/23 16:24:05 Database connection acquisition failed: closed pool
+[38;5;10m•[0m2026/03/23 16:24:05 Database connection acquisition failed: closed pool
+[38;5;10m•[0m2026/03/23 16:24:05 Database connection acquisition failed: closed pool
+[38;5;10m•[0m2026/03/23 16:24:05 Database connection acquisition failed: closed pool
+[38;5;10m•[0m2026/03/23 16:24:05 Database connection acquisition failed: closed pool
+[38;5;10m•[0m2026/03/23 16:24:05 Database connection acquisition failed: closed pool
+[38;5;10m•[0m[38;5;10m•[0m[38;5;10m•[0m[38;5;10m•[0m[38;5;10m•[0m[38;5;10m•[0m[38;5;10m•[0m[38;5;10m•[0m[38;5;10m•[0m[38;5;10m•[0m2026/03/23 16:24:05 [STATUS] Using kind-aware filtering for: Pod
+2026/03/23 16:24:05 [STATUS] Building kind-aware conditions for kind: Pod, status: [Running]
+[38;5;10m•[0m[38;5;10m•[0m[38;5;10m•[0m[38;5;10m•[0m[38;5;10m•[0m[38;5;10m•[0m[38;5;14mS[0m[38;5;14mS[0m[38;5;10m•[0m[38;5;14mS[0m[38;5;10m•[0m[38;5;10m•[0m[38;5;10m•[0m[38;5;10m•[0m
+
+[38;5;10m[1mRan 60 of 64 Specs in 0.639 seconds[0m
+[38;5;10m[1mSUCCESS![0m -- [38;5;10m[1m60 Passed[0m | [38;5;9m[1m0 Failed[0m | [38;5;11m[1m0 Pending[0m | [38;5;14m[1m4 Skipped[0m
+--- PASS: TestIntegration (0.64s)
+FAIL
+FAIL	github.com/stolostron/search-mcp-server/test/integration	1.282s
+FAIL

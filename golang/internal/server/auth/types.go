@@ -130,9 +130,9 @@ func (qf *QueryFilters) checkNamespaceAccess(allowedNamespaces []string, namespa
 
 // isUnrestricted returns true if the slice represents unrestricted access
 func (qf *QueryFilters) isUnrestricted(slice []string) bool {
-	// Empty slice = no restrictions applied for this dimension
+	// SECURITY: Empty slice = NO ACCESS (fail secure), not unrestricted
 	if len(slice) == 0 {
-		return true
+		return false
 	}
 	// Single "*" = explicit wildcard for this dimension
 	return len(slice) == 1 && slice[0] == "*"
@@ -145,9 +145,9 @@ func (qf *QueryFilters) IsClusterAllowed(cluster string) bool {
 		return false
 	}
 
-	// Empty AllowedClusters list means no cluster restrictions for this dimension
+	// SECURITY: Empty AllowedClusters list means NO ACCESS (fail secure)
 	if len(qf.AllowedClusters) == 0 {
-		return true
+		return false
 	}
 
 	for _, allowed := range qf.AllowedClusters {
@@ -166,9 +166,9 @@ func (qf *QueryFilters) IsNamespaceAllowed(namespace string) bool {
 		return false
 	}
 
-	// Empty AllowedNamespaces list means no namespace restrictions for this dimension
+	// SECURITY: Empty AllowedNamespaces list means NO ACCESS (fail secure)
 	if len(qf.AllowedNamespaces) == 0 {
-		return true
+		return false
 	}
 
 	for _, allowed := range qf.AllowedNamespaces {
@@ -187,9 +187,9 @@ func (qf *QueryFilters) IsResourceKindAllowed(kind string) bool {
 		return false
 	}
 
-	// Empty AllowedResources list means no resource kind restrictions for this dimension
+	// SECURITY: Empty AllowedResources list means NO ACCESS (fail secure)
 	if len(qf.AllowedResources) == 0 {
-		return true
+		return false
 	}
 
 	for _, allowed := range qf.AllowedResources {

@@ -115,9 +115,9 @@ func (r *RBACResolver) resolvePermissions(ctx context.Context, clientset *kubern
 	// Create user config for UserPermission API call
 	userConfig, err := r.createUserKubernetesConfig(userToken)
 	if err != nil {
-		log.Printf("[RBAC-DEBUG] Failed to create user config for UserPermission API: %v", err)
-		log.Printf("[RBAC-DEBUG] Falling back to predefined resource checks...")
-		return r.resolvePermissionsWithPredefinedList(ctx, clientset, userToken)
+		log.Printf("[RBAC-SECURITY] Failed to create user config for UserPermission API: %v", err)
+		log.Printf("[RBAC-SECURITY] FAIL-SECURE: Denying access due to configuration failure")
+		return nil, fmt.Errorf("user config creation failed, access denied for security: %w", err)
 	}
 
 	// Log the exact API call parameters
@@ -133,9 +133,9 @@ func (r *RBACResolver) resolvePermissions(ctx context.Context, clientset *kubern
 	// CORRECT API: Use UserPermission API with read-only verb filter
 	rawPermissions, err := userpermission.GetSelfPermissionRules(ctx, userConfig, "get", "list")
 	if err != nil {
-		log.Printf("[RBAC-DEBUG] Failed to get UserPermission rules: %v", err)
-		log.Printf("[RBAC-DEBUG] Falling back to predefined resource checks...")
-		return r.resolvePermissionsWithPredefinedList(ctx, clientset, userToken)
+		log.Printf("[RBAC-SECURITY] Failed to get UserPermission rules: %v", err)
+		log.Printf("[RBAC-SECURITY] FAIL-SECURE: Denying access due to UserPermission API failure")
+		return nil, fmt.Errorf("UserPermission API failed, access denied for security: %w", err)
 	}
 
 	// Log the raw API response
@@ -214,7 +214,15 @@ func (r *RBACResolver) getRawUserPermissions(ctx context.Context, clientset *kub
 	return result.Status.ResourceRules, nil
 }
 
-// resolvePermissionsWithPredefinedList is the old approach as fallback
+// resolvePermissionsWithPredefinedList is DEPRECATED and INSECURE - kept for reference only
+//
+// SECURITY VULNERABILITY: This fallback grants wildcard access (clusters=["*"], namespaces=["*"])
+// when any permission is found, creating a massive privilege escalation attack vector.
+//
+// DECISION: Removed from production use in favor of fail-secure behavior.
+// If UserPermission API fails, we deny access entirely rather than risk privilege escalation.
+//
+// DO NOT USE THIS FUNCTION - it exists only for reference and potential secure reimplementation.
 func (r *RBACResolver) resolvePermissionsWithPredefinedList(ctx context.Context, clientset *kubernetes.Clientset, userToken string) ([]PermissionRule, error) {
 	var permissions []PermissionRule
 

@@ -12,6 +12,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/stolostron/search-mcp-server/internal/findresources"
+	"github.com/stolostron/search-mcp-server/internal/server/auth"
 	"github.com/stolostron/search-mcp-server/pkg/config"
 	"github.com/stolostron/search-mcp-server/pkg/database"
 	"github.com/stolostron/search-mcp-server/pkg/types"
@@ -85,7 +86,7 @@ var _ = Describe("FindResources Integration Tests", func() {
 				Limit:      10,
 			}
 
-			result, err := core.FindResources(ctx, args)
+			result, err := core.FindResources(ctx, args, (*auth.UserContext)(nil))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(result).ToNot(BeNil())
 			Expect(result.Mode).To(Equal("list"))
@@ -114,7 +115,7 @@ var _ = Describe("FindResources Integration Tests", func() {
 				OutputMode: "list",
 			}
 
-			result, err := core.FindResources(ctx, args)
+			result, err := core.FindResources(ctx, args, (*auth.UserContext)(nil))
 			Expect(err).ToNot(HaveOccurred())
 
 			resources, ok := result.Data.([]findresources.ResourceResult)
@@ -131,7 +132,7 @@ var _ = Describe("FindResources Integration Tests", func() {
 				Limit:      5,
 			}
 
-			result, err := core.FindResources(ctx, args)
+			result, err := core.FindResources(ctx, args, (*auth.UserContext)(nil))
 			Expect(err).ToNot(HaveOccurred())
 
 			resources, ok := result.Data.([]findresources.ResourceResult)
@@ -155,7 +156,7 @@ var _ = Describe("FindResources Integration Tests", func() {
 				GroupBy:    "status",
 			}
 
-			result, err := core.FindResources(ctx, args)
+			result, err := core.FindResources(ctx, args, (*auth.UserContext)(nil))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(result.Mode).To(Equal("count"))
 
@@ -175,7 +176,7 @@ var _ = Describe("FindResources Integration Tests", func() {
 				OutputMode: "summary",
 			}
 
-			result, err := core.FindResources(ctx, args)
+			result, err := core.FindResources(ctx, args, (*auth.UserContext)(nil))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(result.Mode).To(Equal("summary"))
 
@@ -191,7 +192,7 @@ var _ = Describe("FindResources Integration Tests", func() {
 				OutputMode: "health",
 			}
 
-			result, err := core.FindResources(ctx, args)
+			result, err := core.FindResources(ctx, args, (*auth.UserContext)(nil))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(result.Mode).To(Equal("health"))
 
@@ -212,7 +213,7 @@ var _ = Describe("FindResources Integration Tests", func() {
 				GroupBy:    "kind",
 			}
 
-			result, err := core.FindResources(ctx, args)
+			result, err := core.FindResources(ctx, args, (*auth.UserContext)(nil))
 			Expect(err).ToNot(HaveOccurred())
 
 			counts, ok := result.Data.([]findresources.CountResult)
@@ -230,7 +231,7 @@ var _ = Describe("FindResources Integration Tests", func() {
 				GroupBy:    "kind",
 			}
 
-			result, err := core.FindResources(ctx, args)
+			result, err := core.FindResources(ctx, args, (*auth.UserContext)(nil))
 			Expect(err).ToNot(HaveOccurred())
 
 			counts, ok := result.Data.([]findresources.CountResult)
@@ -250,7 +251,7 @@ var _ = Describe("FindResources Integration Tests", func() {
 				GroupBy:    "kind",
 			}
 
-			result, err := core.FindResources(ctx, args)
+			result, err := core.FindResources(ctx, args, (*auth.UserContext)(nil))
 			Expect(err).ToNot(HaveOccurred())
 
 			counts, ok := result.Data.([]findresources.CountResult)
@@ -268,7 +269,7 @@ var _ = Describe("FindResources Integration Tests", func() {
 				Limit:      5,
 			}
 
-			result, err := core.FindResources(ctx, args)
+			result, err := core.FindResources(ctx, args, (*auth.UserContext)(nil))
 			Expect(err).ToNot(HaveOccurred())
 
 			resources, ok := result.Data.([]findresources.ResourceResult)
@@ -289,7 +290,7 @@ var _ = Describe("FindResources Integration Tests", func() {
 				Limit:      10,
 			}
 
-			result, err := core.FindResources(ctx, args)
+			result, err := core.FindResources(ctx, args, (*auth.UserContext)(nil))
 			Expect(err).ToNot(HaveOccurred())
 
 			resources, ok := result.Data.([]findresources.ResourceResult)
@@ -346,7 +347,7 @@ var _ = Describe("FindResources Integration Tests", func() {
 				args.Cluster = testClusters[0]
 			}
 
-			result, err := core.FindResources(ctx, args)
+			result, err := core.FindResources(ctx, args, (*auth.UserContext)(nil))
 			Expect(err).ToNot(HaveOccurred())
 
 			counts, ok := result.Data.([]findresources.CountResult)
@@ -369,7 +370,7 @@ var _ = Describe("FindResources Integration Tests", func() {
 				Limit:      1,
 			}
 
-			result, err := core.FindResources(ctx, args)
+			result, err := core.FindResources(ctx, args, (*auth.UserContext)(nil))
 			Expect(err).ToNot(HaveOccurred())
 
 			resources, ok := result.Data.([]findresources.ResourceResult)
@@ -396,7 +397,7 @@ var _ = Describe("FindResources Integration Tests", func() {
 				GroupBy:       "status",
 			}
 
-			result, err := core.FindResources(ctx, args)
+			result, err := core.FindResources(ctx, args, (*auth.UserContext)(nil))
 			Expect(err).ToNot(HaveOccurred())
 
 			counts, ok := result.Data.([]findresources.CountResult)
@@ -414,7 +415,7 @@ var _ = Describe("FindResources Integration Tests", func() {
 				GroupBy:         "cluster",
 			}
 
-			result, err := core.FindResources(ctx, args)
+			result, err := core.FindResources(ctx, args, (*auth.UserContext)(nil))
 			Expect(err).ToNot(HaveOccurred())
 
 			counts, ok := result.Data.([]findresources.CountResult)
@@ -434,7 +435,7 @@ var _ = Describe("FindResources Integration Tests", func() {
 				Limit:        5,
 			}
 
-			result, err := core.FindResources(ctx, args)
+			result, err := core.FindResources(ctx, args, (*auth.UserContext)(nil))
 			Expect(err).ToNot(HaveOccurred())
 
 			resources, ok := result.Data.([]findresources.ResourceResult)
@@ -454,7 +455,7 @@ var _ = Describe("FindResources Integration Tests", func() {
 				Limit:        5,
 			}
 
-			result, err := core.FindResources(ctx, args)
+			result, err := core.FindResources(ctx, args, (*auth.UserContext)(nil))
 			Expect(err).ToNot(HaveOccurred())
 
 			resources, ok := result.Data.([]findresources.ResourceResult)
@@ -473,7 +474,7 @@ var _ = Describe("FindResources Integration Tests", func() {
 				CountOnly:  true,  // Should return count-focused results
 			}
 
-			result, err := core.FindResources(ctx, args)
+			result, err := core.FindResources(ctx, args, (*auth.UserContext)(nil))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(result.Mode).To(Equal("count"))
 
@@ -499,7 +500,7 @@ var _ = Describe("FindResources Integration Tests", func() {
 				GroupBy:       "status",
 			}
 
-			result, err := core.FindResources(ctx, args)
+			result, err := core.FindResources(ctx, args, (*auth.UserContext)(nil))
 			Expect(err).ToNot(HaveOccurred())
 
 			counts, ok := result.Data.([]findresources.CountResult)
@@ -516,7 +517,7 @@ var _ = Describe("FindResources Integration Tests", func() {
 				OutputMode:    "list",
 			}
 
-			_, err := core.FindResources(ctx, args)
+			_, err := core.FindResources(ctx, args, (*auth.UserContext)(nil))
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("validation failed"))
 		})
@@ -528,7 +529,7 @@ var _ = Describe("FindResources Integration Tests", func() {
 				OutputMode:   "list",
 			}
 
-			_, err := core.FindResources(ctx, args)
+			_, err := core.FindResources(ctx, args, (*auth.UserContext)(nil))
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("validation failed"))
 		})
@@ -540,7 +541,7 @@ var _ = Describe("FindResources Integration Tests", func() {
 				OutputMode: "invalid_mode",
 			}
 
-			_, err := core.FindResources(ctx, args)
+			_, err := core.FindResources(ctx, args, (*auth.UserContext)(nil))
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("validation failed"))
 		})
@@ -561,7 +562,7 @@ var _ = Describe("FindResources Integration Tests", func() {
 				}
 
 				// Should not crash or return unexpected results
-				_, err := core.FindResources(ctx, args)
+				_, err := core.FindResources(ctx, args, (*auth.UserContext)(nil))
 				// Either succeeds with empty results or fails gracefully
 				// The important thing is it doesn't crash or expose security vulnerabilities
 				if err != nil {
