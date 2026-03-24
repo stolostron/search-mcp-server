@@ -13,7 +13,7 @@ A Model Context Protocol (MCP) server that provides secure access to ACM (Advanc
 - **Multiple Output Modes**: Tables, counts, health analysis, and summaries
 - **Security**: Kubernetes token authentication with ACM admin authorization
 - **Performance**: Fast queries with configurable limits and optimization
-- **Multiple Transport Modes**: SSE server and stdio support
+- **Multiple Transport Modes**: HTTP server and stdio support
 
 ## Quick Start
 
@@ -46,15 +46,17 @@ export ROUTE_URL=$(oc get route acm-search-mcp-server-route -n acm-search -o jso
 # Option A: HTTPS Route (requires certificate handling)
 # this env has to be exported if using the https route
 export NODE_TLS_REJECT_UNAUTHORIZED=0
-claude mcp add --env NODE_TLS_REJECT_UNAUTHORIZED=0 --scope project \
-  --transport sse acm-search \
-  https://$ROUTE_URL/sse \
+claude mcp add \
+  --transport http \
+  --scope project \
+  acm-search \
+  https://$ROUTE_URL/mcp \
   --header "Authorization: Bearer $TOKEN"
 
 # Option B: HTTP Port-forward (no certificate issues)
 oc port-forward service/acm-search-mcp-server-service 8080:80 -n acm-search
-claude mcp add --scope project --transport sse acm-search \
-  http://localhost:8080/sse --header "Authorization: Bearer $TOKEN"
+claude mcp add --scope project --transport http acm-search \
+  http://localhost:8080/mcp --header "Authorization: Bearer $TOKEN"
 ```
 
 ## Tools & Usage
@@ -245,7 +247,7 @@ src/
 ├── find-resources/             # ACM resource search functionality
 ├── utils/cross-resource.ts     # Resource filtering with wildcard support
 ├── server.ts                   # Core MCP server implementation
-└── http-server.ts              # SSE server entry point
+└── http-server.ts              # HTTP server entry point
 ```
 
 ## Reference
@@ -255,14 +257,14 @@ src/
 |------|---------|
 | **Deploy** | `./scripts/create-secret.sh && make deploy-prebuilt` |
 | **Export** | `export NODE_TLS_REJECT_UNAUTHORIZED=0` |
-| **Connect** | `claude mcp add --scope project --transport sse acm-search https://route/sse --header "Authorization: Bearer $TOKEN"` |
+| **Connect** | `claude mcp add --scope project --transport http acm-search https://route/mcp --header "Authorization: Bearer $TOKEN"` |
 | **Status** | `make status` |
 | **Logs** | `make logs` |
 | **Clean** | `make clean-all` |
 
 ### Connection URLs
-- **HTTPS Route**: `https://acm-search-mcp-server-route-acm-search.apps.CLUSTER_DOMAIN/sse`
-- **HTTP Port-forward**: `http://localhost:8080/sse` (with `oc port-forward service/acm-search-mcp-server-service 8080:80 -n acm-search`)
+- **HTTPS Route**: `https://acm-search-mcp-server-route-acm-search.apps.CLUSTER_DOMAIN/mcp`
+- **HTTP Port-forward**: `http://localhost:8080/mcp` (with `oc port-forward service/acm-search-mcp-server-service 8080:80 -n acm-search`)
 
 ### Registry
 - **Image**: `quay.io/stolostron/search-mcp-server:dev-preview`
