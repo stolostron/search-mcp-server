@@ -23,6 +23,14 @@ golang/acm-mcp-server-go
 golang/*.test
 golang/*.out
 
+golang/search-mcp-server
+golang/**/test_binary
+golang/**/*_binary
+
+golang/test_result*
+golang/**/*_result
+golang/**/*.log
+
 # Environment variables and secrets
 .env
 .env*

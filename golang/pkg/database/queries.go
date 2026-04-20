@@ -123,11 +123,23 @@ func (dq *DatabaseQueries) validateQuery(sql string) SecurityValidationResult {
 
 // ExecuteQuery executes a SQL query with security validation and optional parameters
 func (dq *DatabaseQueries) ExecuteQuery(ctx context.Context, sql string, parameters []interface{}, options *types.QueryOptions) (*types.QueryResult, error) {
+	startTime := time.Now()
+
+	// Log query execution start
+	log.Printf("[DB-DEBUG] Starting query execution")
+	log.Printf("[DB-DEBUG] SQL: %s", sql)
+	log.Printf("[DB-DEBUG] Parameters: %v", parameters)
+	if options != nil && options.Timeout != nil {
+		log.Printf("[DB-DEBUG] Timeout: %d seconds", *options.Timeout)
+	}
+
 	// Validate query for security and read-only compliance
 	validation := dq.validateQuery(sql)
 	if !validation.IsValid {
+		log.Printf("[DB-DEBUG] Query validation failed: %s", validation.Error)
 		return nil, fmt.Errorf("security validation failed: %s", validation.Error)
 	}
+	log.Printf("[DB-DEBUG] Query validation passed")
 
 	// Apply timeout if specified in options
 	queryCtx := ctx
@@ -137,15 +149,23 @@ func (dq *DatabaseQueries) ExecuteQuery(ctx context.Context, sql string, paramet
 		defer cancel()
 	}
 
+	log.Printf("[DB-DEBUG] Executing database query...")
 	result, err := dq.db.Query(queryCtx, sql, parameters...)
 	if err != nil {
+		executionTime := time.Since(startTime)
+		log.Printf("[DB-DEBUG] Query failed after %v: %v", executionTime, err)
 		// Check for timeout error and provide a clear message
 		if errors.Is(err, context.DeadlineExceeded) {
+			log.Printf("[DB-DEBUG] Query timeout exceeded after %v", executionTime)
 			return nil, fmt.Errorf("query timeout exceeded (%d seconds)", *options.Timeout)
 		}
 		log.Printf("Query execution failed: %v", err)
 		return nil, fmt.Errorf("query failed: %w", err)
 	}
+
+	executionTime := time.Since(startTime)
+	log.Printf("[DB-DEBUG] Query completed successfully in %v", executionTime)
+	log.Printf("[DB-DEBUG] Returned %d rows", len(result.Rows))
 
 	// Apply row limit if specified
 	if options != nil && options.MaxRows != nil && len(result.Rows) > *options.MaxRows {

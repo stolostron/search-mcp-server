@@ -467,155 +467,213 @@ func (f *FindResourcesCore) buildAuthorizedQuery(args FindResourcesArgs, targetC
 	}, nil
 }
 
-// applyAuthorizationFilters applies user authorization filters to the SQL builder
+// applyAuthorizationFilters applies user authorization filters using direct mapping to prevent Cartesian products
 func (f *FindResourcesCore) applyAuthorizationFilters(filters *auth.QueryFilters, kindFilter interface{}, builder *utils.SQLBuilder) error {
-	// Apply cluster restrictions (if not wildcard)
-	if len(filters.AllowedClusters) > 0 && !f.containsWildcard(filters.AllowedClusters) {
-		clusterConditions := []string{}
-		clusterParams := []interface{}{}
+	if len(filters.PermissionSources) == 0 {
+		// No permissions means no access
+		builder.AddCondition("1 = 0") // Always false condition
+		return nil
+	}
 
-		for _, clusterPattern := range filters.AllowedClusters {
-			if strings.Contains(clusterPattern, "*") {
-				// Wildcard pattern: "prod-*" becomes "cluster LIKE 'prod-%'"
-				likePattern := strings.ReplaceAll(clusterPattern, "*", "%")
-				clusterConditions = append(clusterConditions, "cluster LIKE %s")
-				clusterParams = append(clusterParams, likePattern)
-			} else {
-				// Exact match: "prod-east" becomes "cluster = 'prod-east'"
-				clusterConditions = append(clusterConditions, "cluster = %s")
-				clusterParams = append(clusterParams, clusterPattern)
+	// Build OR conditions for each permission source (mirrors search-v2-api approach)
+	var sourceConditions []string
+	var allParams []interface{}
+
+	for i, source := range filters.PermissionSources {
+		log.Printf("[RBAC-DEBUG] Building SQL for permission source %d: %s", i, source.Source)
+
+		// Generate permissions using direct namespace→resource mapping (NO Cartesian products)
+		var sourcePermissions []string
+		var sourceParams []interface{}
+
+		// Handle cluster-scoped resources
+		if len(source.ClusterScopedKinds) > 0 {
+			clusterCondition, clusterParams := f.buildClusterScopedConditions(source, kindFilter)
+			if clusterCondition != "" {
+				sourcePermissions = append(sourcePermissions, clusterCondition)
+				sourceParams = append(sourceParams, clusterParams...)
 			}
 		}
 
-		if len(clusterConditions) > 0 {
-			condition := "(" + strings.Join(clusterConditions, " OR ") + ")"
-			builder.AddCondition(condition, clusterParams...)
+		// Handle namespaced resources with explicit namespace→resource pairing
+		if len(source.NamespacedResources) > 0 {
+			namespaceConditions, namespaceParams := f.buildNamespacedConditions(source, kindFilter)
+			if len(namespaceConditions) > 0 {
+				sourcePermissions = append(sourcePermissions, namespaceConditions...)
+				sourceParams = append(sourceParams, namespaceParams...)
+			}
+		}
+
+		// Combine all permissions for this source with OR logic
+		if len(sourcePermissions) > 0 {
+			sourceCondition := "(" + strings.Join(sourcePermissions, " OR ") + ")"
+			sourceConditions = append(sourceConditions, sourceCondition)
+			allParams = append(allParams, sourceParams...)
+			log.Printf("[RBAC-DEBUG] Source %d SQL: %s", i, sourceCondition)
 		}
 	}
 
-	// Apply namespace restrictions using resource-specific permissions
-	f.applyNamespaceFiltering(filters, kindFilter, builder)
-
-	// Apply resource kind restrictions (if not wildcard)
-	if len(filters.AllowedResources) > 0 && !f.containsWildcard(filters.AllowedResources) {
-		kindConditions := []string{}
-		kindParams := []interface{}{}
-		kindPath := "data->>'kind'"
-
-		for _, resource := range filters.AllowedResources {
-			kindConditions = append(kindConditions, kindPath+" = %s")
-			kindParams = append(kindParams, resource)
-		}
-
-		if len(kindConditions) > 0 {
-			condition := "(" + strings.Join(kindConditions, " OR ") + ")"
-			builder.AddCondition(condition, kindParams...)
-		}
+	// Combine all permission sources with OR
+	if len(sourceConditions) > 0 {
+		finalCondition := "(" + strings.Join(sourceConditions, " OR ") + ")"
+		builder.AddCondition(finalCondition, allParams...)
+		log.Printf("[RBAC-DEBUG] Final combined SQL: %s", finalCondition)
+	} else {
+		// No valid conditions - deny access
+		builder.AddCondition("1 = 0")
 	}
 
 	return nil
 }
 
-// applyNamespaceFiltering applies resource-specific namespace filtering
-func (f *FindResourcesCore) applyNamespaceFiltering(filters *auth.QueryFilters, kindFilter interface{}, builder *utils.SQLBuilder) {
-	// Extract the specific resource kinds being queried
-	queriedKinds := f.extractQueriedKinds(kindFilter)
+// buildClusterScopedConditions builds conditions for cluster-scoped resources
+func (f *FindResourcesCore) buildClusterScopedConditions(source auth.PermissionSource, kindFilter interface{}) (string, []interface{}) {
+	var params []interface{}
+	var resourceConditions []string
 
-	// For each queried kind, check its specific namespace permissions
-	allowedNamespaces := make(map[string]bool)
-	hasWildcardAccess := false
-
-	for _, kind := range queriedKinds {
-		if filters.HasNamespaceWildcardForResource(kind) {
-			// This specific resource type has wildcard namespace access
-			hasWildcardAccess = true
-			break
+	// Apply kind filtering if specified
+	if kindFilter != nil {
+		kindStr := f.convertKindFilter(kindFilter)
+		if kindStr != "" {
+			// Check if the requested kind is allowed (case-insensitive)
+			for _, allowedKind := range source.ClusterScopedKinds {
+				if allowedKind == "*" || strings.EqualFold(allowedKind, kindStr) {
+					resourceConditions = append(resourceConditions, "data->>'kind' = %s")
+					params = append(params, kindStr)
+					break
+				}
+			}
 		}
-
-		// Add allowed namespaces for this resource type
-		resourceNamespaces := filters.GetAllowedNamespacesForResource(kind)
-		for _, ns := range resourceNamespaces {
-			if ns != "*" { // Don't add wildcard to the specific namespace list
-				allowedNamespaces[ns] = true
+	} else {
+		// No specific kind filter - return all allowed cluster-scoped resources
+		if f.containsWildcard(source.ClusterScopedKinds) {
+			resourceConditions = append(resourceConditions, "1 = 1") // Allow all cluster-scoped resources
+		} else if len(source.ClusterScopedKinds) > 0 {
+			placeholders := make([]string, len(source.ClusterScopedKinds))
+			for i := range source.ClusterScopedKinds {
+				placeholders[i] = "%s"
+			}
+			resourceConditions = append(resourceConditions, fmt.Sprintf("data->>'kind' IN (%s)", strings.Join(placeholders, ",")))
+			for _, kind := range source.ClusterScopedKinds {
+				params = append(params, kind)
 			}
 		}
 	}
 
-	// If no specific kinds are being queried, fall back to global namespace permissions
-	if len(queriedKinds) == 0 {
-		if len(filters.AllowedNamespaces) > 0 && !f.containsWildcard(filters.AllowedNamespaces) {
-			for _, ns := range filters.AllowedNamespaces {
-				if ns != "*" {
-					allowedNamespaces[ns] = true
+	// Cluster-scoped resources are accessible from any cluster (no cluster filtering needed)
+	if len(resourceConditions) > 0 {
+		// For hub cluster resources, ensure we're looking at the hub cluster
+		if source.Source == "hub-kubernetes" {
+			condition := fmt.Sprintf("(cluster = %s AND (%s))", "%s", strings.Join(resourceConditions, " OR "))
+			params = append([]interface{}{"local-cluster"}, params...)
+			return condition, params
+		} else {
+			// UserPermission API cluster-scoped resources (accessible from any managed cluster)
+			return strings.Join(resourceConditions, " OR "), params
+		}
+	}
+
+	return "", nil
+}
+
+// buildNamespacedConditions builds explicit namespace→resource conditions (prevents Cartesian products)
+func (f *FindResourcesCore) buildNamespacedConditions(source auth.PermissionSource, kindFilter interface{}) ([]string, []interface{}) {
+	var conditions []string
+	var allParams []interface{}
+
+	// Iterate through direct namespace→resource mapping
+	for namespace, allowedKinds := range source.NamespacedResources {
+		var resourceConditions []string
+		var resourceParams []interface{}
+
+		// Apply kind filtering if specified
+		if kindFilter != nil {
+			kindStr := f.convertKindFilter(kindFilter)
+			if kindStr != "" {
+				// Check if the requested kind is allowed in this specific namespace (case-insensitive)
+				for _, allowedKind := range allowedKinds {
+					if allowedKind == "*" || strings.EqualFold(allowedKind, kindStr) {
+						resourceConditions = append(resourceConditions, "data->>'kind' = %s")
+						resourceParams = append(resourceParams, kindStr)
+						break
+					}
 				}
 			}
 		} else {
-			hasWildcardAccess = f.containsWildcard(filters.AllowedNamespaces)
-		}
-	}
-
-	// Apply namespace filtering only if there's no wildcard access
-	if !hasWildcardAccess && len(allowedNamespaces) > 0 {
-		namespaceConditions := []string{}
-		namespaceParams := []interface{}{}
-		namespacePath := "data->>'namespace'"
-
-		for ns := range allowedNamespaces {
-			if strings.Contains(ns, "*") {
-				// Wildcard pattern: "app-*" becomes "data->>'namespace' LIKE 'app-%'"
-				likePattern := strings.ReplaceAll(ns, "*", "%")
-				namespaceConditions = append(namespaceConditions, namespacePath+" LIKE %s")
-				namespaceParams = append(namespaceParams, likePattern)
-			} else {
-				// Exact match: "default" becomes "data->>'namespace' = 'default'"
-				namespaceConditions = append(namespaceConditions, namespacePath+" = %s")
-				namespaceParams = append(namespaceParams, ns)
+			// No specific kind filter - return all allowed resources for this namespace
+			if f.containsWildcard(allowedKinds) {
+				resourceConditions = append(resourceConditions, "1 = 1") // Allow all resources in this namespace
+			} else if len(allowedKinds) > 0 {
+				placeholders := make([]string, len(allowedKinds))
+				for i := range allowedKinds {
+					placeholders[i] = "%s"
+				}
+				resourceConditions = append(resourceConditions, fmt.Sprintf("data->>'kind' IN (%s)", strings.Join(placeholders, ",")))
+				for _, kind := range allowedKinds {
+					resourceParams = append(resourceParams, kind)
+				}
 			}
 		}
 
-		if len(namespaceConditions) > 0 {
-			condition := "(" + strings.Join(namespaceConditions, " OR ") + ")"
-			builder.AddCondition(condition, namespaceParams...)
+		// Build namespace+resource condition (explicit pairing prevents Cartesian products)
+		if len(resourceConditions) > 0 {
+			var namespaceCondition string
+			var namespaceParams []interface{}
+
+			if namespace == "*" {
+				// Wildcard namespace access
+				namespaceCondition = strings.Join(resourceConditions, " OR ")
+				namespaceParams = resourceParams
+			} else {
+				// Specific namespace access
+				if source.Source == "hub-kubernetes" {
+					// Hub cluster resources
+					namespaceCondition = fmt.Sprintf("(cluster = %s AND data->>'namespace' = %s AND (%s))", "%s", "%s", strings.Join(resourceConditions, " OR "))
+					namespaceParams = append(namespaceParams, "local-cluster", namespace)
+					namespaceParams = append(namespaceParams, resourceParams...)
+				} else {
+					// UserPermission API resources (any managed cluster)
+					namespaceCondition = fmt.Sprintf("(data->>'namespace' = %s AND (%s))", "%s", strings.Join(resourceConditions, " OR "))
+					namespaceParams = append(namespaceParams, namespace)
+					namespaceParams = append(namespaceParams, resourceParams...)
+				}
+			}
+
+			conditions = append(conditions, namespaceCondition)
+			allParams = append(allParams, namespaceParams...)
+
+			log.Printf("[RBAC-DEBUG] Namespace %s: %d allowed kinds = %v", namespace, len(allowedKinds), allowedKinds)
 		}
 	}
 
-	// Debug logging
-	if hasWildcardAccess {
-		log.Printf("[RBAC-DEBUG] Wildcard namespace access granted for queried resource types: %v", queriedKinds)
-	} else if len(allowedNamespaces) > 0 {
-		nsSlice := make([]string, 0, len(allowedNamespaces))
-		for ns := range allowedNamespaces {
-			nsSlice = append(nsSlice, ns)
-		}
-		log.Printf("[RBAC-DEBUG] Applying namespace filter for resource types %v: %v", queriedKinds, nsSlice)
-	} else {
-		log.Printf("[RBAC-DEBUG] No namespace permissions found for resource types: %v", queriedKinds)
-	}
+	return conditions, allParams
 }
 
-// extractQueriedKinds extracts the resource kinds being queried from the kind filter
-func (f *FindResourcesCore) extractQueriedKinds(kindFilter interface{}) []string {
+// convertKindFilter converts kind filter to string for processing
+func (f *FindResourcesCore) convertKindFilter(kindFilter interface{}) string {
 	if kindFilter == nil {
-		return []string{} // No specific kind filter = querying all kinds
+		return ""
 	}
 
-	switch filter := kindFilter.(type) {
+	switch v := kindFilter.(type) {
 	case string:
-		return []string{filter}
+		return v
 	case []string:
-		return filter
-	case []interface{}:
-		var kinds []string
-		for _, k := range filter {
-			if kindStr, ok := k.(string); ok {
-				kinds = append(kinds, kindStr)
-			}
+		if len(v) > 0 {
+			return v[0] // For now, just use the first kind
 		}
-		return kinds
-	default:
-		log.Printf("[RBAC-DEBUG] Unknown kind filter type: %T, value: %v", kindFilter, kindFilter)
-		return []string{}
 	}
+	return ""
+}
+
+// containsVerb checks if a verb slice contains a specific verb
+func (f *FindResourcesCore) containsVerb(verbs []string, verb string) bool {
+	for _, v := range verbs {
+		if v == verb {
+			return true
+		}
+	}
+	return false
 }
 
 // containsWildcard checks if a string slice contains "*" wildcard

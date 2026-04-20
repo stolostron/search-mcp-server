@@ -11,13 +11,14 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/rest"
+
+	"github.com/stolostron/search-mcp-server/pkg/database"
 )
 
 // ResourceDiscovery manages dynamic resource-to-kind mappings using Kubernetes Discovery API
 type ResourceDiscovery struct {
-	cache     *ResourceCache
-	userToken string // User's bearer token for discovery calls
-	config    *AuthConfig
+	config *AuthConfig
+	db     *database.DatabaseConnection // Database connection for fleet-wide discovery
 }
 
 // ResourceCache holds discovered resource mappings with TTL
@@ -29,6 +30,13 @@ type ResourceCache struct {
 	mutex          sync.RWMutex
 }
 
+// Global shared cache instance - resource mappings are fleet-wide metadata (security approved)
+var globalResourceCache = &ResourceCache{
+	resourceToKind: make(map[string]string),
+	apiGroupMap:    make(map[string]string),
+	ttl:            4 * time.Hour, // Default TTL - will be updated from config
+}
+
 // DiscoveryResult contains the result of a discovery operation
 type DiscoveryResult struct {
 	ResourceToKind map[string]string
@@ -36,43 +44,65 @@ type DiscoveryResult struct {
 	Error          error
 }
 
-// NewResourceDiscovery creates a new resource discovery manager
-func NewResourceDiscovery(config *AuthConfig, userToken string) *ResourceDiscovery {
-	return &ResourceDiscovery{
-		cache: &ResourceCache{
-			resourceToKind: make(map[string]string),
-			apiGroupMap:    make(map[string]string),
-			ttl:            1 * time.Hour, // Cache for 1 hour
-		},
-		userToken: userToken,
-		config:    config,
+// Shared ResourceDiscovery instance - cache is shared across all requests
+var sharedResourceDiscovery *ResourceDiscovery
+
+// GetSharedResourceDiscovery returns the shared ResourceDiscovery instance
+func GetSharedResourceDiscovery(config *AuthConfig, db *database.DatabaseConnection) *ResourceDiscovery {
+	if sharedResourceDiscovery == nil {
+		sharedResourceDiscovery = &ResourceDiscovery{
+			config: config,
+			db:     db, // May be nil for backward compatibility
+		}
+		// Configure cache TTL from centralized config
+		globalResourceCache.ttl = config.DiscoveryTTL
+		log.Printf("[DISCOVERY-DEBUG] Configured discovery cache TTL: %v", config.DiscoveryTTL)
+		if db == nil {
+			log.Printf("[DISCOVERY-DEBUG] No database connection available, will use Kubernetes discovery fallback")
+		}
 	}
+	return sharedResourceDiscovery
+}
+
+// NewResourceDiscovery creates a new resource discovery manager (DEPRECATED - use GetSharedResourceDiscovery)
+func NewResourceDiscovery(config *AuthConfig, userToken string) *ResourceDiscovery {
+	// Return the shared instance - userToken will be passed to discovery methods
+	// NOTE: This deprecated function doesn't have database access, so it will fall back to Kubernetes discovery
+	return GetSharedResourceDiscovery(config, nil)
 }
 
 // GetResourceKind maps a resource name to its Kubernetes Kind using discovery
-func (rd *ResourceDiscovery) GetResourceKind(ctx context.Context, apiGroup, resource string) (string, *DiscoveryResult) {
+func (rd *ResourceDiscovery) GetResourceKind(ctx context.Context, userToken, apiGroup, resource string) (string, *DiscoveryResult) {
 	log.Printf("[DISCOVERY-DEBUG] Getting kind for resource: %s (group: %s)", resource, apiGroup)
 
-	// Step 1: Check cache first (performance optimization)
-	if kind, found := rd.getCachedMapping(resource); found {
-		log.Printf("[DISCOVERY-DEBUG] ✅ Cache hit: %s → %s", resource, kind)
-		return kind, &DiscoveryResult{
-			Source: "cache",
-		}
-	}
-
-	// Step 2: Attempt live discovery with user's token
-	if discovered, err := rd.discoverResources(ctx); err == nil {
-		if kind, found := discovered[resource]; found {
-			log.Printf("[DISCOVERY-DEBUG] ✅ Discovery success: %s → %s", resource, kind)
-			return kind, &DiscoveryResult{
-				ResourceToKind: discovered,
-				Source:         "discovery",
-			}
+	// FIXED CACHING LOGIC: Check if entire cache is fresh, not just individual resource
+	if rd.isCacheFresh() {
+		// Cache is fresh - check if resource exists in cache
+		if kind, found := rd.getCachedMappingFromFreshCache(resource); found {
+			log.Printf("[DISCOVERY-DEBUG] ✅ Cache hit: %s → %s", resource, kind)
+			return kind, &DiscoveryResult{Source: "cache"}
+		} else {
+			// Cache is fresh but resource not found - trust cache and skip expensive discovery
+			log.Printf("[DISCOVERY-DEBUG] 📋 Fresh cache miss: %s not in %d cached resources, skipping discovery",
+				resource, rd.getCacheSize())
+			// Go directly to fallback - no discovery needed
 		}
 	} else {
-		log.Printf("[DISCOVERY-DEBUG] ❌ Discovery failed: %v", err)
-		// Continue to fallback options
+		// Cache is stale - refresh it with discovery
+		log.Printf("[DISCOVERY-DEBUG] 🔄 Cache stale, refreshing via discovery...")
+		if discovered, err := rd.discoverResources(ctx, userToken); err == nil {
+			if kind, found := discovered[resource]; found {
+				log.Printf("[DISCOVERY-DEBUG] ✅ Discovery success: %s → %s", resource, kind)
+				return kind, &DiscoveryResult{
+					ResourceToKind: discovered,
+					Source:         "discovery",
+				}
+			}
+			// Resource not found even after discovery - continue to fallbacks
+		} else {
+			log.Printf("[DISCOVERY-DEBUG] ❌ Discovery failed: %v", err)
+			// Discovery failed - continue to fallback options
+		}
 	}
 
 	// Step 3: Fallback to hardcoded mapping for known resources
@@ -91,26 +121,114 @@ func (rd *ResourceDiscovery) GetResourceKind(ctx context.Context, apiGroup, reso
 	}
 }
 
-// getCachedMapping checks if we have a cached mapping for the resource
+// getCachedMapping checks if we have a cached mapping for the resource (DEPRECATED - use isCacheFresh + getCachedMappingFromFreshCache)
 func (rd *ResourceDiscovery) getCachedMapping(resource string) (string, bool) {
-	rd.cache.mutex.RLock()
-	defer rd.cache.mutex.RUnlock()
+	globalResourceCache.mutex.RLock()
+	defer globalResourceCache.mutex.RUnlock()
 
 	// Check if cache is still valid
-	if time.Since(rd.cache.lastUpdated) > rd.cache.ttl {
+	if time.Since(globalResourceCache.lastUpdated) > globalResourceCache.ttl {
 		return "", false
 	}
 
-	kind, found := rd.cache.resourceToKind[resource]
+	kind, found := globalResourceCache.resourceToKind[resource]
 	return kind, found
 }
 
-// discoverResources performs live discovery using Kubernetes Discovery API
-func (rd *ResourceDiscovery) discoverResources(ctx context.Context) (map[string]string, error) {
+// isCacheFresh checks if the entire resource cache is within TTL (PERFORMANCE FIX)
+func (rd *ResourceDiscovery) isCacheFresh() bool {
+	globalResourceCache.mutex.RLock()
+	defer globalResourceCache.mutex.RUnlock()
+
+	return time.Since(globalResourceCache.lastUpdated) <= globalResourceCache.ttl
+}
+
+// getCachedMappingFromFreshCache gets resource mapping from cache (assumes cache is fresh)
+func (rd *ResourceDiscovery) getCachedMappingFromFreshCache(resource string) (string, bool) {
+	globalResourceCache.mutex.RLock()
+	defer globalResourceCache.mutex.RUnlock()
+
+	kind, found := globalResourceCache.resourceToKind[resource]
+	return kind, found
+}
+
+// getCacheSize returns the number of cached resource mappings
+func (rd *ResourceDiscovery) getCacheSize() int {
+	globalResourceCache.mutex.RLock()
+	defer globalResourceCache.mutex.RUnlock()
+
+	return len(globalResourceCache.resourceToKind)
+}
+
+// discoverResources performs resource discovery based on configuration
+func (rd *ResourceDiscovery) discoverResources(ctx context.Context, userToken string) (map[string]string, error) {
+	switch rd.config.DiscoverySource {
+	case "database":
+		log.Printf("[DISCOVERY-DEBUG] Using database-driven discovery (fleet-wide coverage)")
+		return rd.discoverResourcesFromDatabase(ctx)
+	case "kubernetes":
+		log.Printf("[DISCOVERY-DEBUG] Using Kubernetes API discovery (hub-only coverage)")
+		return rd.discoverResourcesFromKubernetes(ctx, userToken)
+	default:
+		log.Printf("[DISCOVERY-DEBUG] Unknown discovery source '%s', defaulting to database", rd.config.DiscoverySource)
+		return rd.discoverResourcesFromDatabase(ctx)
+	}
+}
+
+// discoverResourcesFromDatabase queries the ACM search database for fleet-wide resource types
+func (rd *ResourceDiscovery) discoverResourcesFromDatabase(ctx context.Context) (map[string]string, error) {
+	log.Printf("[DISCOVERY-DEBUG] Starting fleet-wide resource discovery from database...")
+
+	if rd.db == nil {
+		return nil, fmt.Errorf("database connection not available for discovery")
+	}
+
+	// Query for all unique Kind values across the entire fleet
+	query := `
+		SELECT DISTINCT data->>'kind' as kind
+		FROM search.resources
+		WHERE data->>'kind' IS NOT NULL
+		  AND data->>'kind' != ''
+		  AND data->>'kind' != 'null'
+		ORDER BY kind
+	`
+
+	result, err := rd.db.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("database query failed: %w", err)
+	}
+
+	log.Printf("[DISCOVERY-DEBUG] Database query returned %d rows", len(result.Rows))
+
+	// Convert query results to resource-to-kind mappings
+	discovered := make(map[string]string)
+	kindCount := 0
+
+	for _, row := range result.Rows {
+		if len(row) > 0 {
+			if kind, ok := row[0].(string); ok && kind != "" {
+				resourceName := rd.kindToResourceName(kind)
+				discovered[resourceName] = kind
+				kindCount++
+				log.Printf("[DISCOVERY-DEBUG] Fleet discovery: %s → %s", resourceName, kind)
+			}
+		}
+	}
+
+	log.Printf("[DISCOVERY-DEBUG] Fleet discovery complete: %d unique resource types found across all clusters", kindCount)
+
+	// Update cache with fleet-wide discovery results
+	rd.updateCache(discovered)
+
+	return discovered, nil
+}
+
+// discoverResourcesFromKubernetes performs live discovery using Kubernetes Discovery API
+func (rd *ResourceDiscovery) discoverResourcesFromKubernetes(ctx context.Context, userToken string) (map[string]string, error) {
 	log.Printf("[DISCOVERY-DEBUG] Starting live resource discovery...")
 
 	// Create discovery client with user's token
-	userConfig, err := rd.createDiscoveryConfig()
+	userConfig, err := rd.createDiscoveryConfig(userToken)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create discovery config: %w", err)
 	}
@@ -169,43 +287,20 @@ func (rd *ResourceDiscovery) discoverResources(ctx context.Context) (map[string]
 }
 
 // createDiscoveryConfig creates a Kubernetes config for discovery calls
-func (rd *ResourceDiscovery) createDiscoveryConfig() (*rest.Config, error) {
-	// Build Kubernetes API server URL
-	var kubernetesURL string
-	if rd.config.KubernetesURL != "" {
-		kubernetesURL = rd.config.KubernetesURL
-	} else {
-		host := rd.config.KubernetesHost
-		port := rd.config.KubernetesPort
-		if host == "" || port == "" {
-			return nil, fmt.Errorf("Kubernetes host/port not configured for discovery")
-		}
-		kubernetesURL = fmt.Sprintf("https://%s:%s", host, port)
-	}
-
-	// Create rest.Config with user's token (same as permission resolution)
-	config := &rest.Config{
-		Host:        kubernetesURL,
-		BearerToken: strings.TrimPrefix(rd.userToken, "Bearer "),
-		Timeout:     10 * time.Second, // Discovery timeout
-		TLSClientConfig: rest.TLSClientConfig{
-			Insecure: rd.config.SkipTLS,
-		},
-	}
-
-	return config, nil
+func (rd *ResourceDiscovery) createDiscoveryConfig(userToken string) (*rest.Config, error) {
+	return CreateDiscoveryConfig(rd.config.KubernetesURL, userToken, 10*time.Second, rd.config.SkipTLS), nil
 }
 
-// updateCache updates the in-memory cache with fresh discovery results
+// updateCache updates the shared in-memory cache with fresh discovery results
 func (rd *ResourceDiscovery) updateCache(discovered map[string]string) {
-	rd.cache.mutex.Lock()
-	defer rd.cache.mutex.Unlock()
+	globalResourceCache.mutex.Lock()
+	defer globalResourceCache.mutex.Unlock()
 
-	rd.cache.resourceToKind = discovered
-	rd.cache.lastUpdated = time.Now()
+	globalResourceCache.resourceToKind = discovered
+	globalResourceCache.lastUpdated = time.Now()
 
 	log.Printf("[DISCOVERY-DEBUG] Cache updated with %d resource mappings (TTL: %v)",
-		len(discovered), rd.cache.ttl)
+		len(discovered), globalResourceCache.ttl)
 }
 
 // getHardcodedMapping provides fallback mappings for known resources
@@ -298,16 +393,44 @@ func (rd *ResourceDiscovery) algorithmicMapping(resource string) string {
 	return strings.ToUpper(singular[:1]) + singular[1:]
 }
 
-// GetCacheStats returns information about the discovery cache for debugging
+// kindToResourceName converts Kubernetes Kind names to resource names (reverse of typical mapping)
+// Examples: "Pod" → "pods", "VirtualMachine" → "virtualmachines", "NetworkPolicy" → "networkpolicies"
+func (rd *ResourceDiscovery) kindToResourceName(kind string) string {
+	if len(kind) == 0 {
+		return ""
+	}
+
+	// Convert to lowercase first
+	lower := strings.ToLower(kind)
+
+	// Handle special pluralization rules
+	switch {
+	case strings.HasSuffix(lower, "y"):
+		// Policy → policies, Category → categories
+		return strings.TrimSuffix(lower, "y") + "ies"
+	case strings.HasSuffix(lower, "s"):
+		// Ingress → ingresses, but not all words ending in 's'
+		return lower + "es"
+	case strings.HasSuffix(lower, "sh") || strings.HasSuffix(lower, "ch") ||
+		 strings.HasSuffix(lower, "x") || strings.HasSuffix(lower, "z"):
+		// Mesh → meshes, NetworkAttach → networkattaches
+		return lower + "es"
+	default:
+		// Standard pluralization: Pod → pods, Deployment → deployments
+		return lower + "s"
+	}
+}
+
+// GetCacheStats returns information about the shared discovery cache for debugging
 func (rd *ResourceDiscovery) GetCacheStats() map[string]interface{} {
-	rd.cache.mutex.RLock()
-	defer rd.cache.mutex.RUnlock()
+	globalResourceCache.mutex.RLock()
+	defer globalResourceCache.mutex.RUnlock()
 
 	return map[string]interface{}{
-		"cache_size":     len(rd.cache.resourceToKind),
-		"last_updated":   rd.cache.lastUpdated,
-		"age_minutes":    time.Since(rd.cache.lastUpdated).Minutes(),
-		"ttl_hours":      rd.cache.ttl.Hours(),
-		"is_expired":     time.Since(rd.cache.lastUpdated) > rd.cache.ttl,
+		"cache_size":     len(globalResourceCache.resourceToKind),
+		"last_updated":   globalResourceCache.lastUpdated,
+		"age_minutes":    time.Since(globalResourceCache.lastUpdated).Minutes(),
+		"ttl_hours":      globalResourceCache.ttl.Hours(),
+		"is_expired":     time.Since(globalResourceCache.lastUpdated) > globalResourceCache.ttl,
 	}
 }

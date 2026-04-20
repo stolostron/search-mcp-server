@@ -33,6 +33,10 @@ type ServerConfig struct {
 	AuthCacheEnabled  bool          `env:"MCP_AUTH_CACHE" default:"true"`     // Cache validated tokens
 	AuthCacheTTL      time.Duration `env:"MCP_AUTH_CACHE_TTL" default:"5m"`   // Token cache TTL
 
+	// Discovery Configuration (for resource-to-kind mappings)
+	DiscoveryTTL    time.Duration `env:"MCP_DISCOVERY_TTL" default:"4h"`      // Discovery cache TTL
+	DiscoverySource string        `env:"MCP_DISCOVERY_SOURCE" default:"database"` // "database" or "kubernetes"
+
 	// Local testing overrides (for non-K8s environments)
 	KubernetesURL     string `env:"MCP_K8S_URL"`          // Manual cluster URL
 	ServiceAccountToken string `env:"MCP_SA_TOKEN"`        // Direct token value
@@ -88,6 +92,10 @@ func LoadServerConfig() *ServerConfig {
 	config.AuthTimeout = getEnvDurationOrDefault("MCP_AUTH_TIMEOUT", 5*time.Second)
 	config.AuthCacheEnabled = getEnvBoolOrDefault("MCP_AUTH_CACHE", true)
 	config.AuthCacheTTL = getEnvDurationOrDefault("MCP_AUTH_CACHE_TTL", 5*time.Minute)
+
+	// Discovery Configuration
+	config.DiscoveryTTL = getEnvDurationOrDefault("MCP_DISCOVERY_TTL", 4*time.Hour)
+	config.DiscoverySource = getEnvOrDefault("MCP_DISCOVERY_SOURCE", "database")
 
 	// Local testing overrides
 	config.KubernetesURL = getEnvOrDefault("MCP_K8S_URL", "")

@@ -12,6 +12,7 @@ import (
 	"k8s.io/client-go/rest"
 
 	"github.com/stolostron/cluster-lifecycle-api/helpers/userpermission"
+	"github.com/stolostron/search-mcp-server/pkg/database"
 )
 
 // PermissionRule represents a resolved permission rule - matches cluster-lifecycle-api format
@@ -28,86 +29,61 @@ type RBACResolver struct {
 }
 
 // NewRBACResolver creates a new RBAC resolver
-func NewRBACResolver(config *AuthConfig) *RBACResolver {
+func NewRBACResolver(config *AuthConfig, db *database.DatabaseConnection) *RBACResolver {
 	return &RBACResolver{
-		config: config,
-		// resourceDiscovery will be initialized per-request with user token
+		config:            config,
+		resourceDiscovery: GetSharedResourceDiscovery(config, db), // Use shared instance
 	}
 }
 
-// ResolveUserPermissions resolves user's actual Kubernetes RBAC permissions
+// ResolveUserPermissions resolves user's actual Kubernetes RBAC permissions using dual API approach
 func (r *RBACResolver) ResolveUserPermissions(ctx context.Context, userToken string) (*QueryFilters, error) {
-	log.Printf("[RBAC-DEBUG] Starting permission resolution for user token (first 20 chars): %.20s...", userToken)
+	log.Printf("[RBAC-DEBUG] Resolving permissions via dual API approach")
 
-	// Initialize resource discovery for this request with user's token
-	r.resourceDiscovery = NewResourceDiscovery(r.config, userToken)
-	log.Printf("[RBAC-DEBUG] Initialized resource discovery with user token")
+	var permissionSources []PermissionSource
 
-	// Create Kubernetes client with user's token
-	userConfig, err := r.createUserKubernetesConfig(userToken)
+	// 1. Get managed cluster permissions (UserPermission API) - existing logic
+	managedSource, err := r.resolveUserPermissionAPI(ctx, userToken)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create user K8s config: %w", err)
+		log.Printf("[RBAC-SECURITY] UserPermission API failed: %v", err)
+		// Don't fail completely - hub permissions might still work
+	} else if len(managedSource.ClusterScopedKinds) > 0 || len(managedSource.NamespacedResources) > 0 {
+		// SECURITY FIX: Only append sources with actual permissions
+		permissionSources = append(permissionSources, *managedSource)
+		log.Printf("[RBAC-DEBUG] UserPermission API returned %d cluster-scoped kinds, %d namespaced mappings", len(managedSource.ClusterScopedKinds), len(managedSource.NamespacedResources))
+	} else {
+		log.Printf("[RBAC-DEBUG] UserPermission API returned 0 permissions - not adding source")
 	}
 
-	clientset, err := kubernetes.NewForConfig(userConfig)
+	// 2. Get hub cluster permissions (Hub Kubernetes API) - NEW
+	hubSource, err := r.resolveHubKubernetesAPI(ctx, userToken)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create K8s client: %w", err)
+		log.Printf("[RBAC-SECURITY] Hub Kubernetes API failed: %v", err)
+		// Don't fail completely - managed permissions might still work
+	} else if len(hubSource.ClusterScopedKinds) > 0 || len(hubSource.NamespacedResources) > 0 {
+		// SECURITY FIX: Only append sources with actual permissions
+		permissionSources = append(permissionSources, *hubSource)
+		log.Printf("[RBAC-DEBUG] Hub Kubernetes API returned %d cluster-scoped kinds, %d namespaced mappings", len(hubSource.ClusterScopedKinds), len(hubSource.NamespacedResources))
+	} else {
+		log.Printf("[RBAC-DEBUG] Hub Kubernetes API returned 0 permissions - not adding source")
 	}
 
-	// Resolve permissions for common resource types
-	permissions, err := r.resolvePermissions(ctx, clientset, userToken)
-	if err != nil {
-		log.Printf("[RBAC-SECURITY] Permission resolution failed for user token, denying access: %v", err)
-		log.Printf("[RBAC-SECURITY] This is a security-first design choice - K8s API failures result in access denial")
-		// SECURITY: Fail secure - if we can't determine permissions, deny access entirely
-		return nil, fmt.Errorf("permission resolution failed, access denied for security: %w", err)
+	// 3. SECURITY FIX: Must have at least one source WITH actual permissions
+	if len(permissionSources) == 0 {
+		return nil, fmt.Errorf("user has no permissions across any source - denying access for security")
 	}
 
-	// DEBUG: Log detailed permissions discovered
-	log.Printf("[RBAC-DEBUG] Raw permissions discovered: %d rules", len(permissions))
-	for i, perm := range permissions {
-		log.Printf("[RBAC-DEBUG] Permission[%d]: Verbs=%v, APIGroups=%v, Resources=%v, Clusters=%v, Namespaces=%v",
-			i, perm.Verbs, perm.APIGroups, perm.Resources, perm.Clusters, perm.Namespaces)
+	filters := &QueryFilters{
+		PermissionSources: permissionSources,
 	}
 
-	// Convert permissions to query filters
-	filters := r.convertPermissionsToFilters(permissions)
-
-	log.Printf("[RBAC] Resolved %d permission rules, filters: clusters=%d, namespaces=%d, resources=%d",
-		len(permissions),
-		len(filters.AllowedClusters),
-		len(filters.AllowedNamespaces),
-		len(filters.AllowedResources))
-
+	log.Printf("[RBAC-DEBUG] Combined permissions: %d valid sources with permissions", len(permissionSources))
 	return filters, nil
 }
 
 // createUserKubernetesConfig creates a Kubernetes config using the user's token
 func (r *RBACResolver) createUserKubernetesConfig(userToken string) (*rest.Config, error) {
-	// Build Kubernetes API server URL
-	var kubernetesURL string
-	if r.config.KubernetesURL != "" {
-		kubernetesURL = r.config.KubernetesURL
-	} else {
-		host := r.config.KubernetesHost
-		port := r.config.KubernetesPort
-		if host == "" || port == "" {
-			return nil, fmt.Errorf("Kubernetes host/port not configured")
-		}
-		kubernetesURL = fmt.Sprintf("https://%s:%s", host, port)
-	}
-
-	// Create rest.Config with user's token
-	config := &rest.Config{
-		Host:        kubernetesURL,
-		BearerToken: strings.TrimPrefix(userToken, "Bearer "),
-		Timeout:     r.config.AuthTimeout,
-		TLSClientConfig: rest.TLSClientConfig{
-			Insecure: r.config.SkipTLS,
-		},
-	}
-
-	return config, nil
+	return CreateDiscoveryConfig(r.config.KubernetesURL, userToken, r.config.AuthTimeout, r.config.SkipTLS), nil
 }
 
 // resolvePermissions discovers user's actual permissions using UserPermission API
@@ -126,7 +102,11 @@ func (r *RBACResolver) resolvePermissions(ctx context.Context, clientset *kubern
 	log.Printf("[RBAC-DEBUG]   Host: %s", userConfig.Host)
 	log.Printf("[RBAC-DEBUG]   BearerToken: %.20s... (first 20 chars)", userConfig.BearerToken)
 	log.Printf("[RBAC-DEBUG]   Timeout: %v", userConfig.Timeout)
-	log.Printf("[RBAC-DEBUG]   TLS Insecure: %t", userConfig.TLSClientConfig.Insecure)
+	if r.config.KubernetesURL != "" {
+		log.Printf("[RBAC-DEBUG]   TLS Insecure: %t (testing mode)", userConfig.TLSClientConfig.Insecure)
+	} else {
+		log.Printf("[RBAC-DEBUG]   TLS Secure: true (production mode)")
+	}
 	log.Printf("[RBAC-DEBUG]   Interested Verbs: [get, list] (read-only access)")
 	log.Printf("[RBAC-DEBUG] ================================================================")
 
@@ -171,6 +151,169 @@ func (r *RBACResolver) resolvePermissions(ctx context.Context, clientset *kubern
 
 	log.Printf("[RBAC-DEBUG] Total permissions discovered via UserPermission API: %d rules", len(permissions))
 	return permissions, nil
+}
+
+// resolveUserPermissionAPI handles managed cluster permissions using direct namespace→resource mapping
+func (r *RBACResolver) resolveUserPermissionAPI(ctx context.Context, userToken string) (*PermissionSource, error) {
+	userConfig, err := r.createUserKubernetesConfig(userToken)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create user K8s config: %w", err)
+	}
+
+	log.Printf("[RBAC-DEBUG] ==================== USER PERMISSION API CALL ====================")
+	log.Printf("[RBAC-DEBUG] Calling userpermission.GetSelfPermissionRules with:")
+	log.Printf("[RBAC-DEBUG]   Host: %s", userConfig.Host)
+	log.Printf("[RBAC-DEBUG]   BearerToken: %.20s... (first 20 chars)", userConfig.BearerToken)
+	log.Printf("[RBAC-DEBUG]   Timeout: %v", userConfig.Timeout)
+
+	rawPermissions, err := userpermission.GetSelfPermissionRules(ctx, userConfig, "get", "list")
+	if err != nil {
+		return nil, fmt.Errorf("UserPermission API failed: %w", err)
+	}
+
+	log.Printf("[RBAC-DEBUG] Raw UserPermission API returned %d permission rules", len(rawPermissions))
+
+	// Convert to direct mapping structure (NO Cartesian products)
+	source := &PermissionSource{
+		Source:              "userpermission",
+		ClusterScopedKinds:  []string{},
+		NamespacedResources: make(map[string][]string), // Direct namespace→resource mapping
+		ManagedClusters:     make(map[string]struct{}),
+	}
+
+	// Process each permission rule individually to build explicit namespace→resource mappings
+	for i, perm := range rawPermissions {
+		log.Printf("[RBAC-DEBUG] UserPermission rule %d: clusters=%v, namespaces=%v, resources=%v",
+			i, perm.Clusters, perm.Namespaces, perm.Resources)
+
+		// Only process rules that allow "list" verb (for search operations)
+		if !contains(perm.Verbs, "list") && !contains(perm.Verbs, "*") {
+			log.Printf("[RBAC-DEBUG] Rule %d: Skipping, no 'list' verb", i)
+			continue
+		}
+
+		// Map API resource names to Kubernetes Kinds using discovery
+		var allowedKinds []string
+		for _, resource := range perm.Resources {
+			if resource == "*" {
+				allowedKinds = append(allowedKinds, "*")
+			} else {
+				kind := r.mapResourceToKindWithToken("", resource, userToken)
+				if kind != "" {
+					allowedKinds = append(allowedKinds, kind)
+					log.Printf("[RBAC-DEBUG] Rule %d: Mapped resource '%s' → kind '%s'", i, resource, kind)
+				} else {
+					log.Printf("[RBAC-DEBUG] Rule %d: Failed to map resource '%s' to kind", i, resource)
+				}
+			}
+		}
+
+		// Skip rule if no valid kinds found
+		if len(allowedKinds) == 0 {
+			log.Printf("[RBAC-DEBUG] Rule %d: Skipping, no valid kinds", i)
+			continue
+		}
+
+		// Track managed clusters
+		for _, cluster := range perm.Clusters {
+			source.ManagedClusters[cluster] = struct{}{}
+		}
+
+		// Handle cluster-scoped vs namespace-scoped resources
+		if len(perm.Namespaces) == 1 && perm.Namespaces[0] == "*" {
+			// Cluster-scoped permissions
+			for _, kind := range allowedKinds {
+				if !contains(source.ClusterScopedKinds, kind) {
+					source.ClusterScopedKinds = append(source.ClusterScopedKinds, kind)
+					log.Printf("[RBAC-DEBUG] Rule %d: Added cluster-scoped kind '%s'", i, kind)
+				}
+			}
+		} else {
+			// Namespace-scoped permissions - create explicit namespace→resource mapping
+			for _, namespace := range perm.Namespaces {
+				// Initialize namespace if not exists
+				if _, exists := source.NamespacedResources[namespace]; !exists {
+					source.NamespacedResources[namespace] = []string{}
+				}
+
+				// Add allowed kinds to this specific namespace (prevents cross-multiplication)
+				for _, kind := range allowedKinds {
+					if !contains(source.NamespacedResources[namespace], kind) {
+						source.NamespacedResources[namespace] = append(source.NamespacedResources[namespace], kind)
+						log.Printf("[RBAC-DEBUG] Rule %d: Added namespace '%s' → kind '%s'", i, namespace, kind)
+					}
+				}
+			}
+		}
+	}
+
+	log.Printf("[RBAC-DEBUG] UserPermission source: %d cluster-scoped kinds, %d namespace mappings, %d managed clusters",
+		len(source.ClusterScopedKinds), len(source.NamespacedResources), len(source.ManagedClusters))
+
+	// Debug: Print namespace mappings
+	for namespace, kinds := range source.NamespacedResources {
+		log.Printf("[RBAC-DEBUG] UserPermission: Namespace '%s' → kinds %v", namespace, kinds)
+	}
+
+	return source, nil
+}
+
+// resolveHubKubernetesAPI handles hub cluster permissions using direct namespace→resource mapping
+func (r *RBACResolver) resolveHubKubernetesAPI(ctx context.Context, userToken string) (*PermissionSource, error) {
+	// Use the new HubRBACClient with shared resource discovery
+	hubClient, err := NewHubRBACClient(r.config, r.resourceDiscovery)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create hub RBAC client: %w", err)
+	}
+
+	hubPermissions, err := hubClient.GetHubClusterPermissions(ctx, userToken)
+	if err != nil {
+		return nil, fmt.Errorf("hub Kubernetes API failed: %w", err)
+	}
+
+	// Convert to direct mapping structure (NO Cartesian products)
+	source := &PermissionSource{
+		Source:              "hub-kubernetes",
+		ClusterScopedKinds:  []string{},
+		NamespacedResources: make(map[string][]string), // Direct namespace→resource mapping
+		ManagedClusters:     map[string]struct{}{"local-cluster": {}}, // Hub cluster only
+	}
+
+	// 1. Add cluster-scoped resources (hub cluster only)
+	if len(hubPermissions.ClusterScopedResources) > 0 {
+		for _, resource := range hubPermissions.ClusterScopedResources {
+			if !contains(source.ClusterScopedKinds, resource.Kind) {
+				source.ClusterScopedKinds = append(source.ClusterScopedKinds, resource.Kind)
+				log.Printf("[HUB-RBAC-DEBUG] Added hub cluster-scoped kind: %s", resource.Kind)
+			}
+		}
+	}
+
+	// 2. Add namespaced resources with explicit namespace→resource mapping
+	for namespace, resources := range hubPermissions.NamespacedResources {
+		// Initialize namespace if not exists
+		if _, exists := source.NamespacedResources[namespace]; !exists {
+			source.NamespacedResources[namespace] = []string{}
+		}
+
+		// Add each resource kind to this specific namespace (prevents cross-multiplication)
+		for _, resource := range resources {
+			if !contains(source.NamespacedResources[namespace], resource.Kind) {
+				source.NamespacedResources[namespace] = append(source.NamespacedResources[namespace], resource.Kind)
+				log.Printf("[HUB-RBAC-DEBUG] Added hub namespace '%s' → kind '%s'", namespace, resource.Kind)
+			}
+		}
+	}
+
+	log.Printf("[HUB-RBAC-DEBUG] Hub permissions: %d cluster-scoped kinds, %d namespace mappings",
+		len(source.ClusterScopedKinds), len(source.NamespacedResources))
+
+	// Debug: Print namespace mappings
+	for namespace, kinds := range source.NamespacedResources {
+		log.Printf("[HUB-RBAC-DEBUG] Hub: Namespace '%s' → kinds %v", namespace, kinds)
+	}
+
+	return source, nil
 }
 
 // getRawUserPermissions uses SelfSubjectRulesReview to get actual user permissions
@@ -322,109 +465,9 @@ func (r *RBACResolver) checkResourcePermission(ctx context.Context, clientset *k
 	return result.Status.Allowed, clusters, namespaces, nil
 }
 
-// convertPermissionsToFilters converts PermissionRules to database QueryFilters
-func (r *RBACResolver) convertPermissionsToFilters(permissions []PermissionRule) *QueryFilters {
-	log.Printf("[RBAC-DEBUG] Converting %d permission rules to query filters", len(permissions))
-
-	filters := &QueryFilters{
-		AllowedClusters:    []string{},
-		AllowedNamespaces:  []string{},
-		AllowedResources:   []string{},
-		ResourceNamespaces: make(map[string][]string), // Track per-resource namespace permissions
-	}
-
-	clusterSet := make(map[string]bool)
-	namespaceSet := make(map[string]bool)
-	resourceSet := make(map[string]bool)
-	resourceNamespaceMap := make(map[string]map[string]bool) // map[resourceKind]map[namespace]bool
-
-	for i, perm := range permissions {
-		log.Printf("[RBAC-DEBUG] Processing permission rule %d:", i)
-		log.Printf("[RBAC-DEBUG]   Verbs: %v", perm.Verbs)
-		log.Printf("[RBAC-DEBUG]   APIGroups: %v", perm.APIGroups)
-		log.Printf("[RBAC-DEBUG]   Resources: %v", perm.Resources)
-		log.Printf("[RBAC-DEBUG]   Clusters: %v", perm.Clusters)
-		log.Printf("[RBAC-DEBUG]   Namespaces: %v", perm.Namespaces)
-
-		// Collect clusters
-		for _, cluster := range perm.Clusters {
-			log.Printf("[RBAC-DEBUG]   Adding cluster: %s", cluster)
-			clusterSet[cluster] = true
-		}
-
-		// Collect namespaces
-		for _, namespace := range perm.Namespaces {
-			log.Printf("[RBAC-DEBUG]   Adding namespace: %s", namespace)
-			namespaceSet[namespace] = true
-		}
-
-		// Map API resources to Kubernetes kinds and track per-resource namespace permissions
-		for i, resource := range perm.Resources {
-			apiGroup := ""
-			if i < len(perm.APIGroups) {
-				apiGroup = perm.APIGroups[i]
-			}
-			kind := r.mapResourceToKind(apiGroup, resource)
-			if kind != "" {
-				log.Printf("[RBAC-DEBUG]   Mapped %s/%s → Kind: %s", apiGroup, resource, kind)
-				resourceSet[kind] = true
-
-				// Track namespace permissions for this specific resource type
-				if resourceNamespaceMap[kind] == nil {
-					resourceNamespaceMap[kind] = make(map[string]bool)
-				}
-				for _, namespace := range perm.Namespaces {
-					resourceNamespaceMap[kind][namespace] = true
-					log.Printf("[RBAC-DEBUG]   Resource %s can access namespace: %s", kind, namespace)
-				}
-			} else {
-				log.Printf("[RBAC-DEBUG]   Failed to map %s/%s to Kind", apiGroup, resource)
-			}
-		}
-	}
-
-	// Convert sets to slices
-	for cluster := range clusterSet {
-		filters.AllowedClusters = append(filters.AllowedClusters, cluster)
-	}
-	for namespace := range namespaceSet {
-		filters.AllowedNamespaces = append(filters.AllowedNamespaces, namespace)
-	}
-	for resource := range resourceSet {
-		filters.AllowedResources = append(filters.AllowedResources, resource)
-	}
-
-	// Convert resource-specific namespace maps to slices
-	for resourceKind, nsMap := range resourceNamespaceMap {
-		var namespaces []string
-		for namespace := range nsMap {
-			namespaces = append(namespaces, namespace)
-		}
-		filters.ResourceNamespaces[resourceKind] = namespaces
-		log.Printf("[RBAC-DEBUG]   Resource %s allowed namespaces: %v", resourceKind, namespaces)
-	}
-
-	// Debug: Log final converted filters
-	log.Printf("[RBAC-DEBUG] Final query filters:")
-	log.Printf("[RBAC-DEBUG]   AllowedClusters (%d): %v", len(filters.AllowedClusters), filters.AllowedClusters)
-	log.Printf("[RBAC-DEBUG]   AllowedNamespaces (%d): %v", len(filters.AllowedNamespaces), filters.AllowedNamespaces)
-	log.Printf("[RBAC-DEBUG]   AllowedResources (%d): %v", len(filters.AllowedResources), filters.AllowedResources)
-
-	// If user has no specific permissions, deny access (empty filters)
-	if len(filters.AllowedClusters) == 0 && len(filters.AllowedNamespaces) == 0 && len(filters.AllowedResources) == 0 {
-		log.Printf("[RBAC-DEBUG] No permissions found - returning empty filters (access denied)")
-		return &QueryFilters{
-			AllowedClusters:   []string{}, // Empty = no access
-			AllowedNamespaces: []string{},
-			AllowedResources:  []string{},
-		}
-	}
-
-	return filters
-}
 
 // mapResourceToKind maps Kubernetes API resource names to their Kind names using discovery
-func (r *RBACResolver) mapResourceToKind(apiGroup, resource string) string {
+func (r *RBACResolver) mapResourceToKindWithToken(apiGroup, resource, userToken string) string {
 	// PHASE 6: Dynamic Resource Discovery Implementation
 	// This replaces the previous hardcoded mapping with live Kubernetes Discovery API
 
@@ -434,9 +477,9 @@ func (r *RBACResolver) mapResourceToKind(apiGroup, resource string) string {
 		return r.algorithmicFallback(resource)
 	}
 
-	// Use discovery to get the correct Kind
+	// Use discovery to get the correct Kind, passing userToken for authentication
 	ctx := context.Background() // Use background context for discovery calls
-	kind, discoveryResult := r.resourceDiscovery.GetResourceKind(ctx, apiGroup, resource)
+	kind, discoveryResult := r.resourceDiscovery.GetResourceKind(ctx, userToken, apiGroup, resource)
 
 	// Log the discovery result for audit and debugging
 	r.logDiscoveryResult(apiGroup, resource, kind, discoveryResult)
@@ -506,17 +549,10 @@ func (r *RBACResolver) algorithmicFallback(resource string) string {
 	return fallback
 }
 
-// createFallbackFilters creates wildcard filters for graceful fallback
-func (r *RBACResolver) createFallbackFilters() *QueryFilters {
-	return &QueryFilters{
-		AllowedClusters:   []string{"*"},
-		AllowedNamespaces: []string{"*"},
-		AllowedResources:  []string{"*"},
-	}
-}
 
 // Helper method to integrate with AuthMiddleware
 func (m *AuthMiddleware) resolveUserPermissions(ctx context.Context, userToken string) (*QueryFilters, error) {
-	resolver := NewRBACResolver(m.config)
+	resolver := NewRBACResolver(m.config, m.db)
 	return resolver.ResolveUserPermissions(ctx, userToken)
 }
+

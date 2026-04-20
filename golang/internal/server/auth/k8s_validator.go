@@ -37,15 +37,21 @@ func NewKubernetesValidator(config *K8sConfig) *KubernetesValidator {
 
 // ValidateBearerToken validates a bearer token using Kubernetes TokenReview API
 func (v *KubernetesValidator) ValidateBearerToken(authHeader string) (*TokenValidationResult, error) {
-	// Validate header format
-	if authHeader == "" || len(authHeader) < 8 || authHeader[:7] != "Bearer " {
+	// Extract token - handle both "Bearer <token>" and raw "<token>" formats
+	var token string
+	if authHeader == "" {
 		return &TokenValidationResult{
 			Valid: false,
-			Error: "Invalid Bearer token format. Expected: Authorization: Bearer <token>",
+			Error: "Missing authorization header",
 		}, nil
 	}
 
-	token := authHeader[7:] // Remove 'Bearer ' prefix
+	// Handle both Bearer-prefixed and raw tokens
+	if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+		token = authHeader[7:] // Remove 'Bearer ' prefix
+	} else {
+		token = authHeader // Use as raw token
+	}
 
 	// Basic token length validation
 	if len(token) < 10 {

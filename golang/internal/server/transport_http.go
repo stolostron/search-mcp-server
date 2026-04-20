@@ -54,40 +54,23 @@ func (t *HTTPTransport) Start(ctx context.Context, mcpServer *PostgresMCPServer)
 		return fmt.Errorf("failed to register tools: %w", err)
 	}
 
-	// Initialize authentication middleware using proper config loader
-	authConfig := auth.LoadAuthConfig()
-
-	// Override with any specific values from ServerConfig
-	if t.config.EnableAuth {
-		authConfig.EnableAuth = t.config.EnableAuth
-	}
-	if t.config.AuthTimeout > 0 {
-		authConfig.AuthTimeout = t.config.AuthTimeout
-	}
-	if !t.config.AuthCacheEnabled {
-		authConfig.CacheTokens = t.config.AuthCacheEnabled
-	}
-	if t.config.AuthCacheTTL > 0 {
-		authConfig.CacheTTL = t.config.AuthCacheTTL
-	}
-	if t.config.KubernetesURL != "" {
-		authConfig.KubernetesURL = t.config.KubernetesURL
-	}
-	if t.config.ServiceAccountToken != "" {
-		authConfig.TokenValue = t.config.ServiceAccountToken
-	}
-	if t.config.TokenPath != "" {
-		authConfig.TokenPath = t.config.TokenPath
-	}
-	if t.config.KubeconfigPath != "" {
-		authConfig.KubeconfigPath = t.config.KubeconfigPath
-	}
-	if t.config.SkipTLSVerify {
-		authConfig.SkipTLS = t.config.SkipTLSVerify
-	}
+	// Create AuthConfig directly from ServerConfig values (clean, no duplication)
+	authConfig := auth.NewAuthConfigFromServerValues(
+		t.config.EnableAuth,
+		t.config.AuthTimeout,
+		t.config.AuthCacheEnabled,
+		t.config.AuthCacheTTL,
+		t.config.KubernetesURL,
+		t.config.ServiceAccountToken,
+		t.config.TokenPath,
+		t.config.KubeconfigPath,
+		t.config.SkipTLSVerify,
+		t.config.DiscoveryTTL,
+		t.config.DiscoverySource,
+	)
 
 	var err error
-	t.authMiddleware, err = auth.NewAuthMiddleware(authConfig)
+	t.authMiddleware, err = auth.NewAuthMiddleware(authConfig, t.mcpServer.dbConn)
 	if err != nil {
 		return fmt.Errorf("failed to initialize auth middleware: %w", err)
 	}

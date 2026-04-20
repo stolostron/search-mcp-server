@@ -11,19 +11,24 @@ import (
 func TestResourceDiscovery(t *testing.T) {
 	// Mock auth config for testing
 	config := &AuthConfig{
-		KubernetesHost: "localhost",
-		KubernetesPort: "6443",
-		SkipTLS:        true,
+		KubernetesHost:  "localhost",
+		KubernetesPort:  "6443",
+		SkipTLS:         true,
+		DiscoveryTTL:    1 * time.Hour,     // Set proper TTL for tests
+		DiscoverySource: "kubernetes",      // Use kubernetes source for tests (no db)
 	}
 
 	t.Run("initialization", func(t *testing.T) {
 		discovery := NewResourceDiscovery(config, "Bearer test-token")
 
 		assert.NotNil(t, discovery)
-		assert.NotNil(t, discovery.cache)
-		assert.Equal(t, "Bearer test-token", discovery.userToken)
+		assert.NotNil(t, globalResourceCache)
 		assert.Equal(t, config, discovery.config)
-		assert.Equal(t, 1*time.Hour, discovery.cache.ttl)
+		assert.Equal(t, 1*time.Hour, globalResourceCache.ttl)
+
+		// Verify shared instance behavior
+		discovery2 := NewResourceDiscovery(config, "Bearer other-token")
+		assert.Same(t, discovery, discovery2, "Should return the same shared instance")
 	})
 
 	t.Run("cache operations", func(t *testing.T) {
@@ -57,7 +62,14 @@ func TestResourceDiscovery(t *testing.T) {
 
 	t.Run("cache expiration", func(t *testing.T) {
 		discovery := NewResourceDiscovery(config, "Bearer test-token")
-		discovery.cache.ttl = 1 * time.Millisecond // Very short TTL for testing
+
+		// Store original TTL and restore after test
+		originalTTL := globalResourceCache.ttl
+		defer func() {
+			globalResourceCache.ttl = originalTTL
+		}()
+
+		globalResourceCache.ttl = 1 * time.Millisecond // Very short TTL for testing
 
 		testMappings := map[string]string{"pods": "Pod"}
 		discovery.updateCache(testMappings)
@@ -119,11 +131,6 @@ func TestResourceDiscovery(t *testing.T) {
 	t.Run("cache stats", func(t *testing.T) {
 		discovery := NewResourceDiscovery(config, "Bearer test-token")
 
-		// Empty cache stats
-		stats := discovery.GetCacheStats()
-		assert.Equal(t, 0, stats["cache_size"])
-		assert.True(t, stats["is_expired"].(bool)) // Empty cache is considered expired
-
 		// Populate cache and check stats
 		testMappings := map[string]string{
 			"pods":        "Pod",
@@ -132,7 +139,8 @@ func TestResourceDiscovery(t *testing.T) {
 		}
 		discovery.updateCache(testMappings)
 
-		stats = discovery.GetCacheStats()
+		// Check updated stats
+		stats := discovery.GetCacheStats()
 		assert.Equal(t, 3, stats["cache_size"])
 		assert.False(t, stats["is_expired"].(bool))
 		assert.InDelta(t, 0.0, stats["age_minutes"].(float64), 0.1) // Should be very recent
@@ -142,9 +150,11 @@ func TestResourceDiscovery(t *testing.T) {
 
 func TestResourceDiscoveryFallbackHierarchy(t *testing.T) {
 	config := &AuthConfig{
-		KubernetesHost: "localhost",
-		KubernetesPort: "6443",
-		SkipTLS:        true,
+		KubernetesHost:  "localhost",
+		KubernetesPort:  "6443",
+		SkipTLS:         true,
+		DiscoveryTTL:    1 * time.Hour,     // Set proper TTL for tests
+		DiscoverySource: "kubernetes",      // Use kubernetes source for tests (no db)
 	}
 
 	discovery := NewResourceDiscovery(config, "Bearer test-token")
@@ -166,7 +176,7 @@ func TestResourceDiscoveryFallbackHierarchy(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.resource, func(t *testing.T) {
-				kind, result := discovery.GetResourceKind(ctx, "", tc.resource)
+				kind, result := discovery.GetResourceKind(ctx, "Bearer test-token", "", tc.resource)
 
 				assert.Equal(t, tc.expectedKind, kind)
 				assert.NotNil(t, result)
@@ -189,7 +199,7 @@ func TestResourceDiscoveryFallbackHierarchy(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.resource, func(t *testing.T) {
-				kind, result := discovery.GetResourceKind(ctx, "", tc.resource)
+				kind, result := discovery.GetResourceKind(ctx, "Bearer test-token", "", tc.resource)
 
 				assert.Equal(t, tc.expectedKind, kind)
 				assert.NotNil(t, result)
@@ -204,12 +214,14 @@ func TestResourceDiscoveryIntegrationWithRBAC(t *testing.T) {
 	// Test the integration between resource discovery and RBAC resolution
 
 	config := &AuthConfig{
-		KubernetesHost: "localhost",
-		KubernetesPort: "6443",
-		SkipTLS:        true,
+		KubernetesHost:  "localhost",
+		KubernetesPort:  "6443",
+		SkipTLS:         true,
+		DiscoveryTTL:    1 * time.Hour,     // Set proper TTL for tests
+		DiscoverySource: "kubernetes",      // Use kubernetes source for tests (no db)
 	}
 
-	resolver := NewRBACResolver(config)
+	resolver := NewRBACResolver(config, nil) // nil database for tests
 	userToken := "Bearer test-token"
 
 	// Initialize discovery (this would normally happen in ResolveUserPermissions)
@@ -242,7 +254,7 @@ func TestResourceDiscoveryIntegrationWithRBAC(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.resource, func(t *testing.T) {
-				kind := resolver.mapResourceToKind(tc.apiGroup, tc.resource)
+				kind := resolver.mapResourceToKindWithToken(tc.apiGroup, tc.resource, "Bearer test-token")
 				assert.Equal(t, tc.expected, kind)
 			})
 		}
@@ -250,10 +262,10 @@ func TestResourceDiscoveryIntegrationWithRBAC(t *testing.T) {
 
 	t.Run("RBAC resolver handles discovery errors gracefully", func(t *testing.T) {
 		// Test with a resolver that has no discovery initialized (error scenario)
-		errorResolver := NewRBACResolver(config)
+		errorResolver := NewRBACResolver(config, nil) // nil database for tests
 		// Don't initialize discovery to simulate error condition
 
-		kind := errorResolver.mapResourceToKind("", "pods")
+		kind := errorResolver.mapResourceToKindWithToken("", "pods", "Bearer test-token")
 		// Should use algorithmic fallback
 		assert.Equal(t, "Pod", kind)
 	})
@@ -262,9 +274,11 @@ func TestResourceDiscoveryIntegrationWithRBAC(t *testing.T) {
 // Benchmark the discovery performance
 func BenchmarkResourceDiscovery(b *testing.B) {
 	config := &AuthConfig{
-		KubernetesHost: "localhost",
-		KubernetesPort: "6443",
-		SkipTLS:        true,
+		KubernetesHost:  "localhost",
+		KubernetesPort:  "6443",
+		SkipTLS:         true,
+		DiscoveryTTL:    1 * time.Hour,     // Set proper TTL for tests
+		DiscoverySource: "kubernetes",      // Use kubernetes source for tests (no db)
 	}
 
 	discovery := NewResourceDiscovery(config, "Bearer test-token")
@@ -297,13 +311,13 @@ func BenchmarkResourceDiscovery(b *testing.B) {
 
 	b.Run("full_discovery_flow_cached", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			discovery.GetResourceKind(ctx, "", "0") // Should hit cache
+			discovery.GetResourceKind(ctx, "Bearer test-token", "", "0") // Should hit cache
 		}
 	})
 
 	b.Run("full_discovery_flow_hardcoded", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			discovery.GetResourceKind(ctx, "", "pods") // Should hit hardcoded
+			discovery.GetResourceKind(ctx, "Bearer test-token", "", "pods") // Should hit hardcoded
 		}
 	})
 }

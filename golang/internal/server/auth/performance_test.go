@@ -14,18 +14,26 @@ func BenchmarkResourceSpecificPermissionFiltering(t *testing.B) {
 	t.Run("single_resource_permission_check", func(b *testing.B) {
 		// Simple case: single resource type with specific namespaces
 		filters := &QueryFilters{
-			AllowedClusters:   []string{"cluster-1"},
-			AllowedNamespaces: []string{"app-1", "app-2", "app-3"},
-			AllowedResources:  []string{"Pod"},
-			ResourceNamespaces: map[string][]string{
-				"Pod": []string{"app-1", "app-2", "app-3"},
+			PermissionSources: []PermissionSource{
+				{
+					Source:              "userpermission",
+					ClusterScopedKinds:  []string{}, // No cluster-scoped access
+					NamespacedResources: map[string][]string{
+						"app-1": {"Pod"},
+						"app-2": {"Pod"},
+						"app-3": {"Pod"},
+					},
+					ManagedClusters: map[string]struct{}{
+						"cluster-1": {},
+					},
+				},
 			},
 		}
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			// Simulate permission checks that happen during query filtering
-			_ = filters.isNamespaceAllowedForResource("Pod", "app-1")
+			_ = filters.IsNamespaceAllowedInCluster("cluster-1", "app-1")
 		}
 	})
 
@@ -33,46 +41,56 @@ func BenchmarkResourceSpecificPermissionFiltering(t *testing.B) {
 		// Complex case: multiple resource types with different namespace permissions
 		filters := createComplexPermissionFilters()
 
-		resourceTypes := []string{"Pod", "VirtualMachine", "Service", "Secret", "ConfigMap"}
+		clusters := []string{"prod-cluster", "staging-cluster"}
 		namespaces := []string{"app-1", "app-2", "vm-prod", "monitoring", "default"}
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			// Simulate checking permissions for multiple resource/namespace combinations
-			resourceIdx := i % len(resourceTypes)
+			// Simulate checking permissions for multiple cluster/namespace combinations
+			clusterIdx := i % len(clusters)
 			namespaceIdx := i % len(namespaces)
-			_ = filters.isNamespaceAllowedForResource(resourceTypes[resourceIdx], namespaces[namespaceIdx])
+			_ = filters.IsNamespaceAllowedInCluster(clusters[clusterIdx], namespaces[namespaceIdx])
 		}
 	})
 
 	t.Run("wildcard_permission_check", func(b *testing.B) {
 		// Wildcard case: resources with wildcard namespace access
 		filters := &QueryFilters{
-			AllowedClusters:   []string{"*"},
-			AllowedNamespaces: []string{"*"},
-			AllowedResources:  []string{"Secret", "ConfigMap", "Service"},
-			ResourceNamespaces: map[string][]string{
-				"Secret":    []string{"*"},
-				"ConfigMap": []string{"*"},
-				"Service":   []string{"*"},
+			PermissionSources: []PermissionSource{
+				{
+					Source:              "hub-kubernetes",
+					ClusterScopedKinds:  []string{"Secret", "ConfigMap", "Service"}, // Cluster-scoped access
+					NamespacedResources: map[string][]string{
+						"*": {"Secret", "ConfigMap", "Service"}, // Wildcard namespace access
+					},
+					ManagedClusters: map[string]struct{}{
+						"*": {}, // Wildcard cluster access
+					},
+				},
 			},
 		}
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_ = filters.HasNamespaceWildcardForResource("Secret")
+			_ = filters.HasWildcardAccess()
 		}
 	})
 
 	t.Run("pattern_matching_permission_check", func(b *testing.B) {
 		// Pattern matching case: namespace patterns like "app-*"
 		filters := &QueryFilters{
-			AllowedClusters:   []string{"cluster-1"},
-			AllowedNamespaces: []string{"app-*", "vm-*"},
-			AllowedResources:  []string{"Pod", "VirtualMachine"},
-			ResourceNamespaces: map[string][]string{
-				"Pod":            []string{"app-*"},
-				"VirtualMachine": []string{"vm-*"},
+			PermissionSources: []PermissionSource{
+				{
+					Source:              "userpermission",
+					ClusterScopedKinds:  []string{}, // No cluster-scoped access
+					NamespacedResources: map[string][]string{
+						"app-*": {"Pod", "VirtualMachine"}, // Pattern-based namespace access
+						"vm-*":  {"Pod", "VirtualMachine"}, // Pattern-based namespace access
+					},
+					ManagedClusters: map[string]struct{}{
+						"cluster-1": {},
+					},
+				},
 			},
 		}
 
@@ -81,7 +99,7 @@ func BenchmarkResourceSpecificPermissionFiltering(t *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			namespaceIdx := i % len(namespaces)
-			_ = filters.isNamespaceAllowedForResource("Pod", namespaces[namespaceIdx])
+			_ = filters.IsNamespaceAllowedInCluster("cluster-1", namespaces[namespaceIdx])
 		}
 	})
 
@@ -90,39 +108,38 @@ func BenchmarkResourceSpecificPermissionFiltering(t *testing.B) {
 		filters := createLargeScalePermissionFilters()
 
 		// Simulate checking many different combinations
-		resourceTypes := []string{"Pod", "Service", "Deployment", "ConfigMap", "Secret",
-			"VirtualMachine", "VirtualMachineInstance", "PersistentVolumeClaim"}
+		clusters := []string{"prod-cluster-a", "prod-cluster-b", "dev-cluster-a"}
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			resourceIdx := i % len(resourceTypes)
+			clusterIdx := i % len(clusters)
 			namespaceIdx := i % 50  // 50 different namespaces
 			namespace := generateNamespace(namespaceIdx)
-			_ = filters.isNamespaceAllowedForResource(resourceTypes[resourceIdx], namespace)
+			_ = filters.IsNamespaceAllowedInCluster(clusters[clusterIdx], namespace)
 		}
 	})
 
-	t.Run("get_allowed_namespaces_performance", func(b *testing.B) {
-		// Test performance of getting allowed namespaces for resources
+	t.Run("cluster_access_performance", func(b *testing.B) {
+		// Test performance of cluster access checks
+		filters := createComplexPermissionFilters()
+		clusters := []string{"prod-cluster", "staging-cluster", "dev-cluster", "test-cluster"}
+
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			clusterIdx := i % len(clusters)
+			_ = filters.IsClusterAllowed(clusters[clusterIdx])
+		}
+	})
+
+	t.Run("resource_kind_access_performance", func(b *testing.B) {
+		// Test performance of resource kind access checks
 		filters := createComplexPermissionFilters()
 		resourceTypes := []string{"Pod", "VirtualMachine", "Service", "Secret"}
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			resourceIdx := i % len(resourceTypes)
-			_ = filters.GetAllowedNamespacesForResource(resourceTypes[resourceIdx])
-		}
-	})
-
-	t.Run("has_wildcard_access_performance", func(b *testing.B) {
-		// Test performance of wildcard access checks
-		filters := createComplexPermissionFilters()
-		resourceTypes := []string{"Pod", "VirtualMachine", "Service", "Secret"}
-
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			resourceIdx := i % len(resourceTypes)
-			_ = filters.HasNamespaceWildcardForResource(resourceTypes[resourceIdx])
+			_ = filters.IsResourceKindAllowed(resourceTypes[resourceIdx])
 		}
 	})
 }
@@ -195,7 +212,7 @@ func BenchmarkDiscoverySystemPerformance(t *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			resourceIdx := i % len(testResources)
-			_, _ = discovery.GetResourceKind(ctx, "", testResources[resourceIdx])
+			_, _ = discovery.GetResourceKind(ctx, "Bearer test-token", "", testResources[resourceIdx])
 		}
 	})
 }
@@ -209,7 +226,7 @@ func BenchmarkRBACResolverPerformance(t *testing.B) {
 	}
 
 	t.Run("resource_to_kind_mapping_performance", func(b *testing.B) {
-		resolver := NewRBACResolver(config)
+		resolver := NewRBACResolver(config, nil) // nil database for tests
 		resolver.resourceDiscovery = NewResourceDiscovery(config, "Bearer test-token")
 
 		// Pre-populate discovery cache
@@ -236,29 +253,25 @@ func BenchmarkRBACResolverPerformance(t *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			tc := testCases[i%len(testCases)]
-			_ = resolver.mapResourceToKind(tc.apiGroup, tc.resource)
+			_ = resolver.mapResourceToKindWithToken(tc.apiGroup, tc.resource, "Bearer test-token")
 		}
 	})
 
-	t.Run("permission_conversion_performance", func(b *testing.B) {
-		resolver := NewRBACResolver(config)
+	t.Run("permission_source_validation_performance", func(b *testing.B) {
+		// Test performance of validating permission sources
+		resolver := NewRBACResolver(config, nil) // nil database for tests
 		resolver.resourceDiscovery = NewResourceDiscovery(config, "Bearer test-token")
 
-		// Setup complex permissions for realistic testing
-		complexPermissions := createComplexPermissionRules()
-
-		// Pre-populate discovery cache
-		mappings := map[string]string{
-			"pods":              "Pod",
-			"services":          "Service",
-			"virtualmachines":   "VirtualMachine",
-			"deployments":       "Deployment",
-		}
-		resolver.resourceDiscovery.updateCache(mappings)
+		// Setup complex query filters for realistic testing
+		complexFilters := createComplexPermissionFilters()
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_ = resolver.convertPermissionsToFilters(complexPermissions)
+			// Test various permission checks that would happen during query processing
+			_ = complexFilters.HasWildcardAccess()
+			_ = complexFilters.IsClusterAllowed("prod-cluster")
+			_ = complexFilters.IsResourceKindAllowed("Pod")
+			_ = complexFilters.IsNamespaceAllowedInCluster("prod-cluster", "app-frontend")
 		}
 	})
 }
@@ -267,44 +280,63 @@ func BenchmarkRBACResolverPerformance(t *testing.B) {
 
 func createComplexPermissionFilters() *QueryFilters {
 	return &QueryFilters{
-		AllowedClusters:   []string{"prod-cluster", "staging-cluster"},
-		AllowedNamespaces: []string{"app-*", "vm-*", "monitoring", "default"},
-		AllowedResources:  []string{"Pod", "VirtualMachine", "Service", "Secret", "ConfigMap"},
-		ResourceNamespaces: map[string][]string{
-			"Pod":            []string{"app-frontend", "app-backend", "app-database"},
-			"VirtualMachine": []string{"vm-*"},  // Pattern-based access
-			"Service":        []string{"*"},     // Wildcard access
-			"Secret":         []string{"monitoring", "default"},
-			"ConfigMap":      []string{"app-*"},
+		PermissionSources: []PermissionSource{
+			{
+				Source:              "userpermission",
+				ClusterScopedKinds:  []string{}, // No cluster-scoped access
+				NamespacedResources: map[string][]string{
+					"app-frontend": {"Pod", "ConfigMap"},
+					"app-backend":  {"Pod", "ConfigMap"},
+					"app-database": {"Pod", "ConfigMap"},
+					"vm-*":         {"VirtualMachine"}, // Pattern-based access
+				},
+				ManagedClusters: map[string]struct{}{
+					"prod-cluster":    {},
+					"staging-cluster": {},
+				},
+			},
+			{
+				Source:              "hub-kubernetes",
+				ClusterScopedKinds:  []string{"Service", "Secret"}, // Cluster-scoped access
+				NamespacedResources: map[string][]string{
+					"*": {"Service", "Secret"}, // Wildcard namespace access
+				},
+				ManagedClusters: map[string]struct{}{
+					"local-cluster": {},
+				},
+			},
 		},
 	}
 }
 
 func createLargeScalePermissionFilters() *QueryFilters {
 	// Simulate enterprise-scale permissions
-	clusters := make([]string, 10)
-	for i := 0; i < 10; i++ {
-		clusters[i] = generateClusterName(i)
-	}
+	namespacedResources := make(map[string][]string)
+	managedClusters := make(map[string]struct{})
 
 	resources := []string{"Pod", "Service", "Deployment", "ConfigMap", "Secret",
 		"VirtualMachine", "VirtualMachineInstance", "PersistentVolumeClaim",
 		"Ingress", "NetworkPolicy"}
 
-	resourceNamespaces := make(map[string][]string)
-	for _, resource := range resources {
-		namespaces := make([]string, 20)
-		for i := 0; i < 20; i++ {
-			namespaces[i] = generateNamespace(i)
+	for i := 0; i < 10; i++ {
+		cluster := generateClusterName(i)
+		managedClusters[cluster] = struct{}{}
+
+		for j := 0; j < 20; j++ {
+			namespace := generateNamespace(j)
+			namespacedResources[namespace] = resources // All resources in each namespace
 		}
-		resourceNamespaces[resource] = namespaces
 	}
 
 	return &QueryFilters{
-		AllowedClusters:    clusters,
-		AllowedNamespaces:  []string{"*"}, // Global namespace access
-		AllowedResources:   resources,
-		ResourceNamespaces: resourceNamespaces,
+		PermissionSources: []PermissionSource{
+			{
+				Source:              "userpermission",
+				ClusterScopedKinds:  []string{}, // No cluster-scoped access for large scale test
+				NamespacedResources: namespacedResources,
+				ManagedClusters:     managedClusters,
+			},
+		},
 	}
 }
 

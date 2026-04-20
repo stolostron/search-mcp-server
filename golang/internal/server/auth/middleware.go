@@ -7,12 +7,15 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/stolostron/search-mcp-server/pkg/database"
 )
 
 // AuthMiddleware handles HTTP authentication for MCP requests
 type AuthMiddleware struct {
 	validator    *KubernetesValidator
 	config       *AuthConfig
+	db           *database.DatabaseConnection // Database connection for RBAC resolution
 	tokenCache   map[string]*cachedToken
 	cacheMutex   sync.RWMutex
 	cleanupTicker *time.Ticker
@@ -25,9 +28,9 @@ type cachedToken struct {
 }
 
 // NewAuthMiddleware creates a new authentication middleware
-func NewAuthMiddleware(config *AuthConfig) (*AuthMiddleware, error) {
+func NewAuthMiddleware(config *AuthConfig, db *database.DatabaseConnection) (*AuthMiddleware, error) {
 	if !config.EnableAuth {
-		return &AuthMiddleware{config: config}, nil
+		return &AuthMiddleware{config: config, db: db}, nil
 	}
 
 	k8sConfig, err := config.GetKubernetesConfig()
@@ -40,6 +43,7 @@ func NewAuthMiddleware(config *AuthConfig) (*AuthMiddleware, error) {
 	middleware := &AuthMiddleware{
 		validator:  validator,
 		config:     config,
+		db:         db,
 		tokenCache: make(map[string]*cachedToken),
 	}
 
@@ -129,7 +133,7 @@ func (m *AuthMiddleware) Handler(next http.Handler) http.Handler {
 		}
 
 		// Check if user has ANY meaningful ACM-related permissions
-		if len(queryFilters.AllowedClusters) == 0 && len(queryFilters.AllowedNamespaces) == 0 && len(queryFilters.AllowedResources) == 0 {
+		if len(queryFilters.PermissionSources) == 0 {
 			log.Printf("[RBAC] No ACM permissions found for user: %s - denying access", validationResult.User.Username)
 			m.sendAuthError(w, "Access denied",
 				"No ACM-related permissions found. User must have at least read access to ACM resources.",
@@ -139,11 +143,9 @@ func (m *AuthMiddleware) Handler(next http.Handler) http.Handler {
 
 		// Enhance UserContext with resolved query filters
 		validationResult.User.QueryFilters = queryFilters
-		log.Printf("[RBAC] Successfully resolved permissions for user %s: clusters=%v, namespaces=%v, resources=%v",
+		log.Printf("[RBAC] Successfully resolved permissions for user %s: %d permission sources",
 			validationResult.User.Username,
-			queryFilters.AllowedClusters,
-			queryFilters.AllowedNamespaces,
-			queryFilters.AllowedResources)
+			len(queryFilters.PermissionSources))
 
 		log.Printf("[AUTH] Access granted for user: %s (via %s header)", validationResult.User.Username, headerSource)
 
