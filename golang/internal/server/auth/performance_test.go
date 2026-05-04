@@ -18,7 +18,7 @@ func BenchmarkResourceSpecificPermissionFiltering(t *testing.B) {
 				{
 					Source:              "userpermission",
 					ClusterScopedKinds:  []string{}, // No cluster-scoped access
-					NamespacedResources: map[string][]string{
+					NamespacedKinds: map[string][]string{
 						"app-1": {"Pod"},
 						"app-2": {"Pod"},
 						"app-3": {"Pod"},
@@ -60,7 +60,7 @@ func BenchmarkResourceSpecificPermissionFiltering(t *testing.B) {
 				{
 					Source:              "hub-kubernetes",
 					ClusterScopedKinds:  []string{"Secret", "ConfigMap", "Service"}, // Cluster-scoped access
-					NamespacedResources: map[string][]string{
+					NamespacedKinds: map[string][]string{
 						"*": {"Secret", "ConfigMap", "Service"}, // Wildcard namespace access
 					},
 					ManagedClusters: map[string]struct{}{
@@ -83,7 +83,7 @@ func BenchmarkResourceSpecificPermissionFiltering(t *testing.B) {
 				{
 					Source:              "userpermission",
 					ClusterScopedKinds:  []string{}, // No cluster-scoped access
-					NamespacedResources: map[string][]string{
+					NamespacedKinds: map[string][]string{
 						"app-*": {"Pod", "VirtualMachine"}, // Pattern-based namespace access
 						"vm-*":  {"Pod", "VirtualMachine"}, // Pattern-based namespace access
 					},
@@ -284,7 +284,7 @@ func createComplexPermissionFilters() *QueryFilters {
 			{
 				Source:              "userpermission",
 				ClusterScopedKinds:  []string{}, // No cluster-scoped access
-				NamespacedResources: map[string][]string{
+				NamespacedKinds: map[string][]string{
 					"app-frontend": {"Pod", "ConfigMap"},
 					"app-backend":  {"Pod", "ConfigMap"},
 					"app-database": {"Pod", "ConfigMap"},
@@ -298,7 +298,7 @@ func createComplexPermissionFilters() *QueryFilters {
 			{
 				Source:              "hub-kubernetes",
 				ClusterScopedKinds:  []string{"Service", "Secret"}, // Cluster-scoped access
-				NamespacedResources: map[string][]string{
+				NamespacedKinds: map[string][]string{
 					"*": {"Service", "Secret"}, // Wildcard namespace access
 				},
 				ManagedClusters: map[string]struct{}{
@@ -333,7 +333,7 @@ func createLargeScalePermissionFilters() *QueryFilters {
 			{
 				Source:              "userpermission",
 				ClusterScopedKinds:  []string{}, // No cluster-scoped access for large scale test
-				NamespacedResources: namespacedResources,
+				NamespacedKinds: namespacedResources,
 				ManagedClusters:     managedClusters,
 			},
 		},

@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -34,7 +35,7 @@ type ServerConfig struct {
 	AuthCacheTTL      time.Duration `env:"MCP_AUTH_CACHE_TTL" default:"5m"`   // Token cache TTL
 
 	// Discovery Configuration (for resource-to-kind mappings)
-	DiscoveryTTL    time.Duration `env:"MCP_DISCOVERY_TTL" default:"4h"`      // Discovery cache TTL
+	DiscoveryTTL    time.Duration `env:"MCP_DISCOVERY_TTL" default:"5m"`      // Discovery cache TTL
 	DiscoverySource string        `env:"MCP_DISCOVERY_SOURCE" default:"database"` // "database" or "kubernetes"
 
 	// Local testing overrides (for non-K8s environments)
@@ -130,7 +131,7 @@ func (c *ServerConfig) Validate() error {
 	}
 
 	validTransportModes := []string{"auto", "stdio", "http"}
-	if !contains(validTransportModes, c.TransportMode) {
+	if !slices.Contains(validTransportModes, c.TransportMode) {
 		return fmt.Errorf("invalid transport mode: %s, valid options: %v", c.TransportMode, validTransportModes)
 	}
 
@@ -207,14 +208,6 @@ func getEnvDurationOrDefault(key string, defaultValue time.Duration) time.Durati
 	return defaultValue
 }
 
-func contains(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
-		}
-	}
-	return false
-}
 
 // shouldEnableAuth determines if authentication should be enabled based on environment
 func shouldEnableAuth() bool {

@@ -438,7 +438,7 @@ QueryFilters{
 - ✅ Enhanced UserContext with granular permission fields (QueryFilters)
 - ✅ Implemented security-first permission resolution with fail-secure design
 - ✅ Created comprehensive security logging and audit trails
-- ✅ **MAJOR UPGRADE**: Replaced SelfSubjectAccessReview with UserPermission API
+- ✅ **MAJOR UPGRADE**: Implemented dual API architecture (UserPermission API + SelfSubjectAccessReview)
 - ✅ **MAJOR CHANGE**: Bypassed traditional ACM admin gate for true granular access
 - ✅ **SECURITY FIX**: Fixed namespace bypass vulnerability with resource-specific filtering
 
@@ -470,6 +470,27 @@ QueryFilters{
 
 ---
 
+## 🔄 **Dual API Architecture**
+
+The RBAC system uses **two complementary APIs** for complete permission coverage:
+
+### **1. UserPermission API** (Managed Clusters)
+- **Scope**: Cross-cluster managed resources (pods, deployments, etc. on managed clusters)
+- **Source**: `github.com/stolostron/cluster-lifecycle-api/helpers/userpermission`
+- **Method**: `GetSelfPermissionRules()` with cluster-namespace-resource mapping
+- **Coverage**: All managed clusters in the fleet
+
+### **2. Hub Kubernetes RBAC API** (Hub Cluster)
+- **Scope**: Hub cluster resources (ManagedCluster, MultiClusterHub, ACM components)
+- **Source**: Native Kubernetes `SelfSubjectAccessReview` and `SelfSubjectRulesReview`
+- **Method**: Direct RBAC checks against hub cluster API server
+- **Coverage**: Hub cluster only (dynamically detected via `_hubClusterResource` marker)
+
+### **Combined Permission Resolution**
+Both permission sources are merged with OR logic - users get access if **either** API grants permissions. This provides comprehensive coverage across the entire ACM fleet without gaps.
+
+---
+
 ## 🚀 **Production-Ready Enterprise RBAC System!**
 
 This security-first implementation provides **enterprise-grade granular RBAC** with **comprehensive audit logging**, **resource-specific permission enforcement**, **zero unsafe fallbacks**, and **extensive validation testing**.
@@ -478,7 +499,7 @@ This security-first implementation provides **enterprise-grade granular RBAC** w
 - ✅ **Namespace bypass vulnerability FIXED** - Users can only access authorized namespaces per resource type
 - ✅ **VirtualMachine access control VERIFIED** - Users see only authorized namespaces
 - ✅ **KubeVirt resource support COMPLETE** - All virtual machine resources properly mapped
-- ✅ **Multi-cluster permission resolution WORKING** - Uses proper UserPermission API
+- ✅ **Multi-cluster permission resolution WORKING** - Uses dual API architecture (UserPermission API + Hub RBAC)
 - ✅ **Fail-secure design ENFORCED** - Permission failures result in access denial, not elevation
 - ✅ **Dynamic resource discovery OPERATIONAL** - Supports any Kubernetes resource without code changes
 - ✅ **Comprehensive test coverage COMPLETE** - 150+ test cases covering security, performance, integration, and e2e scenarios

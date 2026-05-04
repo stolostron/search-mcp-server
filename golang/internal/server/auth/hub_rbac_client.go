@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -26,7 +27,8 @@ type Resource struct {
 // HubPermissions represents permissions discovered from Hub Kubernetes API
 type HubPermissions struct {
 	ClusterScopedResources []Resource              `json:"cluster_scoped_resources"`
-	NamespacedResources    map[string][]Resource   `json:"namespaced_resources"`
+	NamespacedKinds    map[string][]Resource   `json:"namespaced_resources"`
+	HubClusterName         string                  `json:"hub_cluster_name"` // Dynamically detected hub cluster name
 }
 
 // HubPermissionsCache represents cached hub permissions with metadata
@@ -106,7 +108,10 @@ func (h *HubRBACClient) GetHubClusterPermissions(ctx context.Context, userToken 
 	// Equivalent to: oc auth can-i '*' '*' -A --as=<user>
 	if h.isClusterAdmin(ctx, userClient) {
 		log.Printf("[HUB-RBAC-DEBUG] User is cluster admin - returning wildcard permissions immediately")
-		permissions := h.createClusterAdminPermissions()
+		permissions, err := h.createClusterAdminPermissions(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create cluster admin permissions: %w", err)
+		}
 
 		// Cache cluster admin permissions (if we have userUID)
 		if userUID != "" {
@@ -118,9 +123,16 @@ func (h *HubRBACClient) GetHubClusterPermissions(ctx context.Context, userToken 
 
 	log.Printf("[HUB-RBAC-DEBUG] User is not cluster admin - performing detailed discovery")
 
+	// Detect hub cluster name dynamically
+	hubClusterName, err := h.getHubClusterName(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to detect hub cluster name: %w", err)
+	}
+
 	hubPerms := &HubPermissions{
 		ClusterScopedResources: []Resource{},
-		NamespacedResources:    make(map[string][]Resource),
+		NamespacedKinds:    make(map[string][]Resource),
+		HubClusterName:         hubClusterName,
 	}
 
 	// 1. Get cluster-scoped permissions (like search-v2-api)
@@ -132,15 +144,15 @@ func (h *HubRBACClient) GetHubClusterPermissions(ctx context.Context, userToken 
 	}
 
 	// 2. Get namespaced permissions (like search-v2-api)
-	namespacedResources, err := h.getNamespacedResources(ctx, userClient)
+	namespacedResources, err := h.getNamespacedKinds(ctx, userClient)
 	if err != nil {
 		log.Printf("[HUB-RBAC-DEBUG] Failed to get namespaced permissions: %v", err)
 	} else {
-		hubPerms.NamespacedResources = namespacedResources
+		hubPerms.NamespacedKinds = namespacedResources
 	}
 
 	log.Printf("[HUB-RBAC-DEBUG] Hub permissions summary: %d cluster-scoped, %d namespaced",
-		len(hubPerms.ClusterScopedResources), len(hubPerms.NamespacedResources))
+		len(hubPerms.ClusterScopedResources), len(hubPerms.NamespacedKinds))
 
 	// PHASE 2: Cache the discovered permissions (if we have userUID)
 	if userUID != "" {
@@ -183,8 +195,14 @@ func (h *HubRBACClient) isClusterAdmin(ctx context.Context, client kubernetes.In
 }
 
 // createClusterAdminPermissions returns wildcard permissions for cluster admins
-func (h *HubRBACClient) createClusterAdminPermissions() *HubPermissions {
+func (h *HubRBACClient) createClusterAdminPermissions(ctx context.Context) (*HubPermissions, error) {
 	log.Printf("[HUB-RBAC-DEBUG] Creating wildcard permissions for cluster admin")
+
+	// Even for cluster admin, we need to detect the hub cluster name dynamically
+	hubClusterName, err := h.getHubClusterName(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to detect hub cluster name for cluster admin: %w", err)
+	}
 
 	return &HubPermissions{
 		ClusterScopedResources: []Resource{
@@ -195,7 +213,7 @@ func (h *HubRBACClient) createClusterAdminPermissions() *HubPermissions {
 				Verbs:    []string{"*"},
 			},
 		},
-		NamespacedResources: map[string][]Resource{
+		NamespacedKinds: map[string][]Resource{
 			"*": {
 				{
 					Group:    "*",
@@ -205,7 +223,8 @@ func (h *HubRBACClient) createClusterAdminPermissions() *HubPermissions {
 				},
 			},
 		},
-	}
+		HubClusterName: hubClusterName,
+	}, nil
 }
 
 // getClusterScopedResources uses parallel SelfSubjectAccessReview like search-v2-api
@@ -249,8 +268,19 @@ func (h *HubRBACClient) getClusterScopedResources(ctx context.Context, client ku
 			result, err := client.AuthorizationV1().SelfSubjectAccessReviews().Create(
 				ctx, accessCheck, metav1.CreateOptions{})
 			if err != nil {
-				log.Printf("[HUB-RBAC-DEBUG] Failed parallel SSAR for %s: %v", rt.Resource, err)
-				return
+				// CRITICAL FIX: Retry failed SSAR calls that cause missing resource permissions
+				log.Printf("[HUB-RBAC-WARNING] SSAR failed for %s, retrying once: %v", rt.Resource, err)
+				time.Sleep(100 * time.Millisecond)
+
+				// Single retry attempt
+				result, err = client.AuthorizationV1().SelfSubjectAccessReviews().Create(
+					ctx, accessCheck, metav1.CreateOptions{})
+
+				if err != nil {
+					log.Printf("[HUB-RBAC-ERROR] CRITICAL: SSAR failed for %s after retry - this will cause missing %s permissions: %v", rt.Resource, rt.Kind, err)
+					return
+				}
+				log.Printf("[HUB-RBAC-DEBUG] SSAR retry succeeded for %s", rt.Resource)
 			}
 
 			if result.Status.Allowed {
@@ -278,15 +308,16 @@ func (h *HubRBACClient) getClusterScopedResources(ctx context.Context, client ku
 	return resources, nil
 }
 
-// getNamespacedResources uses parallel SelfSubjectRulesReview like search-v2-api
-func (h *HubRBACClient) getNamespacedResources(ctx context.Context, client kubernetes.Interface) (map[string][]Resource, error) {
-	// Get list of accessible namespaces first
-	namespaces, err := h.getAccessibleNamespaces(ctx, client)
+// getNamespacedKinds uses parallel SelfSubjectRulesReview like search-v2-api
+func (h *HubRBACClient) getNamespacedKinds(ctx context.Context, client kubernetes.Interface) (map[string][]Resource, error) {
+	// OPTIMIZED: Get all namespaces directly and let resource-specific filtering determine access
+	// This eliminates redundant SSRR calls - was doing 2 API calls per namespace, now just 1
+	namespaces, err := h.getNamespaces(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get accessible namespaces: %w", err)
+		return nil, fmt.Errorf("failed to get namespaces from database: %w", err)
 	}
 
-	log.Printf("[HUB-RBAC-DEBUG] Starting parallel discovery of %d accessible namespaces", len(namespaces))
+	log.Printf("[HUB-RBAC-DEBUG] Starting parallel discovery of %d namespaces from database", len(namespaces))
 
 	// PHASE 3: Parallelize SSRR calls per namespace (like search-v2-api lines 449-459)
 	resourceMap := make(map[string][]Resource)
@@ -308,14 +339,25 @@ func (h *HubRBACClient) getNamespacedResources(ctx context.Context, client kuber
 			result, err := client.AuthorizationV1().SelfSubjectRulesReviews().Create(
 				ctx, rulesCheck, metav1.CreateOptions{})
 			if err != nil {
-				log.Printf("[HUB-RBAC-DEBUG] Failed parallel SSRR for namespace %s: %v", ns, err)
-				return
+				// CRITICAL FIX: Retry failed SSRR calls that cause missing namespace permissions
+				log.Printf("[HUB-RBAC-WARNING] SSRR failed for namespace %s, retrying once: %v", ns, err)
+				time.Sleep(100 * time.Millisecond)
+
+				// Single retry attempt
+				result, err = client.AuthorizationV1().SelfSubjectRulesReviews().Create(
+					ctx, rulesCheck, metav1.CreateOptions{})
+
+				if err != nil {
+					log.Printf("[HUB-RBAC-ERROR] CRITICAL: SSRR failed for namespace %s after retry - this will cause missing namespace permissions: %v", ns, err)
+					return
+				}
+				log.Printf("[HUB-RBAC-DEBUG] SSRR retry succeeded for namespace %s", ns)
 			}
 
 			var namespaceResources []Resource
 			for _, rule := range result.Status.ResourceRules {
 				// Only include rules that allow "list" verb
-				if !contains(rule.Verbs, "list") && !contains(rule.Verbs, "*") {
+				if !slices.Contains(rule.Verbs, "list") && !slices.Contains(rule.Verbs, "*") {
 					continue
 				}
 
@@ -346,13 +388,8 @@ func (h *HubRBACClient) getNamespacedResources(ctx context.Context, client kuber
 				resourceMap[ns] = namespaceResources
 				mutex.Unlock()
 
-				// Extract just the Kinds for detailed logging
-				var kinds []string
-				for _, res := range namespaceResources {
-					kinds = append(kinds, res.Kind)
-				}
+				// Reduced logging verbosity - only count, not detailed kinds
 				log.Printf("[HUB-RBAC-DEBUG] Hub namespace %s: %d resource types accessible", ns, len(namespaceResources))
-				log.Printf("[HUB-RBAC-DETAIL] Namespace %s resources: %v", ns, kinds)
 			}
 		}(namespace)
 	}
@@ -364,89 +401,63 @@ func (h *HubRBACClient) getNamespacedResources(ctx context.Context, client kuber
 	return resourceMap, nil
 }
 
-// getAccessibleNamespaces discovers which namespaces the user can access
-// Uses database-driven namespace discovery when user can't list all namespaces
-func (h *HubRBACClient) getAccessibleNamespaces(ctx context.Context, client kubernetes.Interface) ([]string, error) {
-	log.Printf("[HUB-RBAC-DEBUG] Discovering accessible namespaces using database-driven approach")
+// getHubClusterName dynamically detects the hub cluster name from the database
+// Uses _hubClusterResource marker to identify which cluster is the hub
+func (h *HubRBACClient) getHubClusterName(ctx context.Context) (string, error) {
+	if h.resourceDiscovery == nil || h.resourceDiscovery.db == nil {
+		return "", fmt.Errorf("database connection not available for hub cluster detection")
+	}
 
-	// PHASE 1: Get namespaces that actually contain resources (from database)
-	namespacesWithResources, err := h.getNamespacesWithResourcesFromDatabase(ctx)
+	query := `
+		SELECT cluster
+		FROM search.resources
+		WHERE data ? '_hubClusterResource'
+		  AND data->>'kind' != 'Cluster'
+		LIMIT 1`
+
+	result, err := h.resourceDiscovery.db.Query(ctx, query)
 	if err != nil {
-		log.Printf("[HUB-RBAC-DEBUG] Failed to get namespaces from database: %v", err)
-		return []string{}, nil
+		return "", fmt.Errorf("failed to detect hub cluster name: %w", err)
 	}
 
-	log.Printf("[HUB-RBAC-DEBUG] Found %d namespaces with resources in database", len(namespacesWithResources))
-
-	// PHASE 2: Check user access to each namespace in parallel
-	var accessibleNamespaces []string
-	var mutex sync.Mutex
-	var wg sync.WaitGroup
-
-	for _, namespace := range namespacesWithResources {
-		wg.Add(1)
-		go func(ns string) {
-			defer wg.Done()
-
-			// Use SelfSubjectRulesReview to check namespace access
-			rulesCheck := &authorizationv1.SelfSubjectRulesReview{
-				Spec: authorizationv1.SelfSubjectRulesReviewSpec{
-					Namespace: ns,
-				},
-			}
-
-			result, err := client.AuthorizationV1().SelfSubjectRulesReviews().Create(
-				ctx, rulesCheck, metav1.CreateOptions{})
-			if err != nil {
-				log.Printf("[HUB-RBAC-DEBUG] Failed SSRR check for namespace %s: %v", ns, err)
-				return
-			}
-
-			// Check if user has any "list" permissions in this namespace
-			hasListAccess := false
-			for _, rule := range result.Status.ResourceRules {
-				if contains(rule.Verbs, "list") || contains(rule.Verbs, "*") {
-					hasListAccess = true
-					break
-				}
-			}
-
-			if hasListAccess {
-				mutex.Lock()
-				accessibleNamespaces = append(accessibleNamespaces, ns)
-				log.Printf("[HUB-RBAC-DEBUG] Namespace %s: user has list access", ns)
-				mutex.Unlock()
-			} else {
-				log.Printf("[HUB-RBAC-DEBUG] Namespace %s: user has no list access", ns)
-			}
-		}(namespace)
+	if len(result.Rows) == 0 || len(result.Rows[0]) == 0 {
+		// Fallback to default for backwards compatibility
+		log.Printf("[HUB-RBAC-WARNING] Could not detect hub cluster name, using default 'local-cluster'")
+		return "local-cluster", nil
 	}
 
-	wg.Wait()
-
-	log.Printf("[HUB-RBAC-DEBUG] Found %d accessible namespaces out of %d with resources",
-		len(accessibleNamespaces), len(namespacesWithResources))
-
-	return accessibleNamespaces, nil
+	hubClusterName, ok := result.Rows[0][0].(string)
+	if !ok {
+		log.Printf("[HUB-RBAC-WARNING] Hub cluster name is not a string, using default 'local-cluster'")
+		return "local-cluster", nil
+	}
+	log.Printf("[HUB-RBAC-DEBUG] Detected hub cluster name: %s", hubClusterName)
+	return hubClusterName, nil
 }
 
-// getNamespacesWithResourcesFromDatabase discovers namespaces that contain hub cluster resources
-func (h *HubRBACClient) getNamespacesWithResourcesFromDatabase(ctx context.Context) ([]string, error) {
+// getNamespaces discovers namespaces that exist in the hub cluster
+func (h *HubRBACClient) getNamespaces(ctx context.Context) ([]string, error) {
 	if h.resourceDiscovery == nil || h.resourceDiscovery.db == nil {
 		return nil, fmt.Errorf("database connection not available for namespace discovery")
 	}
 
-	// Query to find all namespaces that have resources on the hub cluster (local-cluster)
+	// Dynamically detect hub cluster name instead of hard-coding 'local-cluster'
+	hubClusterName, err := h.getHubClusterName(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to detect hub cluster name: %w", err)
+	}
+
+	// Query to find distinct namespaces that exist on the hub cluster
 	query := `
 		SELECT DISTINCT data->>'namespace' as namespace
 		FROM search.resources
-		WHERE cluster = 'local-cluster'
+		WHERE cluster = $1
 		  AND data->>'namespace' IS NOT NULL
 		  AND data->>'namespace' != ''
 		  AND data ? 'namespace'
 		ORDER BY namespace`
 
-	result, err := h.resourceDiscovery.db.Query(ctx, query)
+	result, err := h.resourceDiscovery.db.Query(ctx, query, hubClusterName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query namespaces from database: %w", err)
 	}
@@ -461,10 +472,10 @@ func (h *HubRBACClient) getNamespacesWithResourcesFromDatabase(ctx context.Conte
 
 		if namespace, ok := row[0].(string); ok && namespace != "" {
 			namespaces = append(namespaces, namespace)
-			log.Printf("[HUB-RBAC-DEBUG] Database found namespace with resources: %s", namespace)
 		}
 	}
 
+	log.Printf("[HUB-RBAC-DEBUG] Database discovery found %d namespaces with resources", len(namespaces))
 	return namespaces, nil
 }
 
@@ -646,16 +657,8 @@ func (hc *HubRBACCache) cleanupExpiredEntries() {
 }
 
 // contains checks if a slice contains a specific string
-func contains(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
-		}
-	}
-	return false
-}
 
-// getClusterScopedResourcesFromDatabase - DIRECT COPY of search-v2-api's proven approach
+// getClusterScopedResourcesFromDatabase - FIXED to properly handle kind_plural fallback
 func (h *HubRBACClient) getClusterScopedResourcesFromDatabase(ctx context.Context) ([]struct {
 	APIGroup string
 	Resource string
@@ -667,12 +670,12 @@ func (h *HubRBACClient) getClusterScopedResourcesFromDatabase(ctx context.Contex
 		return nil, fmt.Errorf("database connection not available for hub resource discovery")
 	}
 
-	// EXACT copy of search-v2-api SQL query (lines 226-229)
+	// FIXED: Get both resource name (for SSAR) and kind (for results) from database
 	query := `
 		SELECT DISTINCT
 			COALESCE(data->>'apigroup', '') as apigroup,
-			COALESCE(data->>'kind_plural', data->>'kind') as resource,
-			COALESCE(data->>'kind', '') as kind
+			COALESCE(data->>'kind_plural', LOWER(data->>'kind') || 's') as resource,
+			data->>'kind' as kind
 		FROM search.resources
 		WHERE data ? '_hubClusterResource'
 		  AND (data ? 'namespace') IS FALSE
@@ -710,8 +713,6 @@ func (h *HubRBACClient) getClusterScopedResourcesFromDatabase(ctx context.Contex
 					Resource: resource,
 					Kind:     kind,
 				})
-
-				log.Printf("[HUB-RBAC-DEBUG] Database found cluster-scoped: %s/%s → %s", apigroup, resource, kind)
 			}
 		}
 	}

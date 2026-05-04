@@ -46,6 +46,9 @@ func GetCentralizedToolDefinitions() []ToolDefinition {
 				mcp.WithString("status",
 					mcp.Description("Status filter: \"Running,Failed\" or \"CrashLoopBackOff\""),
 				),
+				mcp.WithString("compliance",
+					mcp.Description("Policy compliance filter: \"Compliant,NonCompliant,UnknownCompliancy\" - searches compliance status in policy spec and status fields. Works with any Policy resource type."),
+				),
 				mcp.WithString("textSearch",
 					mcp.Description("Comprehensive text search across: (1) resource names, (2) namespaces, and (3) ALL JSON fields including labels, annotations, status, and nested data. Case-insensitive pattern matching. Examples: \"NonCompliant\" finds non-compliant policies, \"CrashLoopBackOff\" finds failing pods, \"prometheus\" finds monitoring resources. Performance: Slower than specific field filters but searches everything."),
 				),
@@ -122,6 +125,11 @@ func GetCentralizedToolDefinitions() []ToolDefinition {
 						"type":        "string",
 						"description": "Status filter: \"Running,Failed\" or \"CrashLoopBackOff\"",
 					},
+					// "compliance": map[string]interface{}{
+					// 	"type":        "string",
+					// 	"description": "Policy compliance filter: \"Compliant,NonCompliant,UnknownCompliancy\" - searches compliance status in policy spec and status fields. Works with any Policy resource type.",
+					// },
+					// We are not yet ready to expose this
 					"textSearch": map[string]interface{}{
 						"type":        "string",
 						"description": "Comprehensive text search across: (1) resource names, (2) namespaces, and (3) ALL JSON fields including labels, annotations, status, and nested data. Case-insensitive pattern matching. Examples: \"NonCompliant\" finds non-compliant policies, \"CrashLoopBackOff\" finds failing pods, \"prometheus\" finds monitoring resources. Performance: Slower than specific field filters but searches everything.",

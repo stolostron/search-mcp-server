@@ -444,3 +444,75 @@ func evaluateGenericHealth(data map[string]interface{}) string {
 	status := getStringFromData(data, "status")
 	return evaluateStatusHealth(status, "")
 }
+
+// BuildComplianceConditions creates WHERE conditions for ACM governance policy compliance filtering
+// Filters on the 'compliant' field: "Compliant", "NonCompliant", "UnknownCompliancy"
+func BuildComplianceConditions(compliance interface{}, dataColumn string, builder *utils.SQLBuilder) error {
+	complianceValues := normalizeComplianceInput(compliance)
+
+	if len(complianceValues) == 0 {
+		return nil
+	}
+
+	// Simple and focused: only filter on the compliant field
+	// Examples: data->>'compliant' = 'Compliant', data->>'compliant' = 'NonCompliant'
+	var conditions []string
+	var params []interface{}
+
+	for _, complianceValue := range complianceValues {
+		normalizedValue := strings.TrimSpace(complianceValue)
+		if normalizedValue == "" {
+			continue
+		}
+
+		conditions = append(conditions, fmt.Sprintf("%s->>'compliant' = %%s", dataColumn))
+		params = append(params, normalizedValue)
+	}
+
+	if len(conditions) > 0 {
+		builder.AddOR(conditions, params...)
+	}
+
+	return nil
+}
+
+// normalizeComplianceInput converts compliance filter input to normalized string array
+func normalizeComplianceInput(compliance interface{}) []string {
+	switch v := compliance.(type) {
+	case string:
+		// Handle comma-separated values
+		parts := strings.Split(v, ",")
+		result := make([]string, 0, len(parts))
+		for _, part := range parts {
+			trimmed := strings.TrimSpace(part)
+			if trimmed != "" {
+				result = append(result, trimmed)
+			}
+		}
+		return result
+	case []string:
+		// Filter out empty strings
+		result := make([]string, 0, len(v))
+		for _, str := range v {
+			trimmed := strings.TrimSpace(str)
+			if trimmed != "" {
+				result = append(result, trimmed)
+			}
+		}
+		return result
+	case []interface{}:
+		// Convert interface{} array to string array
+		result := make([]string, 0, len(v))
+		for _, item := range v {
+			if str, ok := item.(string); ok {
+				trimmed := strings.TrimSpace(str)
+				if trimmed != "" {
+					result = append(result, trimmed)
+				}
+			}
+		}
+		return result
+	default:
+		return []string{}
+	}
+}

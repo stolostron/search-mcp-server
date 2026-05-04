@@ -293,7 +293,15 @@ func (f *FindResourcesCore) buildQuery(args FindResourcesArgs, targetClusters []
 		}
 	}
 
-	// 7. Text search filter
+	// 7. Compliance filter (for Policy resources)
+	if args.Compliance != nil {
+		err := f.buildComplianceConditions(args.Compliance, sqlBuilder)
+		if err != nil {
+			return nil, fmt.Errorf("compliance filter failed: %w", err)
+		}
+	}
+
+	// 8. Text search filter
 	if args.TextSearch != "" {
 		err := f.buildTextSearchConditions(args.TextSearch, sqlBuilder)
 		if err != nil {
@@ -301,7 +309,7 @@ func (f *FindResourcesCore) buildQuery(args FindResourcesArgs, targetClusters []
 		}
 	}
 
-	// 8. Time filters
+	// 9. Time filters
 	if args.AgeNewerThan != "" || args.AgeOlderThan != "" {
 		err := f.buildTimeConditions(args.AgeNewerThan, args.AgeOlderThan, sqlBuilder)
 		if err != nil {
@@ -359,9 +367,12 @@ func (f *FindResourcesCore) buildAuthorizedQuery(args FindResourcesArgs, targetC
 		if err := f.applyAuthorizationFilters(userCtx.QueryFilters, args.Kind, sqlBuilder); err != nil {
 			return nil, fmt.Errorf("authorization filter failed: %w", err)
 		}
+	} else {
+		// No user context - operate without authorization restrictions
+		// SECURITY NOTE: This occurs when auth is disabled or no user context provided
+		// Common scenarios: STDIO transport, auth disabled, or direct pod access
+		log.Printf("[AUTHZ-INFO] No user context provided - operating without RBAC filtering")
 	}
-	// If userCtx is nil (STDIO transport with no auth), operate without restrictions
-	// This is an explicit design choice for the new feature
 
 	// Base SELECT clause (without FROM - that's added later)
 	var selectClause string
@@ -423,7 +434,15 @@ func (f *FindResourcesCore) buildAuthorizedQuery(args FindResourcesArgs, targetC
 		}
 	}
 
-	// 7. Text search filter
+	// 7. Compliance filter (for Policy resources)
+	if args.Compliance != nil {
+		err := f.buildComplianceConditions(args.Compliance, sqlBuilder)
+		if err != nil {
+			return nil, fmt.Errorf("compliance filter failed: %w", err)
+		}
+	}
+
+	// 8. Text search filter
 	if args.TextSearch != "" {
 		err := f.buildTextSearchConditions(args.TextSearch, sqlBuilder)
 		if err != nil {
@@ -431,7 +450,7 @@ func (f *FindResourcesCore) buildAuthorizedQuery(args FindResourcesArgs, targetC
 		}
 	}
 
-	// 8. Time filters
+	// 9. Time filters
 	if args.AgeNewerThan != "" || args.AgeOlderThan != "" {
 		err := f.buildTimeConditions(args.AgeNewerThan, args.AgeOlderThan, sqlBuilder)
 		if err != nil {
@@ -488,7 +507,7 @@ func (f *FindResourcesCore) applyAuthorizationFilters(filters *auth.QueryFilters
 
 		// Handle cluster-scoped resources
 		if len(source.ClusterScopedKinds) > 0 {
-			clusterCondition, clusterParams := f.buildClusterScopedConditions(source, kindFilter)
+			clusterCondition, clusterParams := f.buildClusterScopedConditions(source, kindFilter, filters.HubClusterName)
 			if clusterCondition != "" {
 				sourcePermissions = append(sourcePermissions, clusterCondition)
 				sourceParams = append(sourceParams, clusterParams...)
@@ -496,8 +515,8 @@ func (f *FindResourcesCore) applyAuthorizationFilters(filters *auth.QueryFilters
 		}
 
 		// Handle namespaced resources with explicit namespace→resource pairing
-		if len(source.NamespacedResources) > 0 {
-			namespaceConditions, namespaceParams := f.buildNamespacedConditions(source, kindFilter)
+		if len(source.NamespacedKinds) > 0 {
+			namespaceConditions, namespaceParams := f.buildNamespacedConditions(source, kindFilter, filters.HubClusterName)
 			if len(namespaceConditions) > 0 {
 				sourcePermissions = append(sourcePermissions, namespaceConditions...)
 				sourceParams = append(sourceParams, namespaceParams...)
@@ -527,7 +546,7 @@ func (f *FindResourcesCore) applyAuthorizationFilters(filters *auth.QueryFilters
 }
 
 // buildClusterScopedConditions builds conditions for cluster-scoped resources
-func (f *FindResourcesCore) buildClusterScopedConditions(source auth.PermissionSource, kindFilter interface{}) (string, []interface{}) {
+func (f *FindResourcesCore) buildClusterScopedConditions(source auth.PermissionSource, kindFilter interface{}, hubClusterName string) (string, []interface{}) {
 	var params []interface{}
 	var resourceConditions []string
 
@@ -565,10 +584,22 @@ func (f *FindResourcesCore) buildClusterScopedConditions(source auth.PermissionS
 		// For hub cluster resources, ensure we're looking at the hub cluster
 		if source.Source == "hub-kubernetes" {
 			condition := fmt.Sprintf("(cluster = %s AND (%s))", "%s", strings.Join(resourceConditions, " OR "))
-			params = append([]interface{}{"local-cluster"}, params...)
+			params = append([]interface{}{hubClusterName}, params...)
 			return condition, params
+		} else if source.Source == "userpermission-cr" {
+			// UserPermission CR cluster-scoped resources - need to check specific clusters from ManagedClusters
+			var clusterConditions []string
+			var clusterParams []interface{}
+			for cluster := range source.ManagedClusters {
+				clusterConditions = append(clusterConditions, fmt.Sprintf("(cluster = %s AND (%s))", "%s", strings.Join(resourceConditions, " OR ")))
+				clusterParams = append(clusterParams, cluster)
+				clusterParams = append(clusterParams, params...)
+			}
+			if len(clusterConditions) > 0 {
+				return strings.Join(clusterConditions, " OR "), clusterParams
+			}
 		} else {
-			// UserPermission API cluster-scoped resources (accessible from any managed cluster)
+			// Legacy UserPermission API cluster-scoped resources (accessible from any managed cluster)
 			return strings.Join(resourceConditions, " OR "), params
 		}
 	}
@@ -577,12 +608,13 @@ func (f *FindResourcesCore) buildClusterScopedConditions(source auth.PermissionS
 }
 
 // buildNamespacedConditions builds explicit namespace→resource conditions (prevents Cartesian products)
-func (f *FindResourcesCore) buildNamespacedConditions(source auth.PermissionSource, kindFilter interface{}) ([]string, []interface{}) {
+func (f *FindResourcesCore) buildNamespacedConditions(source auth.PermissionSource, kindFilter interface{}, hubClusterName string) ([]string, []interface{}) {
 	var conditions []string
 	var allParams []interface{}
 
 	// Iterate through direct namespace→resource mapping
-	for namespace, allowedKinds := range source.NamespacedResources {
+	// NOTE: For userpermission-cr source, keys are in "cluster/namespace" format to preserve cluster-namespace relationships
+	for namespaceKey, allowedKinds := range source.NamespacedKinds {
 		var resourceConditions []string
 		var resourceParams []interface{}
 
@@ -620,19 +652,49 @@ func (f *FindResourcesCore) buildNamespacedConditions(source auth.PermissionSour
 			var namespaceCondition string
 			var namespaceParams []interface{}
 
+			// Parse cluster and namespace from the key based on source type
+			var cluster, namespace string
+			if source.Source == "userpermission-cr" {
+				// New format: "cluster/namespace" to preserve cluster-namespace relationships
+				parts := strings.SplitN(namespaceKey, "/", 2)
+				if len(parts) == 2 {
+					cluster, namespace = parts[0], parts[1]
+				} else {
+					// Fallback for unexpected format
+					cluster, namespace = "", namespaceKey
+				}
+			} else {
+				// Legacy format: just namespace (for hub-kubernetes source)
+				namespace = namespaceKey
+				cluster = hubClusterName // For hub resources
+			}
+
 			if namespace == "*" {
 				// Wildcard namespace access
-				namespaceCondition = strings.Join(resourceConditions, " OR ")
-				namespaceParams = resourceParams
+				if source.Source == "userpermission-cr" && cluster != "" {
+					// Wildcard namespace but specific cluster
+					namespaceCondition = fmt.Sprintf("(cluster = %s AND (%s))", "%s", strings.Join(resourceConditions, " OR "))
+					namespaceParams = append(namespaceParams, cluster)
+					namespaceParams = append(namespaceParams, resourceParams...)
+				} else {
+					// Pure wildcard
+					namespaceCondition = strings.Join(resourceConditions, " OR ")
+					namespaceParams = resourceParams
+				}
 			} else {
 				// Specific namespace access
 				if source.Source == "hub-kubernetes" {
 					// Hub cluster resources
 					namespaceCondition = fmt.Sprintf("(cluster = %s AND data->>'namespace' = %s AND (%s))", "%s", "%s", strings.Join(resourceConditions, " OR "))
-					namespaceParams = append(namespaceParams, "local-cluster", namespace)
+					namespaceParams = append(namespaceParams, hubClusterName, namespace)
+					namespaceParams = append(namespaceParams, resourceParams...)
+				} else if source.Source == "userpermission-cr" {
+					// UserPermission CR resources with explicit cluster-namespace pairing
+					namespaceCondition = fmt.Sprintf("(cluster = %s AND data->>'namespace' = %s AND (%s))", "%s", "%s", strings.Join(resourceConditions, " OR "))
+					namespaceParams = append(namespaceParams, cluster, namespace)
 					namespaceParams = append(namespaceParams, resourceParams...)
 				} else {
-					// UserPermission API resources (any managed cluster)
+					// Legacy UserPermission API resources (any managed cluster) - should not happen with our fix
 					namespaceCondition = fmt.Sprintf("(data->>'namespace' = %s AND (%s))", "%s", strings.Join(resourceConditions, " OR "))
 					namespaceParams = append(namespaceParams, namespace)
 					namespaceParams = append(namespaceParams, resourceParams...)
@@ -642,7 +704,8 @@ func (f *FindResourcesCore) buildNamespacedConditions(source auth.PermissionSour
 			conditions = append(conditions, namespaceCondition)
 			allParams = append(allParams, namespaceParams...)
 
-			log.Printf("[RBAC-DEBUG] Namespace %s: %d allowed kinds = %v", namespace, len(allowedKinds), allowedKinds)
+			log.Printf("[RBAC-DEBUG] Namespace key '%s' (cluster: %s, namespace: %s): %d allowed kinds = %v",
+				namespaceKey, cluster, namespace, len(allowedKinds), allowedKinds)
 		}
 	}
 
@@ -815,6 +878,11 @@ func (f *FindResourcesCore) buildLabelConditions(labelSelector string, builder *
 // buildStatusConditions creates WHERE conditions for status filter
 func (f *FindResourcesCore) buildStatusConditions(status interface{}, kind interface{}, builder *utils.SQLBuilder) error {
 	return pkgutils.BuildStatusConditions(status, "data", builder, kind)
+}
+
+// buildComplianceConditions creates WHERE conditions for policy compliance filter
+func (f *FindResourcesCore) buildComplianceConditions(compliance interface{}, builder *utils.SQLBuilder) error {
+	return pkgutils.BuildComplianceConditions(compliance, "data", builder)
 }
 
 // buildTextSearchConditions creates WHERE conditions for text search

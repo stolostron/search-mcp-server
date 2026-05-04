@@ -7,12 +7,12 @@ import (
 )
 
 // PermissionSource represents one coherent permission set following search-v2-api's proven approach
-// Direct namespace-resource mapping prevents Cartesian products by design
+// Direct namespace-kind mapping prevents Cartesian products by design
 type PermissionSource struct {
-	Source              string                    `json:"source"`               // "userpermission" or "hub-kubernetes"
-	ClusterScopedKinds  []string                  `json:"cluster_scoped_kinds"` // Kinds accessible cluster-wide (like ManagedCluster)
-	NamespacedResources map[string][]string       `json:"namespaced_resources"` // Direct namespace → allowed Kinds mapping (prevents cross-multiplication)
-	ManagedClusters     map[string]struct{}       `json:"managed_clusters"`     // Accessible managed clusters
+	Source             string                    `json:"source"`             // "userpermission" or "hub-kubernetes"
+	ClusterScopedKinds []string                  `json:"cluster_scoped_kinds"` // Kinds accessible cluster-wide (like ManagedCluster)
+	NamespacedKinds    map[string][]string       `json:"namespaced_kinds"`     // Direct namespace → allowed Kinds mapping (prevents cross-multiplication)
+	ManagedClusters    map[string]struct{}       `json:"managed_clusters"`     // Accessible managed clusters
 }
 
 // REMOVED: LocationBinding and ResourceRule - they caused Cartesian products via separate arrays
@@ -22,6 +22,7 @@ type PermissionSource struct {
 // NEW: Prevents Cartesian products via source separation
 type QueryFilters struct {
 	PermissionSources []PermissionSource `json:"permission_sources"`
+	HubClusterName    string             `json:"hub_cluster_name"` // Dynamically detected hub cluster name (replaces hard-coded "local-cluster")
 }
 
 // COMMENTED OUT: HasWildcardAccess - causing test failures, not used in production
@@ -49,7 +50,7 @@ func (qf *QueryFilters) HasWildcardAccess() bool {
 
 /*
 func (qf *QueryFilters) sourceHasWildcardAccess(source *PermissionSource) bool {
-	// Check cluster-scoped resources for wildcard
+	// Check cluster-scoped kinds for wildcard
 	hasClusterWildcard := false
 	for _, kind := range source.ClusterScopedKinds {
 		if kind == "*" {
@@ -58,10 +59,10 @@ func (qf *QueryFilters) sourceHasWildcardAccess(source *PermissionSource) bool {
 		}
 	}
 
-	// Check namespaced resources for wildcard namespace and resources
+	// Check namespaced kinds for wildcard namespace and kinds
 	hasNamespaceWildcard := false
-	if _, exists := source.NamespacedResources["*"]; exists {
-		for _, kind := range source.NamespacedResources["*"] {
+	if _, exists := source.NamespacedKinds["*"]; exists {
+		for _, kind := range source.NamespacedKinds["*"] {
 			if kind == "*" {
 				hasNamespaceWildcard = true
 				break
@@ -91,7 +92,7 @@ func (qf *QueryFilters) HasWildcardAccess() bool {
 			}
 		}
 		// Check namespaced wildcard
-		if kinds, exists := source.NamespacedResources["*"]; exists {
+		if kinds, exists := source.NamespacedKinds["*"]; exists {
 			for _, kind := range kinds {
 				if kind == "*" {
 					return true
@@ -114,13 +115,13 @@ func (qf *QueryFilters) IsClusterAllowed(cluster string) bool {
 	for _, source := range qf.PermissionSources {
 		// Check if this source has access to the specified cluster
 		if source.Source == "userpermission" {
-			// For managed clusters, check if cluster has any accessible namespaces/resources
-			if len(source.NamespacedResources) > 0 || len(source.ClusterScopedKinds) > 0 {
+			// For managed clusters, check if cluster has any accessible namespaces/kinds
+			if len(source.NamespacedKinds) > 0 || len(source.ClusterScopedKinds) > 0 {
 				return true // UserPermission API grants managed cluster access
 			}
 		} else if source.Source == "hub-kubernetes" {
-			// Hub Kubernetes API only applies to local-cluster (hub cluster)
-			if cluster == "local-cluster" && (len(source.NamespacedResources) > 0 || len(source.ClusterScopedKinds) > 0) {
+			// Hub Kubernetes API only applies to hub cluster (dynamically detected)
+			if cluster == qf.HubClusterName && (len(source.NamespacedKinds) > 0 || len(source.ClusterScopedKinds) > 0) {
 				return true
 			}
 		}
@@ -141,20 +142,20 @@ func (qf *QueryFilters) IsNamespaceAllowedInCluster(cluster, namespace string) b
 	for _, source := range qf.PermissionSources {
 		if source.Source == "userpermission" {
 			// UserPermission API: check if namespace is directly mapped
-			if _, exists := source.NamespacedResources[namespace]; exists {
+			if _, exists := source.NamespacedKinds[namespace]; exists {
 				return true
 			}
 			// Check for wildcard namespace access
-			if _, exists := source.NamespacedResources["*"]; exists {
+			if _, exists := source.NamespacedKinds["*"]; exists {
 				return true
 			}
-		} else if source.Source == "hub-kubernetes" && cluster == "local-cluster" {
+		} else if source.Source == "hub-kubernetes" && cluster == qf.HubClusterName {
 			// Hub Kubernetes API: check if namespace is directly mapped
-			if _, exists := source.NamespacedResources[namespace]; exists {
+			if _, exists := source.NamespacedKinds[namespace]; exists {
 				return true
 			}
 			// Check for wildcard namespace access
-			if _, exists := source.NamespacedResources["*"]; exists {
+			if _, exists := source.NamespacedKinds["*"]; exists {
 				return true
 			}
 		}
@@ -170,17 +171,17 @@ func (qf *QueryFilters) IsResourceKindAllowed(kind string) bool {
 		return false // SECURITY: Fail secure - no permissions means no access
 	}
 
-	// Check all permission sources - if ANY source allows the resource kind, access is granted
+	// Check all permission sources - if ANY source allows the kind, access is granted
 	for _, source := range qf.PermissionSources {
-		// Check cluster-scoped resources
+		// Check cluster-scoped kinds
 		for _, clusterKind := range source.ClusterScopedKinds {
 			if clusterKind == "*" || clusterKind == kind {
 				return true
 			}
 		}
 
-		// Check namespaced resources across all namespaces
-		for _, kinds := range source.NamespacedResources {
+		// Check namespaced kinds across all namespaces
+		for _, kinds := range source.NamespacedKinds {
 			for _, namespacedKind := range kinds {
 				if namespacedKind == "*" || namespacedKind == kind {
 					return true
@@ -213,13 +214,13 @@ func (qf *QueryFilters) IsClusterAllowed(cluster string) bool {
 				return true // Has cluster-scoped access
 			}
 
-			// Check if user has any namespaced resources (implies cluster access)
-			if len(source.NamespacedResources) > 0 {
+			// Check if user has any namespaced kinds (implies cluster access)
+			if len(source.NamespacedKinds) > 0 {
 				return true // Has namespace access, implies cluster access
 			}
-		} else if source.Source == "hub-kubernetes" && cluster == "local-cluster" {
-			// Hub API only applies to local-cluster
-			return len(source.ClusterScopedKinds) > 0 || len(source.NamespacedResources) > 0
+		} else if source.Source == "hub-kubernetes" && cluster == qf.HubClusterName {
+			// Hub API only applies to hub cluster (dynamically detected)
+			return len(source.ClusterScopedKinds) > 0 || len(source.NamespacedKinds) > 0
 		}
 	}
 
@@ -234,12 +235,12 @@ func (qf *QueryFilters) IsNamespaceAllowedInCluster(cluster, namespace string) b
 
 	for _, source := range qf.PermissionSources {
 		// Check wildcard namespace access
-		if _, exists := source.NamespacedResources["*"]; exists {
+		if _, exists := source.NamespacedKinds["*"]; exists {
 			return true
 		}
 
 		// Check specific namespace access
-		if _, exists := source.NamespacedResources[namespace]; exists {
+		if _, exists := source.NamespacedKinds[namespace]; exists {
 			return true
 		}
 	}
@@ -261,7 +262,7 @@ func (qf *QueryFilters) IsResourceKindAllowed(kind string) bool {
 			}
 		}
 		// Check namespaced
-		for _, kinds := range source.NamespacedResources {
+		for _, kinds := range source.NamespacedKinds {
 			for _, namespacedKind := range kinds {
 				if namespacedKind == "*" || namespacedKind == kind {
 					return true

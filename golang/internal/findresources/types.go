@@ -16,6 +16,7 @@ type FindResourcesArgs struct {
 	LabelSelector   string      `json:"labelSelector,omitempty"`   // K8s label selector: "app=nginx,env!=test"
 	ClusterSelector string      `json:"clusterSelector,omitempty"` // Labels on clusters: "env=prod,cloud=AWS"
 	Status          interface{} `json:"status,omitempty"`          // string or []string - Running, Failed, Pending, etc.
+	Compliance      interface{} `json:"compliance,omitempty"`      // string or []string - Compliant, NonCompliant, UnknownCompliancy
 	TextSearch      string      `json:"textSearch,omitempty"`      // Search across all text fields
 
 	// Time-based filters
