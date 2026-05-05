@@ -710,13 +710,13 @@ func (f *FindResourcesCore) buildNamespacedConditions(source auth.PermissionSour
 
 			if namespace == "*" {
 				// Wildcard namespace access
-				if source.Source == "userpermission-cr" && cluster != "" {
-					// Wildcard namespace but specific cluster
+				if cluster != "" {
+					// SECURITY FIX: Wildcard namespace but specific cluster (applies to ALL sources)
 					namespaceCondition = fmt.Sprintf("(cluster = %s AND (%s))", "%s", strings.Join(resourceConditions, " OR "))
 					namespaceParams = append(namespaceParams, cluster)
 					namespaceParams = append(namespaceParams, resourceParams...)
 				} else {
-					// Pure wildcard
+					// Pure wildcard (should rarely happen)
 					namespaceCondition = strings.Join(resourceConditions, " OR ")
 					namespaceParams = resourceParams
 				}

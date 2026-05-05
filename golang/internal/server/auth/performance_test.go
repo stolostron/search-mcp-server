@@ -17,7 +17,7 @@ func BenchmarkResourceSpecificPermissionFiltering(t *testing.B) {
 			PermissionSources: []PermissionSource{
 				{
 					Source:              "userpermission",
-					ClusterScopedKinds:  []string{}, // No cluster-scoped access
+					ClusterScopedKinds:  map[string][]string{}, // No cluster-scoped access
 					NamespacedKinds: map[string][]string{
 						"app-1": {"Pod"},
 						"app-2": {"Pod"},
@@ -59,7 +59,7 @@ func BenchmarkResourceSpecificPermissionFiltering(t *testing.B) {
 			PermissionSources: []PermissionSource{
 				{
 					Source:              "hub-kubernetes",
-					ClusterScopedKinds:  []string{"Secret", "ConfigMap", "Service"}, // Cluster-scoped access
+					ClusterScopedKinds:  map[string][]string{"cluster-1": {"Secret", "ConfigMap", "Service"}}, // Cluster-scoped access
 					NamespacedKinds: map[string][]string{
 						"*": {"Secret", "ConfigMap", "Service"}, // Wildcard namespace access
 					},
@@ -82,7 +82,7 @@ func BenchmarkResourceSpecificPermissionFiltering(t *testing.B) {
 			PermissionSources: []PermissionSource{
 				{
 					Source:              "userpermission",
-					ClusterScopedKinds:  []string{}, // No cluster-scoped access
+					ClusterScopedKinds:  map[string][]string{}, // No cluster-scoped access
 					NamespacedKinds: map[string][]string{
 						"app-*": {"Pod", "VirtualMachine"}, // Pattern-based namespace access
 						"vm-*":  {"Pod", "VirtualMachine"}, // Pattern-based namespace access
@@ -283,7 +283,7 @@ func createComplexPermissionFilters() *QueryFilters {
 		PermissionSources: []PermissionSource{
 			{
 				Source:              "userpermission",
-				ClusterScopedKinds:  []string{}, // No cluster-scoped access
+				ClusterScopedKinds:  map[string][]string{}, // No cluster-scoped access
 				NamespacedKinds: map[string][]string{
 					"app-frontend": {"Pod", "ConfigMap"},
 					"app-backend":  {"Pod", "ConfigMap"},
@@ -297,7 +297,7 @@ func createComplexPermissionFilters() *QueryFilters {
 			},
 			{
 				Source:              "hub-kubernetes",
-				ClusterScopedKinds:  []string{"Service", "Secret"}, // Cluster-scoped access
+				ClusterScopedKinds:  map[string][]string{"cluster-1": {"Service", "Secret"}}, // Cluster-scoped access
 				NamespacedKinds: map[string][]string{
 					"*": {"Service", "Secret"}, // Wildcard namespace access
 				},
@@ -332,7 +332,7 @@ func createLargeScalePermissionFilters() *QueryFilters {
 		PermissionSources: []PermissionSource{
 			{
 				Source:              "userpermission",
-				ClusterScopedKinds:  []string{}, // No cluster-scoped access for large scale test
+				ClusterScopedKinds:  map[string][]string{}, // No cluster-scoped access for large scale test
 				NamespacedKinds: namespacedResources,
 				ManagedClusters:     managedClusters,
 			},

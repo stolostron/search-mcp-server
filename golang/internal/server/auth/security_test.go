@@ -16,7 +16,7 @@ func TestPermissionSourceSecurityIsolation(t *testing.T) {
 			PermissionSources: []PermissionSource{
 				{
 					Source:              "userpermission",
-					ClusterScopedKinds:  []string{}, // No cluster-scoped access
+					ClusterScopedKinds:  map[string][]string{}, // No cluster-scoped access
 					NamespacedKinds: map[string][]string{
 						"app-frontend": {"Pod"}, // Specific namespace access
 					},
@@ -26,7 +26,7 @@ func TestPermissionSourceSecurityIsolation(t *testing.T) {
 				},
 				{
 					Source:              "hub-kubernetes",
-					ClusterScopedKinds:  []string{"ManagedCluster"}, // Cluster-scoped access
+					ClusterScopedKinds:  map[string][]string{"local-cluster": {"ManagedCluster"}}, // Cluster-scoped access
 					NamespacedKinds: map[string][]string{
 						"*": {"ManagedCluster"}, // Wildcard namespace access
 					},
@@ -88,7 +88,7 @@ func TestWildcardAccessDetection(t *testing.T) {
 			PermissionSources: []PermissionSource{
 				{
 					Source:              "hub-kubernetes",
-					ClusterScopedKinds:  []string{"*"}, // Wildcard cluster-scoped access
+					ClusterScopedKinds:  map[string][]string{"local-cluster": {"*"}}, // Wildcard cluster-scoped access
 					NamespacedKinds: map[string][]string{
 						"*": {"*"}, // Wildcard namespace and resource access
 					},
@@ -110,7 +110,7 @@ func TestWildcardAccessDetection(t *testing.T) {
 			PermissionSources: []PermissionSource{
 				{
 					Source:              "userpermission",
-					ClusterScopedKinds:  []string{}, // No cluster-scoped access
+					ClusterScopedKinds:  map[string][]string{}, // No cluster-scoped access
 					NamespacedKinds: map[string][]string{
 						"app-1": {"Pod"}, // Specific namespace and resource access
 					},

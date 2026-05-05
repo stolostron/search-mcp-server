@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -99,10 +100,22 @@ func (qf *QueryFilters) HasWildcardAccess() bool {
 		}
 
 		// Check for namespaced resource wildcard (within allowed clusters)
-		if kinds, exists := source.NamespacedKinds["*"]; exists {
-			for _, kind := range kinds {
-				if kind == "*" {
-					return true // User has wildcard resource access in all namespaces
+		// SECURITY FIX: Check both cluster-qualified and legacy bare namespace keys
+		for namespaceKey, kinds := range source.NamespacedKinds {
+			// Check cluster-qualified wildcard keys like "cluster-a/*"
+			if strings.HasSuffix(namespaceKey, "/*") {
+				for _, kind := range kinds {
+					if kind == "*" {
+						return true // User has wildcard resource access in cluster
+					}
+				}
+			}
+			// Check legacy bare wildcard key "*" (for hub-kubernetes source)
+			if namespaceKey == "*" {
+				for _, kind := range kinds {
+					if kind == "*" {
+						return true // User has wildcard resource access in all namespaces
+					}
 				}
 			}
 		}
@@ -235,7 +248,7 @@ func (qf *QueryFilters) IsNamespaceAllowedInCluster(cluster, namespace string) b
 	}
 
 	for _, source := range qf.PermissionSources {
-		if source.Source == "userpermission" {
+		if source.Source == "userpermission" || source.Source == "userpermission-cr" {
 			// SECURITY FIX: First verify user has access to the cluster
 			hasClusterAccess := false
 			if _, exists := source.ManagedClusters["*"]; exists {
@@ -248,15 +261,29 @@ func (qf *QueryFilters) IsNamespaceAllowedInCluster(cluster, namespace string) b
 				continue // Skip this source - user doesn't have access to this cluster
 			}
 
-			// Now check namespace access within the allowed cluster
-			if _, exists := source.NamespacedKinds["*"]; exists {
-				return true // Wildcard namespace access in this cluster
-			}
-			if _, exists := source.NamespacedKinds[namespace]; exists {
-				return true // Specific namespace access in this cluster
+			// SECURITY FIX: Check cluster-qualified namespace keys for userpermission-cr source
+			if source.Source == "userpermission-cr" {
+				// Check cluster-qualified wildcard: "cluster/*"
+				clusterWildcardKey := cluster + "/*"
+				if _, exists := source.NamespacedKinds[clusterWildcardKey]; exists {
+					return true // Wildcard namespace access in this cluster
+				}
+				// Check cluster-qualified specific namespace: "cluster/namespace"
+				clusterNamespaceKey := cluster + "/" + namespace
+				if _, exists := source.NamespacedKinds[clusterNamespaceKey]; exists {
+					return true // Specific namespace access in this cluster
+				}
+			} else {
+				// Legacy userpermission source uses bare namespace keys
+				if _, exists := source.NamespacedKinds["*"]; exists {
+					return true // Wildcard namespace access in this cluster
+				}
+				if _, exists := source.NamespacedKinds[namespace]; exists {
+					return true // Specific namespace access in this cluster
+				}
 			}
 		} else if source.Source == "hub-kubernetes" && cluster == qf.HubClusterName {
-			// Hub API only applies to hub cluster
+			// Hub API only applies to hub cluster - uses bare namespace keys
 			if _, exists := source.NamespacedKinds["*"]; exists {
 				return true // Wildcard namespace access on hub
 			}
