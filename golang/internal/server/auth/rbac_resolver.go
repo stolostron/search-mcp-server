@@ -59,6 +59,7 @@ func (r *RBACResolver) ResolveUserPermissions(ctx context.Context, userToken str
 	}
 
 	// 2. Get hub cluster permissions (Hub Kubernetes API) - NEW
+	var hubClusterName string = "local-cluster" // Default fallback
 	hubSource, err := r.resolveHubKubernetesAPI(ctx, userToken)
 	if err != nil {
 		log.Printf("[RBAC-SECURITY] Hub Kubernetes API failed: %v", err)
@@ -67,6 +68,12 @@ func (r *RBACResolver) ResolveUserPermissions(ctx context.Context, userToken str
 		// SECURITY FIX: Only append sources with actual permissions
 		permissionSources = append(permissionSources, *hubSource)
 		log.Printf("[RBAC-DEBUG] Hub Kubernetes API returned %d cluster-scoped kinds, %d namespaced mappings", len(hubSource.ClusterScopedKinds), len(hubSource.NamespacedKinds))
+
+		// M.1 FIX: Extract hub cluster name from resolved permissions (no second lookup!)
+		for clusterName := range hubSource.ManagedClusters {
+			hubClusterName = clusterName // Hub source only contains one cluster
+			break
+		}
 	} else {
 		log.Printf("[RBAC-DEBUG] Hub Kubernetes API returned 0 permissions - not adding source")
 	}
@@ -76,12 +83,7 @@ func (r *RBACResolver) ResolveUserPermissions(ctx context.Context, userToken str
 		return nil, fmt.Errorf("user has no permissions across any source - denying access for security")
 	}
 
-	// 4. Get hub cluster name dynamically for QueryFilters
-	hubClusterName, err := r.getHubClusterName(ctx)
-	if err != nil {
-		log.Printf("[RBAC-WARNING] Failed to detect hub cluster name, using default: %v", err)
-		hubClusterName = "local-cluster" // Fallback for backwards compatibility
-	}
+	// 4. M.1 FIX: Use hub cluster name from resolved permissions (no redundant lookup)
 
 	filters := &QueryFilters{
 		PermissionSources: permissionSources,
