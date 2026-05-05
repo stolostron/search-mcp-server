@@ -10,8 +10,8 @@ import (
 // Direct namespace-kind mapping prevents Cartesian products by design
 type PermissionSource struct {
 	Source             string                    `json:"source"`             // "userpermission" or "hub-kubernetes"
-	ClusterScopedKinds []string                  `json:"cluster_scoped_kinds"` // Kinds accessible cluster-wide (like ManagedCluster)
-	NamespacedKinds    map[string][]string       `json:"namespaced_kinds"`     // Direct namespace → allowed Kinds mapping (prevents cross-multiplication)
+	ClusterScopedKinds map[string][]string       `json:"cluster_scoped_kinds"` // cluster → allowed cluster-scoped Kinds (prevents Cartesian products)
+	NamespacedKinds    map[string][]string       `json:"namespaced_kinds"`     // Direct "cluster/namespace" → allowed Kinds mapping (prevents cross-multiplication)
 	ManagedClusters    map[string]struct{}       `json:"managed_clusters"`     // Accessible managed clusters
 }
 
@@ -90,9 +90,11 @@ func (qf *QueryFilters) HasWildcardAccess() bool {
 		}
 
 		// Check for cluster-scoped resource wildcard (within allowed clusters)
-		for _, kind := range source.ClusterScopedKinds {
-			if kind == "*" {
-				return true // User has wildcard resource access cluster-wide
+		for _, kinds := range source.ClusterScopedKinds {
+			for _, kind := range kinds {
+				if kind == "*" {
+					return true // User has wildcard resource access cluster-wide
+				}
 			}
 		}
 
@@ -179,9 +181,11 @@ func (qf *QueryFilters) IsResourceKindAllowed(kind string) bool {
 	// Check all permission sources - if ANY source allows the kind, access is granted
 	for _, source := range qf.PermissionSources {
 		// Check cluster-scoped kinds
-		for _, clusterKind := range source.ClusterScopedKinds {
-			if clusterKind == "*" || clusterKind == kind {
-				return true
+		for _, clusterKinds := range source.ClusterScopedKinds {
+			for _, clusterKind := range clusterKinds {
+				if clusterKind == "*" || clusterKind == kind {
+					return true
+				}
 			}
 		}
 
@@ -273,9 +277,11 @@ func (qf *QueryFilters) IsResourceKindAllowed(kind string) bool {
 	// Simple stub: check if kind exists in any source
 	for _, source := range qf.PermissionSources {
 		// Check cluster-scoped
-		for _, clusterKind := range source.ClusterScopedKinds {
-			if clusterKind == "*" || clusterKind == kind {
-				return true
+		for _, clusterKinds := range source.ClusterScopedKinds {
+			for _, clusterKind := range clusterKinds {
+				if clusterKind == "*" || clusterKind == kind {
+					return true
+				}
 			}
 		}
 		// Check namespaced

@@ -59,23 +59,23 @@ func (r *RBACResolver) ResolveUserPermissions(ctx context.Context, userToken str
 	}
 
 	// 2. Get hub cluster permissions (Hub Kubernetes API) - NEW
-	var hubClusterName string = "local-cluster" // Default fallback
-	hubSource, err := r.resolveHubKubernetesAPI(ctx, userToken)
+	var hubClusterName string
+	hubSource, resolvedHub, err := r.resolveHubKubernetesAPI(ctx, userToken)
 	if err != nil {
 		log.Printf("[RBAC-SECURITY] Hub Kubernetes API failed: %v", err)
 		// Don't fail completely - managed permissions might still work
+		hubClusterName = "local-cluster" // Fallback only when API fails
 	} else if len(hubSource.ClusterScopedKinds) > 0 || len(hubSource.NamespacedKinds) > 0 {
 		// SECURITY FIX: Only append sources with actual permissions
 		permissionSources = append(permissionSources, *hubSource)
 		log.Printf("[RBAC-DEBUG] Hub Kubernetes API returned %d cluster-scoped kinds, %d namespaced mappings", len(hubSource.ClusterScopedKinds), len(hubSource.NamespacedKinds))
 
-		// M.1 FIX: Extract hub cluster name from resolved permissions (no second lookup!)
-		for clusterName := range hubSource.ManagedClusters {
-			hubClusterName = clusterName // Hub source only contains one cluster
-			break
-		}
+		// M.1 FIX: Use hub cluster name from resolved permissions (no brittle map iteration!)
+		hubClusterName = resolvedHub
 	} else {
 		log.Printf("[RBAC-DEBUG] Hub Kubernetes API returned 0 permissions - not adding source")
+		// M.1 FIX: Still use resolved hub cluster name even if no permissions
+		hubClusterName = resolvedHub
 	}
 
 	// 3. SECURITY FIX: Must have at least one source WITH actual permissions
@@ -189,8 +189,8 @@ func (r *RBACResolver) resolveUserPermissionAPI(ctx context.Context, userToken s
 	// Process UserPermission CRs correctly to preserve cluster-namespace relationships
 	source := &PermissionSource{
 		Source:              "userpermission-cr",
-		ClusterScopedKinds:  []string{},
-		NamespacedKinds: make(map[string][]string), // Direct namespace→resource mapping
+		ClusterScopedKinds:  make(map[string][]string), // cluster → allowed cluster-scoped Kinds
+		NamespacedKinds:     make(map[string][]string), // Direct "cluster/namespace" → allowed Kinds mapping
 		ManagedClusters:     make(map[string]struct{}),
 	}
 
@@ -244,11 +244,19 @@ func (r *RBACResolver) resolveUserPermissionAPI(ctx context.Context, userToken s
 				// CRITICAL: Use binding.Scope and binding.Namespaces (not rule-level logic)
 				if binding.Scope == "cluster" || (len(binding.Namespaces) == 1 && binding.Namespaces[0] == "*") {
 					// Cluster-scoped permissions for this specific cluster
+					cluster := binding.Cluster
+
+					// Initialize cluster if not exists
+					if _, exists := source.ClusterScopedKinds[cluster]; !exists {
+						source.ClusterScopedKinds[cluster] = []string{}
+					}
+
+					// Add allowed kinds to this specific cluster ONLY
 					for _, kind := range allowedKinds {
-						if !slices.Contains(source.ClusterScopedKinds, kind) {
-							source.ClusterScopedKinds = append(source.ClusterScopedKinds, kind)
+						if !slices.Contains(source.ClusterScopedKinds[cluster], kind) {
+							source.ClusterScopedKinds[cluster] = append(source.ClusterScopedKinds[cluster], kind)
 							log.Printf("[RBAC-DEBUG] UserPerm %d, Binding %d: Added cluster-scoped kind '%s' for cluster '%s'",
-								i, j, kind, binding.Cluster)
+								i, j, kind, cluster)
 						}
 					}
 				} else {
@@ -276,12 +284,17 @@ func (r *RBACResolver) resolveUserPermissionAPI(ctx context.Context, userToken s
 		}
 	}
 
-	log.Printf("[RBAC-DEBUG] UserPermission CR source: %d cluster-scoped kinds, %d namespace mappings, %d managed clusters",
-		len(source.ClusterScopedKinds), len(source.NamespacedKinds), len(source.ManagedClusters))
+	// Count total cluster-scoped kinds across all clusters
+	totalClusterScopedKinds := 0
+	for _, kinds := range source.ClusterScopedKinds {
+		totalClusterScopedKinds += len(kinds)
+	}
+	log.Printf("[RBAC-DEBUG] UserPermission CR source: %d cluster-scoped kinds across %d clusters, %d namespace mappings, %d managed clusters",
+		totalClusterScopedKinds, len(source.ClusterScopedKinds), len(source.NamespacedKinds), len(source.ManagedClusters))
 
-	// Additional debug: show the actual namespace mappings to verify cluster-namespace relationships
+	// Additional debug: show the actual mappings to verify cluster-kind relationships
 	if logLevel := os.Getenv("LOG_LEVEL"); logLevel == "debug" {
-		log.Printf("[RBAC-DEBUG] Cluster-scoped kinds: %v", source.ClusterScopedKinds)
+		log.Printf("[RBAC-DEBUG] Cluster-scoped kinds by cluster: %v", source.ClusterScopedKinds)
 		for nsKey, kinds := range source.NamespacedKinds {
 			log.Printf("[RBAC-DEBUG] Namespace '%s' → kinds: %v", nsKey, kinds)
 		}
@@ -296,32 +309,39 @@ func (r *RBACResolver) resolveUserPermissionAPI(ctx context.Context, userToken s
 }
 
 // resolveHubKubernetesAPI handles hub cluster permissions using direct namespace→resource mapping
-func (r *RBACResolver) resolveHubKubernetesAPI(ctx context.Context, userToken string) (*PermissionSource, error) {
+func (r *RBACResolver) resolveHubKubernetesAPI(ctx context.Context, userToken string) (*PermissionSource, string, error) {
 	// Use the new HubRBACClient with shared resource discovery
 	hubClient, err := NewHubRBACClient(r.config, r.resourceDiscovery)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create hub RBAC client: %w", err)
+		return nil, "", fmt.Errorf("failed to create hub RBAC client: %w", err)
 	}
 
 	hubPermissions, err := hubClient.GetHubClusterPermissions(ctx, userToken)
 	if err != nil {
-		return nil, fmt.Errorf("hub Kubernetes API failed: %w", err)
+		return nil, "", fmt.Errorf("hub Kubernetes API failed: %w", err)
 	}
 
 	// Convert to direct mapping structure (NO Cartesian products)
 	source := &PermissionSource{
 		Source:              "hub-kubernetes",
-		ClusterScopedKinds:  []string{},
-		NamespacedKinds: make(map[string][]string), // Direct namespace→resource mapping
+		ClusterScopedKinds:  make(map[string][]string), // cluster → allowed cluster-scoped Kinds
+		NamespacedKinds:     make(map[string][]string), // Direct namespace→resource mapping
 		ManagedClusters:     map[string]struct{}{hubPermissions.HubClusterName: {}}, // Hub cluster only (dynamically detected)
 	}
 
 	// 1. Add cluster-scoped resources (hub cluster only)
 	if len(hubPermissions.ClusterScopedResources) > 0 {
+		hubCluster := hubPermissions.HubClusterName
+
+		// Initialize hub cluster if not exists
+		if _, exists := source.ClusterScopedKinds[hubCluster]; !exists {
+			source.ClusterScopedKinds[hubCluster] = []string{}
+		}
+
 		for _, resource := range hubPermissions.ClusterScopedResources {
-			if !slices.Contains(source.ClusterScopedKinds, resource.Kind) {
-				source.ClusterScopedKinds = append(source.ClusterScopedKinds, resource.Kind)
-				log.Printf("[HUB-RBAC-DEBUG] Added hub cluster-scoped kind: %s", resource.Kind)
+			if !slices.Contains(source.ClusterScopedKinds[hubCluster], resource.Kind) {
+				source.ClusterScopedKinds[hubCluster] = append(source.ClusterScopedKinds[hubCluster], resource.Kind)
+				log.Printf("[HUB-RBAC-DEBUG] Added hub cluster-scoped kind: %s for cluster: %s", resource.Kind, hubCluster)
 			}
 		}
 	}
@@ -342,10 +362,15 @@ func (r *RBACResolver) resolveHubKubernetesAPI(ctx context.Context, userToken st
 		}
 	}
 
-	log.Printf("[HUB-RBAC-DEBUG] Hub permissions: %d cluster-scoped kinds, %d namespace mappings",
-		len(source.ClusterScopedKinds), len(source.NamespacedKinds))
+	// Count total cluster-scoped kinds across all clusters
+	totalClusterScopedKinds := 0
+	for _, kinds := range source.ClusterScopedKinds {
+		totalClusterScopedKinds += len(kinds)
+	}
+	log.Printf("[HUB-RBAC-DEBUG] Hub permissions: %d cluster-scoped kinds across %d clusters, %d namespace mappings",
+		totalClusterScopedKinds, len(source.ClusterScopedKinds), len(source.NamespacedKinds))
 
-	return source, nil
+	return source, hubPermissions.HubClusterName, nil
 }
 
 

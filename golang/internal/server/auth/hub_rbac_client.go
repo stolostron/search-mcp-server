@@ -659,24 +659,36 @@ func (hpc *HubPermissionsCache) isValid() bool {
 
 // getCachedPermissions retrieves cached permissions for a user
 func (hc *HubRBACCache) getCachedPermissions(userUID string) (*HubPermissions, bool) {
+	// 1. Snapshot the state with a Read Lock
 	hc.mutex.RLock()
-	defer hc.mutex.RUnlock()
-
 	cachedData, exists := hc.cache[userUID]
+
 	if !exists {
+		hc.mutex.RUnlock()
 		log.Printf("[HUB-RBAC-CACHE] No cache entry for user UID: %s", userUID)
 		return nil, false
 	}
 
-	if !cachedData.isValid() {
+	if cachedData.isValid() {
+		permissions := cachedData.Permissions
+		hc.mutex.RUnlock()
+		log.Printf("[HUB-RBAC-CACHE] Cache hit for user UID: %s", userUID)
+		return permissions, true
+	}
+	hc.mutex.RUnlock() // Release before potentially upgrading
+
+	// 2. State was invalid, acquire Write Lock to clean up
+	hc.mutex.Lock()
+	defer hc.mutex.Unlock()
+
+	// 3. Re-verify the condition under the Write Lock
+	cachedData, exists = hc.cache[userUID]
+	if exists && !cachedData.isValid() {
 		log.Printf("[HUB-RBAC-CACHE] Cache entry expired for user UID: %s", userUID)
-		// Clean up expired entry
 		delete(hc.cache, userUID)
-		return nil, false
 	}
 
-	log.Printf("[HUB-RBAC-CACHE] Cache hit for user UID: %s", userUID)
-	return cachedData.Permissions, true
+	return nil, false
 }
 
 // setCachedPermissions stores permissions in cache for a user

@@ -547,89 +547,72 @@ func (f *FindResourcesCore) applyAuthorizationFilters(filters *auth.QueryFilters
 
 // buildClusterScopedConditions builds conditions for cluster-scoped resources
 func (f *FindResourcesCore) buildClusterScopedConditions(source auth.PermissionSource, kindFilter interface{}, hubClusterName string) (string, []interface{}) {
-	var params []interface{}
-	var resourceConditions []string
+	var allConditions []string
+	var allParams []interface{}
 
-	// Apply kind filtering if specified
-	if kindFilter != nil {
-		requestedKinds := f.convertKindFilter(kindFilter)
-		if len(requestedKinds) > 0 {
-			// SECURITY FIX: Check permissions for ALL requested kinds (AND logic)
-			var authorizedKinds []string
-
-			for _, requestedKind := range requestedKinds {
-				// Check if this specific requested kind is allowed (case-insensitive)
-				isAuthorized := false
-				for _, allowedKind := range source.ClusterScopedKinds {
-					if allowedKind == "*" || strings.EqualFold(allowedKind, requestedKind) {
-						isAuthorized = true
-						break
-					}
-				}
-
-				if isAuthorized {
-					authorizedKinds = append(authorizedKinds, requestedKind)
-				}
-			}
-
-			// SECURITY: Only include kinds user has permissions for
-			if len(authorizedKinds) > 0 {
-				if len(authorizedKinds) == 1 {
-					// Single authorized kind
-					resourceConditions = append(resourceConditions, "data->>'kind' = %s")
-					params = append(params, authorizedKinds[0])
-				} else {
-					// Multiple authorized kinds
-					placeholders := make([]string, len(authorizedKinds))
-					for i := range authorizedKinds {
-						placeholders[i] = "%s"
-					}
-					resourceConditions = append(resourceConditions, fmt.Sprintf("data->>'kind' IN (%s)", strings.Join(placeholders, ",")))
-					for _, kind := range authorizedKinds {
-						params = append(params, kind)
-					}
-				}
-			}
+	// SECURITY FIX: Process each cluster's cluster-scoped permissions separately (prevents Cartesian products)
+	for cluster, allowedKinds := range source.ClusterScopedKinds {
+		if len(allowedKinds) == 0 {
+			continue
 		}
-	} else {
-		// No specific kind filter - return all allowed cluster-scoped resources
-		if f.containsWildcard(source.ClusterScopedKinds) {
+
+		var authorizedKinds []string
+
+		// Apply kind filtering if specified
+		if kindFilter != nil {
+			requestedKinds := f.convertKindFilter(kindFilter)
+			if len(requestedKinds) > 0 {
+				// SECURITY: Check permissions for ALL requested kinds in this cluster
+				for _, requestedKind := range requestedKinds {
+					isAuthorized := false
+					for _, allowedKind := range allowedKinds {
+						if allowedKind == "*" || strings.EqualFold(allowedKind, requestedKind) {
+							isAuthorized = true
+							break
+						}
+					}
+					if isAuthorized {
+						authorizedKinds = append(authorizedKinds, requestedKind)
+					}
+				}
+			}
+		} else {
+			// No kind filter - use all allowed kinds for this cluster
+			authorizedKinds = allowedKinds
+		}
+
+		if len(authorizedKinds) == 0 {
+			continue // No authorized kinds for this cluster
+		}
+
+		// Build resource conditions for this specific cluster
+		var resourceConditions []string
+		var resourceParams []interface{}
+
+		if f.containsWildcard(authorizedKinds) {
 			resourceConditions = append(resourceConditions, "1 = 1") // Allow all cluster-scoped resources
-		} else if len(source.ClusterScopedKinds) > 0 {
-			placeholders := make([]string, len(source.ClusterScopedKinds))
-			for i := range source.ClusterScopedKinds {
+		} else {
+			placeholders := make([]string, len(authorizedKinds))
+			for i := range authorizedKinds {
 				placeholders[i] = "%s"
 			}
 			resourceConditions = append(resourceConditions, fmt.Sprintf("data->>'kind' IN (%s)", strings.Join(placeholders, ",")))
-			for _, kind := range source.ClusterScopedKinds {
-				params = append(params, kind)
+			for _, kind := range authorizedKinds {
+				resourceParams = append(resourceParams, kind)
 			}
+		}
+
+		if len(resourceConditions) > 0 {
+			// SECURITY FIX: Create explicit (cluster = 'specific-cluster' AND kind IN ('allowed', 'kinds'))
+			condition := fmt.Sprintf("(cluster = %s AND (%s))", "%s", strings.Join(resourceConditions, " OR "))
+			allConditions = append(allConditions, condition)
+			allParams = append(allParams, cluster)
+			allParams = append(allParams, resourceParams...)
 		}
 	}
 
-	// Cluster-scoped resources are accessible from any cluster (no cluster filtering needed)
-	if len(resourceConditions) > 0 {
-		// For hub cluster resources, ensure we're looking at the hub cluster
-		if source.Source == "hub-kubernetes" {
-			condition := fmt.Sprintf("(cluster = %s AND (%s))", "%s", strings.Join(resourceConditions, " OR "))
-			params = append([]interface{}{hubClusterName}, params...)
-			return condition, params
-		} else if source.Source == "userpermission-cr" {
-			// UserPermission CR cluster-scoped resources - need to check specific clusters from ManagedClusters
-			var clusterConditions []string
-			var clusterParams []interface{}
-			for cluster := range source.ManagedClusters {
-				clusterConditions = append(clusterConditions, fmt.Sprintf("(cluster = %s AND (%s))", "%s", strings.Join(resourceConditions, " OR ")))
-				clusterParams = append(clusterParams, cluster)
-				clusterParams = append(clusterParams, params...)
-			}
-			if len(clusterConditions) > 0 {
-				return strings.Join(clusterConditions, " OR "), clusterParams
-			}
-		} else {
-			// Legacy UserPermission API cluster-scoped resources (accessible from any managed cluster)
-			return strings.Join(resourceConditions, " OR "), params
-		}
+	if len(allConditions) > 0 {
+		return "(" + strings.Join(allConditions, " OR ") + ")", allParams
 	}
 
 	return "", nil
