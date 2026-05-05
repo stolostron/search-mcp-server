@@ -254,7 +254,7 @@ func TestResourceDiscoveryIntegrationWithRBAC(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.resource, func(t *testing.T) {
-				kind := resolver.mapResourceToKindWithToken(tc.apiGroup, tc.resource, "Bearer test-token")
+				kind := resolver.mapResourceToKindWithToken(context.Background(), tc.apiGroup, tc.resource, "Bearer test-token")
 				assert.Equal(t, tc.expected, kind)
 			})
 		}
@@ -265,7 +265,7 @@ func TestResourceDiscoveryIntegrationWithRBAC(t *testing.T) {
 		errorResolver := NewRBACResolver(config, nil) // nil database for tests
 		// Don't initialize discovery to simulate error condition
 
-		kind := errorResolver.mapResourceToKindWithToken("", "pods", "Bearer test-token")
+		kind := errorResolver.mapResourceToKindWithToken(context.Background(), "", "pods", "Bearer test-token")
 		// Should use algorithmic fallback
 		assert.Equal(t, "Pod", kind)
 	})

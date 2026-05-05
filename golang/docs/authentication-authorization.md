@@ -10,13 +10,13 @@ The ACM Search MCP Server implements a sophisticated **middleware chain pattern*
 
 ### Request Flow
 
-```
+```text
 HTTP Request → Auth Middleware → CORS Middleware → Route Handler → Business Logic
 ```
 
 ### Detailed Flow Diagram
 
-```
+```text
 ┌─────────────────┐    ┌──────────────────┐    ┌───────────────┐    ┌─────────────────┐
 │   HTTP Request  │───▶│  Auth Middleware │───▶│ CORS Middleware│───▶│  Route Handler  │
 │                 │    │                  │    │               │    │                 │
@@ -99,7 +99,7 @@ next.ServeHTTP(w, r.WithContext(ctx))
 ## 🎯 **Current State Analysis**
 
 ### ✅ **What Works Today:**
-```
+```text
 Client Request
     ↓
 ✅ Token Authentication (Bearer token validation)
@@ -123,51 +123,48 @@ Client Request
 
 ## 🏗️ **Granular RBAC Implementation**
 
-### **New Architecture: Direct Library Integration**
+### **New Architecture: Dual API Integration**
 
-Based on the cluster-lifecycle-api documentation, our implementation leverages ACM's official permission system.
+Following search-v2-api's proven pattern, our implementation uses a dual API approach for comprehensive permission coverage.
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
-│                   Simplified Permission Resolution          │
+│                   Dual API Permission Resolution            │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │  ┌─────────────────┐    ┌─────────────────────────────────┐ │
-│  │ User Bearer     │    │ cluster-lifecycle-api           │ │
-│  │ Token           │───►│ Go Library (LOCAL)              │ │
-│  └─────────────────┘    │                                 │ │
-│                         │ GetSelfPermissionRules()        │ │
-│                         │ • No HTTP calls                 │ │
-│                         │ • Direct K8s API access        │ │
-│                         │ • Returns PermissionRule[]     │ │
+│  │ User Bearer     │    │ 1. UserPermission API           │ │
+│  │ Token           │───►│    (Managed Clusters)           │ │
+│  └─────────────────┘    │ • Direct UserPermission CRs    │ │
+│                         │ • Cross-cluster scoped          │ │
+│                         │ • Returns cluster/namespace     │ │
+│                         │   permission mappings           │ │
 │                         └─────────────────────────────────┘ │
 │                                         │                   │
 │                                         ▼                   │
-│  ┌─────────────────────────────────────────────────────────┐ │
-│  │            Real ACM Permission Rules                   │ │
-│  │                                                        │ │
-│  │ type PermissionRule struct {                          │ │
-│  │   Verbs      []string  // [get, list, watch]         │ │
-│  │   APIGroups  []string  // [apps, ""]                 │ │
-│  │   Resources  []string  // [pods, deployments]       │ │
-│  │   Clusters   []string  // [prod-east, dev-west]     │ │
-│  │   Namespaces []string  // [app-*, monitoring]       │ │
-│  │ }                                                     │ │
-│  └─────────────────────────────────────────────────────────┘ │
+│                    ┌─────────────────────────────────────┐   │
+│                    │ 2. Hub Kubernetes API               │   │
+│                    │    (Hub Cluster Only)               │   │
+│                    │ • SelfSubjectAccessReview          │   │
+│                    │ • SelfSubjectRulesReview           │   │
+│                    │ • Native K8s RBAC                  │   │
+│                    │ • Hub cluster = "local-cluster"    │   │
+│                    └─────────────────────────────────────┘   │
 │                                         │                   │
 │                                         ▼                   │
 │  ┌─────────────────────────────────────────────────────────┐ │
-│  │               Query Filters                             │ │
-│  │ WHERE cluster IN ('prod-east', 'dev-west')             │ │
-│  │   AND data->>'namespace' LIKE 'app-%'                 │ │
-│  │   AND data->>'kind' IN ('Pod', 'Deployment')          │ │
+│  │               Combined Query Filters                    │ │
+│  │ (UserPermission OR Hub-Kubernetes)                     │ │
+│  │ WHERE ((cluster = 'prod-east' AND namespace = 'app-1') │ │
+│  │        OR (cluster = 'local-cluster'))                 │ │
+│  │   AND data->>'kind' IN ('Pod', 'ManagedCluster')      │ │
 │  └─────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ### **Complete Flow Diagram**
 
-```
+```text
 ┌─────────────┐    ┌─────────────────────────────────────────────────┐
 │   Client    │    │                MCP Server                        │
 │   Request   │    │                                                 │
@@ -190,17 +187,17 @@ Based on the cluster-lifecycle-api documentation, our implementation leverages A
                    │  │                                             │ │
                    │  │ 4. Resolve User Permissions                │ │
                    │  │    ┌─────────────────────────────────────┐  │ │
-                   │  │    │ cluster-lifecycle-api Library       │  │ │
-                   │  │    │ (LOCAL GO FUNCTION CALL)           │  │ │
+                   │  │    │ Dual API Resolution                 │  │ │
+                   │  │    │ (TWO-PHASE APPROACH)               │  │ │
 ┌─────────────────┐│  │    │                                     │  │ │
-│                 ││  │    │ import "github.com/stolostron/     │  │ │
-│ User's K8s RBAC ││◄─┼────┤   cluster-lifecycle-api/helpers/  │  │ │
-│ Permissions     ││  │    │   userpermission"                  │  │ │
+│                 ││  │    │ Phase 1: UserPermission API        │  │ │
+│ User's K8s RBAC ││◄─┼────┤ • Direct UserPermission CR queries │  │ │
+│ Permissions     ││  │    │ • Managed cluster permissions      │  │ │
 │                 ││  │    │                                     │  │ │
-│ • Cross-cluster ││  │    │ permissions, err :=                │  │ │
-│ • Multi-namespace││  │    │   GetSelfPermissionRules(ctx,     │  │ │
-│ • Resource-level││  │    │     userConfig, "get", "list")    │  │ │
-│ • Real K8s RBAC ││  │    │                                     │  │ │
+│ • Cross-cluster ││  │    │ Phase 2: Hub Kubernetes API       │  │ │
+│ • Multi-namespace││  │    │ • SelfSubjectAccessReview         │  │ │
+│ • Resource-level││  │    │ • SelfSubjectRulesReview          │  │ │
+│ • Real K8s RBAC ││  │    │ • Hub cluster permissions         │  │ │
 └─────────────────┘│  │    └─────────────────────────────────────┘  │ │
                    │  │                      │                     │ │
                    │  │                      ▼                     │ │
@@ -274,7 +271,7 @@ func (m *AuthMiddleware) resolveUserPermissions(ctx context.Context, userToken s
 
 **Phase 6 Enhancement: Automatic Resource Support**
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                   4-Tier Fallback Strategy                     │
 ├─────────────────────────────────────────────────────────────────┤
@@ -373,13 +370,13 @@ This implementation follows a **security-first design** with **no unsafe fallbac
 ### **Security Logging & Audit Trail**
 
 **Permission Resolution Failures:**
-```
+```text
 [RBAC-SECURITY] Permission resolution failed for user token, denying access: <error>
 [RBAC-SECURITY] This is a security-first design choice - K8s API failures result in access denial
 ```
 
 **Comprehensive Debug Logging (LOG_LEVEL=debug):**
-```
+```text
 [RBAC-DEBUG] Starting permission resolution for user token (first 20 chars): Bearer eyJhbGciOiJSUzI...
 [RBAC-DEBUG] Checking 12 resource types with 24 total permission combinations
 [RBAC-DEBUG] ✅ Permission GRANTED: get /pods → clusters=["*"], namespaces=["*"]
@@ -539,12 +536,12 @@ The system has been thoroughly validated and is designed to fail secure, ensurin
 ### **Major Design Change: From Admin-Only to Any-ACM-Permissions**
 
 **Original Design:**
-```
+```text
 User → Must be ACM Admin → [Non-admins blocked] → Granular filtering for admins only
 ```
 
 **Current Design (Post-Implementation):**
-```
+```text
 User → Must have ANY ACM permissions → Granular filtering for all ACM users
 ```
 

@@ -552,14 +552,42 @@ func (f *FindResourcesCore) buildClusterScopedConditions(source auth.PermissionS
 
 	// Apply kind filtering if specified
 	if kindFilter != nil {
-		kindStr := f.convertKindFilter(kindFilter)
-		if kindStr != "" {
-			// Check if the requested kind is allowed (case-insensitive)
-			for _, allowedKind := range source.ClusterScopedKinds {
-				if allowedKind == "*" || strings.EqualFold(allowedKind, kindStr) {
+		requestedKinds := f.convertKindFilter(kindFilter)
+		if len(requestedKinds) > 0 {
+			// SECURITY FIX: Check permissions for ALL requested kinds (AND logic)
+			var authorizedKinds []string
+
+			for _, requestedKind := range requestedKinds {
+				// Check if this specific requested kind is allowed (case-insensitive)
+				isAuthorized := false
+				for _, allowedKind := range source.ClusterScopedKinds {
+					if allowedKind == "*" || strings.EqualFold(allowedKind, requestedKind) {
+						isAuthorized = true
+						break
+					}
+				}
+
+				if isAuthorized {
+					authorizedKinds = append(authorizedKinds, requestedKind)
+				}
+			}
+
+			// SECURITY: Only include kinds user has permissions for
+			if len(authorizedKinds) > 0 {
+				if len(authorizedKinds) == 1 {
+					// Single authorized kind
 					resourceConditions = append(resourceConditions, "data->>'kind' = %s")
-					params = append(params, kindStr)
-					break
+					params = append(params, authorizedKinds[0])
+				} else {
+					// Multiple authorized kinds
+					placeholders := make([]string, len(authorizedKinds))
+					for i := range authorizedKinds {
+						placeholders[i] = "%s"
+					}
+					resourceConditions = append(resourceConditions, fmt.Sprintf("data->>'kind' IN (%s)", strings.Join(placeholders, ",")))
+					for _, kind := range authorizedKinds {
+						params = append(params, kind)
+					}
 				}
 			}
 		}
@@ -620,14 +648,42 @@ func (f *FindResourcesCore) buildNamespacedConditions(source auth.PermissionSour
 
 		// Apply kind filtering if specified
 		if kindFilter != nil {
-			kindStr := f.convertKindFilter(kindFilter)
-			if kindStr != "" {
-				// Check if the requested kind is allowed in this specific namespace (case-insensitive)
-				for _, allowedKind := range allowedKinds {
-					if allowedKind == "*" || strings.EqualFold(allowedKind, kindStr) {
+			requestedKinds := f.convertKindFilter(kindFilter)
+			if len(requestedKinds) > 0 {
+				// SECURITY FIX: Check permissions for ALL requested kinds in this namespace
+				var authorizedKinds []string
+
+				for _, requestedKind := range requestedKinds {
+					// Check if this specific requested kind is allowed in this namespace (case-insensitive)
+					isAuthorized := false
+					for _, allowedKind := range allowedKinds {
+						if allowedKind == "*" || strings.EqualFold(allowedKind, requestedKind) {
+							isAuthorized = true
+							break
+						}
+					}
+
+					if isAuthorized {
+						authorizedKinds = append(authorizedKinds, requestedKind)
+					}
+				}
+
+				// SECURITY: Only include kinds user has permissions for in this namespace
+				if len(authorizedKinds) > 0 {
+					if len(authorizedKinds) == 1 {
+						// Single authorized kind
 						resourceConditions = append(resourceConditions, "data->>'kind' = %s")
-						resourceParams = append(resourceParams, kindStr)
-						break
+						resourceParams = append(resourceParams, authorizedKinds[0])
+					} else {
+						// Multiple authorized kinds
+						placeholders := make([]string, len(authorizedKinds))
+						for i := range authorizedKinds {
+							placeholders[i] = "%s"
+						}
+						resourceConditions = append(resourceConditions, fmt.Sprintf("data->>'kind' IN (%s)", strings.Join(placeholders, ",")))
+						for _, kind := range authorizedKinds {
+							resourceParams = append(resourceParams, kind)
+						}
 					}
 				}
 			}
@@ -712,21 +768,46 @@ func (f *FindResourcesCore) buildNamespacedConditions(source auth.PermissionSour
 	return conditions, allParams
 }
 
-// convertKindFilter converts kind filter to string for processing
-func (f *FindResourcesCore) convertKindFilter(kindFilter interface{}) string {
+// convertKindFilter converts kind filter to slice for processing multiple kinds
+// SECURITY FIX: Now returns ALL requested kinds to prevent authorization bypasses
+// Supports both arrays and comma-separated strings (e.g., "Pod,ConfigMap,Service")
+func (f *FindResourcesCore) convertKindFilter(kindFilter interface{}) []string {
 	if kindFilter == nil {
-		return ""
+		return nil
 	}
 
 	switch v := kindFilter.(type) {
 	case string:
-		return v
-	case []string:
-		if len(v) > 0 {
-			return v[0] // For now, just use the first kind
+		if v == "" {
+			return nil
 		}
+
+		// COMMA SUPPORT FIX: Handle comma-separated kinds like "Pod,ConfigMap,Service"
+		var kinds []string
+		for _, kind := range strings.Split(v, ",") {
+			trimmed := strings.TrimSpace(kind)
+			if trimmed != "" {
+				kinds = append(kinds, trimmed)
+			}
+		}
+		return kinds
+
+	case []string:
+		// SECURITY FIX: Return ALL kinds, not just the first one
+		if len(v) > 0 {
+			// Clean up any empty strings
+			var kinds []string
+			for _, kind := range v {
+				trimmed := strings.TrimSpace(kind)
+				if trimmed != "" {
+					kinds = append(kinds, trimmed)
+				}
+			}
+			return kinds
+		}
+		return nil
 	}
-	return ""
+	return nil
 }
 
 // containsVerb checks if a verb slice contains a specific verb
@@ -813,21 +894,44 @@ func (f *FindResourcesCore) buildOrderByClause(sortBy, sortOrder string) string 
 }
 
 // buildKindConditions creates WHERE conditions for kind filter
+// COMMA SUPPORT: Now handles comma-separated kind strings like "ConfigMap,Pod"
 func (f *FindResourcesCore) buildKindConditions(kind interface{}, builder *utils.SQLBuilder) error {
 	var kinds []string
 	switch v := kind.(type) {
 	case string:
-		kinds = []string{v}
+		// COMMA SUPPORT FIX: Handle comma-separated kinds like "ConfigMap,Pod"
+		if v == "" {
+			return nil // Empty string, no filter needed
+		}
+		for _, k := range strings.Split(v, ",") {
+			trimmed := strings.TrimSpace(k)
+			if trimmed != "" {
+				kinds = append(kinds, trimmed)
+			}
+		}
 	case []string:
-		kinds = v
+		// Clean up any empty strings
+		for _, k := range v {
+			trimmed := strings.TrimSpace(k)
+			if trimmed != "" {
+				kinds = append(kinds, trimmed)
+			}
+		}
 	case []interface{}:
 		for _, item := range v {
 			if str, ok := item.(string); ok {
-				kinds = append(kinds, str)
+				trimmed := strings.TrimSpace(str)
+				if trimmed != "" {
+					kinds = append(kinds, trimmed)
+				}
 			}
 		}
 	default:
 		return fmt.Errorf("invalid kind type: %T", kind)
+	}
+
+	if len(kinds) == 0 {
+		return nil // No valid kinds found, no filter needed
 	}
 
 	return pkgutils.BuildKindConditions(kinds, "data", builder)

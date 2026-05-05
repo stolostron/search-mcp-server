@@ -240,10 +240,14 @@ func (h *HubRBACClient) getClusterScopedResources(ctx context.Context, client ku
 
 	log.Printf("[HUB-RBAC-DEBUG] Starting parallel check of %d cluster-scoped resource types", len(clusterScopedResourceTypes))
 
-	// PHASE 3: Parallelize SSAR API calls (like search-v2-api lines 272-286)
+	// PHASE 3: Parallelize SSAR API calls with concurrency limiting (CodeRabbit Issue #4 fix)
 	var resources []Resource
 	var mutex sync.Mutex
 	var wg sync.WaitGroup
+
+	// CONCURRENCY FIX: Limit concurrent API calls to prevent API server overload
+	const maxConcurrent = 10
+	semaphore := make(chan struct{}, maxConcurrent)
 
 	for _, resourceType := range clusterScopedResourceTypes {
 		wg.Add(1)
@@ -253,6 +257,17 @@ func (h *HubRBACClient) getClusterScopedResources(ctx context.Context, client ku
 			Kind     string
 		}) {
 			defer wg.Done()
+
+			// Acquire semaphore before making API call
+			select {
+			case semaphore <- struct{}{}:
+				// Got semaphore, proceed with API call
+			case <-ctx.Done():
+				// Context canceled, abort
+				log.Printf("[HUB-RBAC-DEBUG] Context canceled, aborting SSAR for %s", rt.Resource)
+				return
+			}
+			defer func() { <-semaphore }() // Release semaphore when done
 
 			// Create SelfSubjectAccessReview for this resource type
 			accessCheck := &authorizationv1.SelfSubjectAccessReview{
@@ -268,9 +283,23 @@ func (h *HubRBACClient) getClusterScopedResources(ctx context.Context, client ku
 			result, err := client.AuthorizationV1().SelfSubjectAccessReviews().Create(
 				ctx, accessCheck, metav1.CreateOptions{})
 			if err != nil {
+				// Check if context is canceled before retrying (CodeRabbit Issue #4 fix)
+				if ctx.Err() != nil {
+					log.Printf("[HUB-RBAC-DEBUG] Context canceled, aborting retry for %s", rt.Resource)
+					return
+				}
+
 				// CRITICAL FIX: Retry failed SSAR calls that cause missing resource permissions
 				log.Printf("[HUB-RBAC-WARNING] SSAR failed for %s, retrying once: %v", rt.Resource, err)
-				time.Sleep(100 * time.Millisecond)
+
+				// Use context for sleep too
+				select {
+				case <-time.After(100 * time.Millisecond):
+					// Continue with retry
+				case <-ctx.Done():
+					log.Printf("[HUB-RBAC-DEBUG] Context canceled during retry wait for %s", rt.Resource)
+					return
+				}
 
 				// Single retry attempt
 				result, err = client.AuthorizationV1().SelfSubjectAccessReviews().Create(
@@ -319,15 +348,30 @@ func (h *HubRBACClient) getNamespacedKinds(ctx context.Context, client kubernete
 
 	log.Printf("[HUB-RBAC-DEBUG] Starting parallel discovery of %d namespaces from database", len(namespaces))
 
-	// PHASE 3: Parallelize SSRR calls per namespace (like search-v2-api lines 449-459)
+	// PHASE 3: Parallelize SSRR calls per namespace with concurrency limiting (CodeRabbit Issue #4 fix)
 	resourceMap := make(map[string][]Resource)
 	var mutex sync.Mutex
 	var wg sync.WaitGroup
+
+	// CONCURRENCY FIX: Limit concurrent API calls to prevent API server overload
+	const maxConcurrent = 10
+	semaphore := make(chan struct{}, maxConcurrent)
 
 	for _, namespace := range namespaces {
 		wg.Add(1)
 		go func(ns string) {
 			defer wg.Done()
+
+			// Acquire semaphore before making API call
+			select {
+			case semaphore <- struct{}{}:
+				// Got semaphore, proceed with API call
+			case <-ctx.Done():
+				// Context canceled, abort
+				log.Printf("[HUB-RBAC-DEBUG] Context canceled, aborting SSRR for namespace %s", ns)
+				return
+			}
+			defer func() { <-semaphore }() // Release semaphore when done
 
 			// Create SelfSubjectRulesReview for this namespace
 			rulesCheck := &authorizationv1.SelfSubjectRulesReview{
@@ -339,9 +383,23 @@ func (h *HubRBACClient) getNamespacedKinds(ctx context.Context, client kubernete
 			result, err := client.AuthorizationV1().SelfSubjectRulesReviews().Create(
 				ctx, rulesCheck, metav1.CreateOptions{})
 			if err != nil {
+				// Check if context is canceled before retrying (CodeRabbit Issue #4 fix)
+				if ctx.Err() != nil {
+					log.Printf("[HUB-RBAC-DEBUG] Context canceled, aborting retry for namespace %s", ns)
+					return
+				}
+
 				// CRITICAL FIX: Retry failed SSRR calls that cause missing namespace permissions
 				log.Printf("[HUB-RBAC-WARNING] SSRR failed for namespace %s, retrying once: %v", ns, err)
-				time.Sleep(100 * time.Millisecond)
+
+				// Use context for sleep too
+				select {
+				case <-time.After(100 * time.Millisecond):
+					// Continue with retry
+				case <-ctx.Done():
+					log.Printf("[HUB-RBAC-DEBUG] Context canceled during retry wait for namespace %s", ns)
+					return
+				}
 
 				// Single retry attempt
 				result, err = client.AuthorizationV1().SelfSubjectRulesReviews().Create(

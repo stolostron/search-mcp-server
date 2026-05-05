@@ -253,7 +253,7 @@ func BenchmarkRBACResolverPerformance(t *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			tc := testCases[i%len(testCases)]
-			_ = resolver.mapResourceToKindWithToken(tc.apiGroup, tc.resource, "Bearer test-token")
+			_ = resolver.mapResourceToKindWithToken(context.Background(), tc.apiGroup, tc.resource, "Bearer test-token")
 		}
 	})
 

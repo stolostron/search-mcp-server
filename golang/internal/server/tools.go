@@ -25,7 +25,7 @@ func GetCentralizedToolDefinitions() []ToolDefinition {
 			Options: []mcp.ToolOption{
 				// Basic filters
 				mcp.WithString("kind",
-					mcp.Description("Resource kind (Pod, Deployment, Service, ManagedCluster, etc.)"),
+					mcp.Description("Resource kind or comma-separated list. Examples: \"Pod\", \"Pod,ConfigMap,Service\", \"ManagedCluster\""),
 				),
 				mcp.WithString("name",
 					mcp.Description("Resource name (exact match or shell-style pattern with * and ?)"),
@@ -46,9 +46,10 @@ func GetCentralizedToolDefinitions() []ToolDefinition {
 				mcp.WithString("status",
 					mcp.Description("Status filter: \"Running,Failed\" or \"CrashLoopBackOff\""),
 				),
-				mcp.WithString("compliance",
-					mcp.Description("Policy compliance filter: \"Compliant,NonCompliant,UnknownCompliancy\" - searches compliance status in policy spec and status fields. Works with any Policy resource type."),
-				),
+				// mcp.WithString("compliance",
+				// 	mcp.Description("Policy compliance filter: \"Compliant,NonCompliant,UnknownCompliancy\" - searches compliance status in policy spec and status fields. Works with any Policy resource type."),
+				// ),
+				// We are not yet ready to expose this
 				mcp.WithString("textSearch",
 					mcp.Description("Comprehensive text search across: (1) resource names, (2) namespaces, and (3) ALL JSON fields including labels, annotations, status, and nested data. Case-insensitive pattern matching. Examples: \"NonCompliant\" finds non-compliant policies, \"CrashLoopBackOff\" finds failing pods, \"prometheus\" finds monitoring resources. Performance: Slower than specific field filters but searches everything."),
 				),
@@ -98,7 +99,7 @@ func GetCentralizedToolDefinitions() []ToolDefinition {
 					// Basic filters
 					"kind": map[string]interface{}{
 						"type":        "string",
-						"description": "Resource kind (Pod, Deployment, Service, ManagedCluster, etc.)",
+						"description": "Resource kind or comma-separated list. Examples: \"Pod\", \"Pod,ConfigMap,Service\", \"ManagedCluster\"",
 					},
 					"name": map[string]interface{}{
 						"type":        "string",

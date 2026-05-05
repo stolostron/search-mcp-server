@@ -77,25 +77,30 @@ func (qf *QueryFilters) sourceHasWildcardAccess(source *PermissionSource) bool {
 // SIMPLE STUB IMPLEMENTATIONS - for test compatibility only
 // Production find-resources code doesn't use these methods
 
-// HasWildcardAccess returns true if any source has wildcard permissions (simple stub)
+// HasWildcardAccess returns true if user has wildcard permissions in any dimension (VERIFIED: cluster-aware logic)
 func (qf *QueryFilters) HasWildcardAccess() bool {
 	if qf == nil || len(qf.PermissionSources) == 0 {
 		return false
 	}
 
-	// Simple check: look for "*" in any source
 	for _, source := range qf.PermissionSources {
-		// Check cluster-scoped wildcard
+		// Check for wildcard cluster access (implies broad access)
+		if _, exists := source.ManagedClusters["*"]; exists {
+			return true // User has access to all clusters
+		}
+
+		// Check for cluster-scoped resource wildcard (within allowed clusters)
 		for _, kind := range source.ClusterScopedKinds {
 			if kind == "*" {
-				return true
+				return true // User has wildcard resource access cluster-wide
 			}
 		}
-		// Check namespaced wildcard
+
+		// Check for namespaced resource wildcard (within allowed clusters)
 		if kinds, exists := source.NamespacedKinds["*"]; exists {
 			for _, kind := range kinds {
 				if kind == "*" {
-					return true
+					return true // User has wildcard resource access in all namespaces
 				}
 			}
 		}
@@ -193,7 +198,7 @@ func (qf *QueryFilters) IsResourceKindAllowed(kind string) bool {
 }
 */
 
-// IsClusterAllowed checks if user has access to specific cluster (simple stub)
+// IsClusterAllowed checks if user has access to specific cluster (FIXED: proper cluster-aware permissions)
 func (qf *QueryFilters) IsClusterAllowed(cluster string) bool {
 	if qf == nil || len(qf.PermissionSources) == 0 {
 		return false
@@ -201,23 +206,15 @@ func (qf *QueryFilters) IsClusterAllowed(cluster string) bool {
 
 	for _, source := range qf.PermissionSources {
 		if source.Source == "userpermission" {
-			// Check ManagedClusters map for specific or wildcard access
+			// SECURITY FIX: Check ManagedClusters map for SPECIFIC cluster access
 			if _, exists := source.ManagedClusters["*"]; exists {
 				return true // Wildcard cluster access
 			}
 			if _, exists := source.ManagedClusters[cluster]; exists {
 				return true // Specific cluster access
 			}
-
-			// Check cluster-scoped access (any cluster-scoped permission allows any cluster)
-			if len(source.ClusterScopedKinds) > 0 {
-				return true // Has cluster-scoped access
-			}
-
-			// Check if user has any namespaced kinds (implies cluster access)
-			if len(source.NamespacedKinds) > 0 {
-				return true // Has namespace access, implies cluster access
-			}
+			// SECURITY FIX: Do NOT grant access just because user has permissions elsewhere
+			// Removed: automatic cluster access based on any permissions
 		} else if source.Source == "hub-kubernetes" && cluster == qf.HubClusterName {
 			// Hub API only applies to hub cluster (dynamically detected)
 			return len(source.ClusterScopedKinds) > 0 || len(source.NamespacedKinds) > 0
@@ -227,21 +224,41 @@ func (qf *QueryFilters) IsClusterAllowed(cluster string) bool {
 	return false
 }
 
-// IsNamespaceAllowedInCluster returns true if namespace exists in any source (simple stub)
+// IsNamespaceAllowedInCluster checks if user has access to specific namespace in specific cluster (FIXED: cluster-aware permissions)
 func (qf *QueryFilters) IsNamespaceAllowedInCluster(cluster, namespace string) bool {
 	if qf == nil || len(qf.PermissionSources) == 0 {
 		return false
 	}
 
 	for _, source := range qf.PermissionSources {
-		// Check wildcard namespace access
-		if _, exists := source.NamespacedKinds["*"]; exists {
-			return true
-		}
+		if source.Source == "userpermission" {
+			// SECURITY FIX: First verify user has access to the cluster
+			hasClusterAccess := false
+			if _, exists := source.ManagedClusters["*"]; exists {
+				hasClusterAccess = true // Wildcard cluster access
+			} else if _, exists := source.ManagedClusters[cluster]; exists {
+				hasClusterAccess = true // Specific cluster access
+			}
 
-		// Check specific namespace access
-		if _, exists := source.NamespacedKinds[namespace]; exists {
-			return true
+			if !hasClusterAccess {
+				continue // Skip this source - user doesn't have access to this cluster
+			}
+
+			// Now check namespace access within the allowed cluster
+			if _, exists := source.NamespacedKinds["*"]; exists {
+				return true // Wildcard namespace access in this cluster
+			}
+			if _, exists := source.NamespacedKinds[namespace]; exists {
+				return true // Specific namespace access in this cluster
+			}
+		} else if source.Source == "hub-kubernetes" && cluster == qf.HubClusterName {
+			// Hub API only applies to hub cluster
+			if _, exists := source.NamespacedKinds["*"]; exists {
+				return true // Wildcard namespace access on hub
+			}
+			if _, exists := source.NamespacedKinds[namespace]; exists {
+				return true // Specific namespace access on hub
+			}
 		}
 	}
 	return false

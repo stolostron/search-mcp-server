@@ -222,7 +222,7 @@ func (r *RBACResolver) resolveUserPermissionAPI(ctx context.Context, userToken s
 					if resource == "*" {
 						allowedKinds = append(allowedKinds, "*")
 					} else {
-						kind := r.mapResourceToKindWithToken("", resource, userToken)
+						kind := r.mapResourceToKindWithToken(ctx, "", resource, userToken)
 						if kind != "" {
 							allowedKinds = append(allowedKinds, kind)
 							log.Printf("[RBAC-DEBUG] UserPerm %d, Rule %d: Mapped resource '%s' → kind '%s'", i, k, resource, kind)
@@ -350,7 +350,7 @@ func (r *RBACResolver) resolveHubKubernetesAPI(ctx context.Context, userToken st
 
 
 // mapResourceToKind maps Kubernetes API resource names to their Kind names using discovery
-func (r *RBACResolver) mapResourceToKindWithToken(apiGroup, resource, userToken string) string {
+func (r *RBACResolver) mapResourceToKindWithToken(ctx context.Context, apiGroup, resource, userToken string) string {
 	// PHASE 6: Dynamic Resource Discovery Implementation
 	// This replaces the previous hardcoded mapping with live Kubernetes Discovery API
 
@@ -363,7 +363,7 @@ func (r *RBACResolver) mapResourceToKindWithToken(apiGroup, resource, userToken 
 	}
 
 	// Use discovery to get the correct Kind, passing userToken for authentication
-	ctx := context.Background() // Use background context for discovery calls
+	// SECURITY FIX: Use request context instead of background to respect cancellation
 	kind, discoveryResult := r.resourceDiscovery.GetResourceKind(ctx, userToken, apiGroup, resource)
 
 	// Log the discovery result for audit and debugging
