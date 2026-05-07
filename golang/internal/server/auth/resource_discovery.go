@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"strings"
 	"sync"
 	"time"
 
@@ -34,7 +33,7 @@ type ResourceCache struct {
 var globalResourceCache = &ResourceCache{
 	resourceToKind: make(map[string]string),
 	apiGroupMap:    make(map[string]string),
-	ttl:            4 * time.Hour, // Default TTL - will be updated from config
+	ttl:            5 * time.Minute, // Initial TTL - updated from config in GetSharedResourceDiscovery
 }
 
 // DiscoveryResult contains the result of a discovery operation
@@ -105,19 +104,10 @@ func (rd *ResourceDiscovery) GetResourceKind(ctx context.Context, userToken, api
 		}
 	}
 
-	// Step 3: Fallback to hardcoded mapping for known resources
-	if kind := rd.getHardcodedMapping(resource); kind != "" {
-		log.Printf("[DISCOVERY-DEBUG] ✅ Hardcoded fallback: %s → %s", resource, kind)
-		return kind, &DiscoveryResult{
-			Source: "hardcoded",
-		}
-	}
-
-	// Step 4: Last resort - algorithmic mapping
-	kind := rd.algorithmicMapping(resource)
-	log.Printf("[DISCOVERY-DEBUG] ⚠️  Algorithmic fallback: %s → %s", resource, kind)
-	return kind, &DiscoveryResult{
-		Source: "algorithmic",
+	// Resource not found in discovery or cache - return empty
+	log.Printf("[DISCOVERY-DEBUG] ❌ Resource not found: %s", resource)
+	return "", &DiscoveryResult{
+		Source: "not_found",
 	}
 }
 
@@ -183,9 +173,11 @@ func (rd *ResourceDiscovery) discoverResourcesFromDatabase(ctx context.Context) 
 		return nil, fmt.Errorf("database connection not available for discovery")
 	}
 
-	// Query for all unique Kind values across the entire fleet
+	// Query for all unique Kind and resource values across the entire fleet
 	query := `
-		SELECT DISTINCT data->>'kind' as kind
+		SELECT DISTINCT
+			data->>'kind' as kind,
+			COALESCE(data->>'kind_plural', LOWER(data->>'kind') || 's') as resource
 		FROM search.resources
 		WHERE data->>'kind' IS NOT NULL
 		  AND data->>'kind' != ''
@@ -205,12 +197,13 @@ func (rd *ResourceDiscovery) discoverResourcesFromDatabase(ctx context.Context) 
 	kindCount := 0
 
 	for _, row := range result.Rows {
-		if len(row) > 0 {
+		if len(row) >= 2 {
 			if kind, ok := row[0].(string); ok && kind != "" {
-				resourceName := rd.kindToResourceName(kind)
-				discovered[resourceName] = kind
-				kindCount++
-				log.Printf("[DISCOVERY-DEBUG] Fleet discovery: %s → %s", resourceName, kind)
+				if resourceName, ok := row[1].(string); ok && resourceName != "" {
+					discovered[resourceName] = kind
+					kindCount++
+					log.Printf("[DISCOVERY-DEBUG] Fleet discovery: %s → %s", resourceName, kind)
+				}
 			}
 		}
 	}
@@ -303,123 +296,10 @@ func (rd *ResourceDiscovery) updateCache(discovered map[string]string) {
 		len(discovered), globalResourceCache.ttl)
 }
 
-// getHardcodedMapping provides fallback mappings for known resources
-func (rd *ResourceDiscovery) getHardcodedMapping(resource string) string {
-	// Preserve the existing hardcoded mappings as fallback
-	// This ensures backward compatibility and handles discovery failures
-	hardcodedMap := map[string]string{
-		// Core Kubernetes resources
-		"pods":                     "Pod",
-		"services":                 "Service",
-		"configmaps":               "ConfigMap",
-		"secrets":                  "Secret",
-		"events":                   "Event",
-		"deployments":              "Deployment",
-		"replicasets":              "ReplicaSet",
-		"daemonsets":               "DaemonSet",
-		"statefulsets":             "StatefulSet",
-		"ingresses":                "Ingress",
-		"routes":                   "Route",
-		"persistentvolumes":        "PersistentVolume",
-		"persistentvolumeclaims":   "PersistentVolumeClaim",
-		"nodes":                    "Node",
-		"namespaces":               "Namespace",
-		"serviceaccounts":          "ServiceAccount",
-		"roles":                    "Role",
-		"rolebindings":             "RoleBinding",
-		"clusterroles":             "ClusterRole",
-		"clusterrolebindings":      "ClusterRoleBinding",
+// Removed getHardcodedMapping and algorithmicMapping functions
+// to simplify discovery logic per reviewer feedback
 
-		// KubeVirt resources (comprehensive mapping)
-		"virtualmachines":                    "VirtualMachine",
-		"virtualmachineinstances":           "VirtualMachineInstance",
-		"virtualmachineinstancepresets":     "VirtualMachineInstancePreset",
-		"virtualmachineinstancereplicasets": "VirtualMachineInstanceReplicaSet",
-		"virtualmachineinstancemigrations":  "VirtualMachineInstanceMigration",
-		"kubevirts":                         "KubeVirt",
-		"virtualmachinesnapshots":           "VirtualMachineSnapshot",
-		"virtualmachinesnapshotcontents":    "VirtualMachineSnapshotContent",
-		"virtualmachinerestores":            "VirtualMachineRestore",
-		"virtualmachinepools":               "VirtualMachinePool",
-		"virtualmachineclones":              "VirtualMachineClone",
-		"virtualmachineexports":             "VirtualMachineExport",
-		"virtualmachineinstancetypes":       "VirtualMachineInstancetype",
-		"virtualmachineclusterinstancetypes": "VirtualMachineClusterInstancetype",
-		"virtualmachinepreferences":         "VirtualMachinePreference",
-		"virtualmachineclusterpreferences":  "VirtualMachineClusterPreference",
-		"migrationpolicies":                 "MigrationPolicy",
-
-		// Common operator resources (extend as needed)
-		"applications":     "Application",     // ArgoCD
-		"virtualservices":  "VirtualService",  // Istio
-		"pipelines":        "Pipeline",        // Tekton
-		"pipelineruns":     "PipelineRun",     // Tekton
-	}
-
-	if kind, exists := hardcodedMap[resource]; exists {
-		return kind
-	}
-
-	return "" // Not found in hardcoded map
-}
-
-// algorithmicMapping provides last-resort mapping by capitalizing resource names
-func (rd *ResourceDiscovery) algorithmicMapping(resource string) string {
-	if len(resource) == 0 {
-		return ""
-	}
-
-	// Handle common plural-to-singular patterns
-	var singular string
-
-	if strings.HasSuffix(resource, "ies") {
-		// policies → policy, categories → category
-		base := strings.TrimSuffix(resource, "ies")
-		singular = base + "y"
-	} else if strings.HasSuffix(resource, "s") && !strings.HasSuffix(resource, "ss") {
-		// pods → pod, deployments → deployment
-		// But not: services → service (keep ss intact)
-		singular = strings.TrimSuffix(resource, "s")
-	} else {
-		// No plural pattern detected, use as-is
-		singular = resource
-	}
-
-	// Capitalize first letter
-	if len(singular) == 0 {
-		return ""
-	}
-
-	return strings.ToUpper(singular[:1]) + singular[1:]
-}
-
-// kindToResourceName converts Kubernetes Kind names to resource names (reverse of typical mapping)
-// Examples: "Pod" → "pods", "VirtualMachine" → "virtualmachines", "NetworkPolicy" → "networkpolicies"
-func (rd *ResourceDiscovery) kindToResourceName(kind string) string {
-	if len(kind) == 0 {
-		return ""
-	}
-
-	// Convert to lowercase first
-	lower := strings.ToLower(kind)
-
-	// Handle special pluralization rules
-	switch {
-	case strings.HasSuffix(lower, "y"):
-		// Policy → policies, Category → categories
-		return strings.TrimSuffix(lower, "y") + "ies"
-	case strings.HasSuffix(lower, "s"):
-		// Ingress → ingresses, but not all words ending in 's'
-		return lower + "es"
-	case strings.HasSuffix(lower, "sh") || strings.HasSuffix(lower, "ch") ||
-		 strings.HasSuffix(lower, "x") || strings.HasSuffix(lower, "z"):
-		// Mesh → meshes, NetworkAttach → networkattaches
-		return lower + "es"
-	default:
-		// Standard pluralization: Pod → pods, Deployment → deployments
-		return lower + "s"
-	}
-}
+// Removed kindToResourceName function - now using database kind_plural field directly
 
 // GetCacheStats returns information about the shared discovery cache for debugging
 func (rd *ResourceDiscovery) GetCacheStats() map[string]interface{} {

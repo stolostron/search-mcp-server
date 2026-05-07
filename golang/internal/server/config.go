@@ -95,7 +95,7 @@ func LoadServerConfig() *ServerConfig {
 	config.AuthCacheTTL = getEnvDurationOrDefault("MCP_AUTH_CACHE_TTL", 5*time.Minute)
 
 	// Discovery Configuration
-	config.DiscoveryTTL = getEnvDurationOrDefault("MCP_DISCOVERY_TTL", 4*time.Hour)
+	config.DiscoveryTTL = getEnvDurationOrDefault("MCP_DISCOVERY_TTL", 5*time.Minute)
 	config.DiscoverySource = getEnvOrDefault("MCP_DISCOVERY_SOURCE", "database")
 
 	// Local testing overrides

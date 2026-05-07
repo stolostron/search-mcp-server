@@ -173,27 +173,8 @@ func BenchmarkDiscoverySystemPerformance(t *testing.B) {
 		}
 	})
 
-	t.Run("hardcoded_mapping_performance", func(b *testing.B) {
-		discovery := NewResourceDiscovery(config, "Bearer test-token")
-		testResources := []string{"pods", "services", "virtualmachines", "deployments", "secrets"}
-
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			resourceIdx := i % len(testResources)
-			_ = discovery.getHardcodedMapping(testResources[resourceIdx])
-		}
-	})
-
-	t.Run("algorithmic_mapping_performance", func(b *testing.B) {
-		discovery := NewResourceDiscovery(config, "Bearer test-token")
-		testResources := []string{"unknownresources", "customoperators", "newcrds", "policies", "categories"}
-
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			resourceIdx := i % len(testResources)
-			_ = discovery.algorithmicMapping(testResources[resourceIdx])
-		}
-	})
+	// Removed hardcoded and algorithmic mapping performance tests
+	// per reviewer feedback to simplify discovery logic
 
 	t.Run("full_discovery_flow_performance", func(b *testing.B) {
 		discovery := NewResourceDiscovery(config, "Bearer test-token")

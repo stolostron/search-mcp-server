@@ -382,11 +382,9 @@ func (r *RBACResolver) mapResourceToKindWithToken(ctx context.Context, apiGroup,
 	// This replaces the previous hardcoded mapping with live Kubernetes Discovery API
 
 	if r.resourceDiscovery == nil {
-		log.Printf("[DISCOVERY-ERROR] Resource discovery not initialized, falling back to algorithmic mapping for %s", resource)
-		// Emergency fallback - should not happen in normal operation
-		// Use ResourceDiscovery's algorithmicMapping to avoid code duplication
-		discovery := GetSharedResourceDiscovery(r.config, nil)
-		return discovery.algorithmicMapping(resource)
+		log.Printf("[DISCOVERY-ERROR] Resource discovery not initialized for %s", resource)
+		// No fallback - return empty string to fail gracefully
+		return ""
 	}
 
 	// Use discovery to get the correct Kind, passing userToken for authentication

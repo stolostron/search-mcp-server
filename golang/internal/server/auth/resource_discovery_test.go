@@ -88,45 +88,8 @@ func TestResourceDiscovery(t *testing.T) {
 		assert.Empty(t, kind)
 	})
 
-	t.Run("hardcoded fallback mapping", func(t *testing.T) {
-		discovery := NewResourceDiscovery(config, "Bearer test-token")
-
-		// Test standard Kubernetes resources
-		assert.Equal(t, "Pod", discovery.getHardcodedMapping("pods"))
-		assert.Equal(t, "Service", discovery.getHardcodedMapping("services"))
-		assert.Equal(t, "Deployment", discovery.getHardcodedMapping("deployments"))
-
-		// Test KubeVirt resources
-		assert.Equal(t, "VirtualMachine", discovery.getHardcodedMapping("virtualmachines"))
-		assert.Equal(t, "VirtualMachineInstance", discovery.getHardcodedMapping("virtualmachineinstances"))
-
-		// Test operator resources
-		assert.Equal(t, "Application", discovery.getHardcodedMapping("applications"))
-		assert.Equal(t, "VirtualService", discovery.getHardcodedMapping("virtualservices"))
-
-		// Test unknown resource
-		assert.Equal(t, "", discovery.getHardcodedMapping("unknownresource"))
-	})
-
-	t.Run("algorithmic mapping", func(t *testing.T) {
-		discovery := NewResourceDiscovery(config, "Bearer test-token")
-
-		// Test plural to singular conversion
-		assert.Equal(t, "Pod", discovery.algorithmicMapping("pods"))
-		assert.Equal(t, "Service", discovery.algorithmicMapping("services"))  // 'ss' preserved
-		assert.Equal(t, "Deployment", discovery.algorithmicMapping("deployments"))
-
-		// Test ies → y conversion
-		assert.Equal(t, "Policy", discovery.algorithmicMapping("policies"))
-		assert.Equal(t, "Category", discovery.algorithmicMapping("categories"))
-
-		// Test words that don't end in 's'
-		assert.Equal(t, "Node", discovery.algorithmicMapping("node"))
-
-		// Test edge cases
-		assert.Equal(t, "", discovery.algorithmicMapping(""))
-		assert.Equal(t, "A", discovery.algorithmicMapping("a"))
-	})
+	// Removed hardcoded and algorithmic mapping tests
+	// per reviewer feedback to simplify discovery logic
 
 	t.Run("cache stats", func(t *testing.T) {
 		discovery := NewResourceDiscovery(config, "Bearer test-token")
@@ -160,18 +123,19 @@ func TestResourceDiscoveryFallbackHierarchy(t *testing.T) {
 	discovery := NewResourceDiscovery(config, "Bearer test-token")
 	ctx := context.Background()
 
-	t.Run("fallback hierarchy - hardcoded resources", func(t *testing.T) {
-		// Test that hardcoded resources work even without live discovery
-		// This simulates the scenario where discovery fails but we have hardcoded mappings
+	t.Run("simplified discovery - no fallbacks", func(t *testing.T) {
+		// Test that resources use cache when available, otherwise return not found
+		// Fallbacks were removed per reviewer feedback (A2) to simplify discovery logic
 
 		testCases := []struct {
-			resource     string
-			expectedKind string
+			resource       string
+			expectedKind   string
+			expectedSource string
 		}{
-			{"pods", "Pod"},
-			{"virtualmachines", "VirtualMachine"},
-			{"applications", "Application"}, // ArgoCD
-			{"virtualservices", "VirtualService"}, // Istio
+			{"pods", "Pod", "cache"},         // Should be in cache from setup
+			{"virtualmachines", "", "not_found"}, // Not in cache, no fallbacks
+			{"applications", "", "not_found"},    // Not in cache, no fallbacks
+			{"virtualservices", "", "not_found"}, // Not in cache, no fallbacks
 		}
 
 		for _, tc := range testCases {
@@ -180,31 +144,31 @@ func TestResourceDiscoveryFallbackHierarchy(t *testing.T) {
 
 				assert.Equal(t, tc.expectedKind, kind)
 				assert.NotNil(t, result)
-				// Should use hardcoded fallback when discovery isn't available
-				assert.Contains(t, []string{"cache", "hardcoded"}, result.Source)
+				// Should use cache when available, otherwise not_found (no fallbacks per A2 fix)
+				assert.Equal(t, tc.expectedSource, result.Source)
 			})
 		}
 	})
 
-	t.Run("fallback hierarchy - unknown resources", func(t *testing.T) {
-		// Test algorithmic fallback for completely unknown resources
+	t.Run("unknown resources - no fallbacks", func(t *testing.T) {
+		// Test that completely unknown resources return not_found
+		// Algorithmic fallbacks were removed per reviewer feedback (A2) to simplify logic
 		testCases := []struct {
-			resource     string
-			expectedKind string
+			resource string
 		}{
-			{"customresources", "Customresource"}, // Simple s removal
-			{"policies", "Policy"},                 // ies → y conversion
-			{"newoperatorcrds", "Newoperatorcrd"}, // Unknown operator resource
+			{"customresources"}, // Unknown resource
+			{"policies"},        // Unknown resource
+			{"newoperatorcrds"}, // Unknown operator resource
 		}
 
 		for _, tc := range testCases {
 			t.Run(tc.resource, func(t *testing.T) {
 				kind, result := discovery.GetResourceKind(ctx, "Bearer test-token", "", tc.resource)
 
-				assert.Equal(t, tc.expectedKind, kind)
+				assert.Equal(t, "", kind) // No fallbacks = empty string
 				assert.NotNil(t, result)
-				// Should use algorithmic fallback for unknown resources
-				assert.Equal(t, "algorithmic", result.Source)
+				// Should return not_found for unknown resources (no algorithmic fallback)
+				assert.Equal(t, "not_found", result.Source)
 			})
 		}
 	})
@@ -297,17 +261,8 @@ func BenchmarkResourceDiscovery(b *testing.B) {
 		}
 	})
 
-	b.Run("hardcoded_fallback", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			discovery.getHardcodedMapping("pods")
-		}
-	})
-
-	b.Run("algorithmic_fallback", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			discovery.algorithmicMapping("unknownresource")
-		}
-	})
+	// Removed hardcoded and algorithmic fallback benchmarks
+	// per reviewer feedback to simplify discovery logic
 
 	b.Run("full_discovery_flow_cached", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
