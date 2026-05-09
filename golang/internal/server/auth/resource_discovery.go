@@ -170,11 +170,14 @@ func (rd *ResourceDiscovery) discoverResourcesFromDatabase(ctx context.Context) 
 	query := `
 		SELECT DISTINCT
 			data->>'kind' as kind,
-			COALESCE(data->>'kind_plural', LOWER(data->>'kind') || 's') as resource
+			data->>'kind_plural' as resource
 		FROM search.resources
 		WHERE data->>'kind' IS NOT NULL
 		  AND data->>'kind' != ''
 		  AND data->>'kind' != 'null'
+		  AND data->>'kind_plural' IS NOT NULL
+		  AND data->>'kind_plural' != ''
+		  AND data->>'kind_plural' != 'null'
 		ORDER BY kind
 	`
 

@@ -738,17 +738,20 @@ func (h *HubRBACClient) getClusterScopedResourcesFromDatabase(ctx context.Contex
 		return nil, fmt.Errorf("database connection not available for hub resource discovery")
 	}
 
-	// FIXED: Get both resource name (for SSAR) and kind (for results) from database
+	// SECURITY FIX: Use only kind_plural (no unsafe fallback) per Jorge's security review
 	query := `
 		SELECT DISTINCT
 			COALESCE(data->>'apigroup', '') as apigroup,
-			COALESCE(data->>'kind_plural', LOWER(data->>'kind') || 's') as resource,
+			data->>'kind_plural' as resource,
 			data->>'kind' as kind
 		FROM search.resources
 		WHERE data ? '_hubClusterResource'
 		  AND (data ? 'namespace') IS FALSE
 		  AND data->>'kind' IS NOT NULL
 		  AND data->>'kind' != ''
+		  AND data->>'kind_plural' IS NOT NULL
+		  AND data->>'kind_plural' != ''
+		  AND data->>'kind_plural' != 'null'
 		ORDER BY kind
 	`
 
