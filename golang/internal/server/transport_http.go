@@ -273,7 +273,7 @@ func (t *HTTPTransport) handleMCP(w http.ResponseWriter, r *http.Request) {
 	case "tools/list":
 		t.handleToolsList(w, requestID, userCtx)
 	case "tools/call":
-		t.handleToolsCall(w, requestID, params, userCtx)
+		t.handleToolsCall(r.Context(), w, requestID, params, userCtx)
 	default:
 		t.sendJSONRPCError(w, requestID, -32601, fmt.Sprintf("Method not found: %s", method), http.StatusNotFound)
 	}
@@ -443,7 +443,7 @@ func (t *HTTPTransport) handleToolsList(w http.ResponseWriter, requestID interfa
 }
 
 
-func (t *HTTPTransport) handleToolsCall(w http.ResponseWriter, requestID interface{}, params map[string]interface{}, userCtx *auth.UserContext) {
+func (t *HTTPTransport) handleToolsCall(ctx context.Context, w http.ResponseWriter, requestID interface{}, params map[string]interface{}, userCtx *auth.UserContext) {
 	if params == nil {
 		t.sendJSONRPCError(w, requestID, -32602, "Missing params", http.StatusBadRequest)
 		return
@@ -501,8 +501,6 @@ func (t *HTTPTransport) handleToolsCall(w http.ResponseWriter, requestID interfa
 	var result *mcp.CallToolResult
 	var err error
 
-	// Use context that can carry user information if needed
-	ctx := context.Background()
 	switch name {
 	case "find_resources":
 		result, err = t.handleFindResources(ctx, mcpRequest, userCtx)

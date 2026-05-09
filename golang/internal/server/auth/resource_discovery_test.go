@@ -19,7 +19,7 @@ func TestResourceDiscovery(t *testing.T) {
 	}
 
 	t.Run("initialization", func(t *testing.T) {
-		discovery := NewResourceDiscovery(config, "Bearer test-token")
+		discovery := GetSharedResourceDiscovery(config, nil)
 
 		assert.NotNil(t, discovery)
 		assert.NotNil(t, globalResourceCache)
@@ -27,17 +27,17 @@ func TestResourceDiscovery(t *testing.T) {
 		assert.Equal(t, 1*time.Hour, globalResourceCache.ttl)
 
 		// Verify shared instance behavior
-		discovery2 := NewResourceDiscovery(config, "Bearer other-token")
+		discovery2 := GetSharedResourceDiscovery(config, nil)
 		assert.Same(t, discovery, discovery2, "Should return the same shared instance")
 	})
 
 	t.Run("cache operations", func(t *testing.T) {
-		discovery := NewResourceDiscovery(config, "Bearer test-token")
+		discovery := GetSharedResourceDiscovery(config, nil)
 
 		// Test cache miss on fresh instance
-		kind, found := discovery.getCachedMapping("pods")
-		assert.False(t, found)
-		assert.Empty(t, kind)
+		result := discovery.getFromCache("pods")
+		assert.False(t, result.Found)
+		assert.Empty(t, result.Kind)
 
 		// Test cache update and hit
 		testMappings := map[string]string{
@@ -46,22 +46,25 @@ func TestResourceDiscovery(t *testing.T) {
 		}
 		discovery.updateCache(testMappings)
 
-		kind, found = discovery.getCachedMapping("pods")
-		assert.True(t, found)
-		assert.Equal(t, "Pod", kind)
+		result = discovery.getFromCache("pods")
+		assert.True(t, result.Found)
+		assert.True(t, result.CacheFresh)
+		assert.Equal(t, "Pod", result.Kind)
 
-		kind, found = discovery.getCachedMapping("deployments")
-		assert.True(t, found)
-		assert.Equal(t, "Deployment", kind)
+		result = discovery.getFromCache("deployments")
+		assert.True(t, result.Found)
+		assert.True(t, result.CacheFresh)
+		assert.Equal(t, "Deployment", result.Kind)
 
 		// Test cache miss for unknown resource
-		kind, found = discovery.getCachedMapping("unknown")
-		assert.False(t, found)
-		assert.Empty(t, kind)
+		result = discovery.getFromCache("unknown")
+		assert.False(t, result.Found)
+		assert.True(t, result.CacheFresh)
+		assert.Empty(t, result.Kind)
 	})
 
 	t.Run("cache expiration", func(t *testing.T) {
-		discovery := NewResourceDiscovery(config, "Bearer test-token")
+		discovery := GetSharedResourceDiscovery(config, nil)
 
 		// Store original TTL and restore after test
 		originalTTL := globalResourceCache.ttl
@@ -75,24 +78,23 @@ func TestResourceDiscovery(t *testing.T) {
 		discovery.updateCache(testMappings)
 
 		// Should hit while fresh
-		kind, found := discovery.getCachedMapping("pods")
-		assert.True(t, found)
-		assert.Equal(t, "Pod", kind)
+		result := discovery.getFromCache("pods")
+		assert.True(t, result.Found)
+		assert.True(t, result.CacheFresh)
+		assert.Equal(t, "Pod", result.Kind)
 
 		// Wait for expiration
 		time.Sleep(5 * time.Millisecond)
 
 		// Should miss after expiration
-		kind, found = discovery.getCachedMapping("pods")
-		assert.False(t, found)
-		assert.Empty(t, kind)
+		result = discovery.getFromCache("pods")
+		assert.False(t, result.CacheFresh)  // Cache is stale
+		assert.Equal(t, "Pod", result.Kind) // But data is still there
+		assert.True(t, result.Found)
 	})
 
-	// Removed hardcoded and algorithmic mapping tests
-	// per reviewer feedback to simplify discovery logic
-
 	t.Run("cache stats", func(t *testing.T) {
-		discovery := NewResourceDiscovery(config, "Bearer test-token")
+		discovery := GetSharedResourceDiscovery(config, nil)
 
 		// Populate cache and check stats
 		testMappings := map[string]string{
@@ -120,7 +122,7 @@ func TestResourceDiscoveryFallbackHierarchy(t *testing.T) {
 		DiscoverySource: "kubernetes",      // Use kubernetes source for tests (no db)
 	}
 
-	discovery := NewResourceDiscovery(config, "Bearer test-token")
+	discovery := GetSharedResourceDiscovery(config, nil)
 	ctx := context.Background()
 
 	t.Run("simplified discovery - no fallbacks", func(t *testing.T) {
@@ -186,10 +188,9 @@ func TestResourceDiscoveryIntegrationWithRBAC(t *testing.T) {
 	}
 
 	resolver := NewRBACResolver(config, nil) // nil database for tests
-	userToken := "Bearer test-token"
 
 	// Initialize discovery (this would normally happen in ResolveUserPermissions)
-	resolver.resourceDiscovery = NewResourceDiscovery(config, userToken)
+	resolver.resourceDiscovery = GetSharedResourceDiscovery(config, nil)
 
 	// Populate cache with some test mappings
 	testMappings := map[string]string{
@@ -245,7 +246,7 @@ func BenchmarkResourceDiscovery(b *testing.B) {
 		DiscoverySource: "kubernetes",      // Use kubernetes source for tests (no db)
 	}
 
-	discovery := NewResourceDiscovery(config, "Bearer test-token")
+	discovery := GetSharedResourceDiscovery(config, nil)
 	ctx := context.Background()
 
 	// Populate cache to test cache performance
@@ -257,12 +258,9 @@ func BenchmarkResourceDiscovery(b *testing.B) {
 
 	b.Run("cache_hit", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			discovery.getCachedMapping("0") // First entry, should always hit
+			_ = discovery.getFromCache("0") // First entry, should always hit
 		}
 	})
-
-	// Removed hardcoded and algorithmic fallback benchmarks
-	// per reviewer feedback to simplify discovery logic
 
 	b.Run("full_discovery_flow_cached", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {

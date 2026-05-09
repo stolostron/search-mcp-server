@@ -537,8 +537,6 @@ func (h *HubRBACClient) getNamespaces(ctx context.Context) ([]string, error) {
 	return namespaces, nil
 }
 
-// Old hardcoded namespace functions removed - replaced with dynamic discovery approach from search-v2-api
-
 // mapResourceToKind maps resource names to Kinds using basic heuristics
 func (h *HubRBACClient) mapResourceToKind(resource string, apiGroups []string) string {
 	// Handle wildcard

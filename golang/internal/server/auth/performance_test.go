@@ -153,7 +153,7 @@ func BenchmarkDiscoverySystemPerformance(t *testing.B) {
 	}
 
 	t.Run("discovery_cache_performance", func(b *testing.B) {
-		discovery := NewResourceDiscovery(config, "Bearer test-token")
+		discovery := GetSharedResourceDiscovery(config, nil)
 
 		// Populate cache with many resources
 		largeMappings := make(map[string]string)
@@ -169,15 +169,12 @@ func BenchmarkDiscoverySystemPerformance(t *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			resourceIdx := i % len(testResources)
-			_, _ = discovery.getCachedMapping(testResources[resourceIdx])
+			_ = discovery.getFromCache(testResources[resourceIdx])
 		}
 	})
 
-	// Removed hardcoded and algorithmic mapping performance tests
-	// per reviewer feedback to simplify discovery logic
-
 	t.Run("full_discovery_flow_performance", func(b *testing.B) {
-		discovery := NewResourceDiscovery(config, "Bearer test-token")
+		discovery := GetSharedResourceDiscovery(config, nil)
 		ctx := context.Background()
 
 		// Mix of cached, hardcoded, and unknown resources
@@ -208,7 +205,7 @@ func BenchmarkRBACResolverPerformance(t *testing.B) {
 
 	t.Run("resource_to_kind_mapping_performance", func(b *testing.B) {
 		resolver := NewRBACResolver(config, nil) // nil database for tests
-		resolver.resourceDiscovery = NewResourceDiscovery(config, "Bearer test-token")
+		resolver.resourceDiscovery = GetSharedResourceDiscovery(config, nil)
 
 		// Pre-populate discovery cache
 		mappings := map[string]string{
@@ -241,7 +238,7 @@ func BenchmarkRBACResolverPerformance(t *testing.B) {
 	t.Run("permission_source_validation_performance", func(b *testing.B) {
 		// Test performance of validating permission sources
 		resolver := NewRBACResolver(config, nil) // nil database for tests
-		resolver.resourceDiscovery = NewResourceDiscovery(config, "Bearer test-token")
+		resolver.resourceDiscovery = GetSharedResourceDiscovery(config, nil)
 
 		// Setup complex query filters for realistic testing
 		complexFilters := createComplexPermissionFilters()

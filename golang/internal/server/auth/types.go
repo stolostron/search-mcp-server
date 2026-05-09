@@ -16,11 +16,7 @@ type PermissionSource struct {
 	ManagedClusters    map[string]struct{}       `json:"managed_clusters"`     // Accessible managed clusters
 }
 
-// REMOVED: LocationBinding and ResourceRule - they caused Cartesian products via separate arrays
-// NEW: Direct mapping like search-v2-api's NsResources map[string][]Resource approach
-
 // QueryFilters represents authorization filters for database queries
-// NEW: Prevents Cartesian products via source separation
 type QueryFilters struct {
 	PermissionSources []PermissionSource `json:"permission_sources"`
 	HubClusterName    string             `json:"hub_cluster_name"` // Dynamically detected hub cluster name (replaces hard-coded "local-cluster")
@@ -94,7 +90,6 @@ func (qf *QueryFilters) IsClusterAllowed(cluster string) bool {
 				return true // Specific cluster access
 			}
 			// SECURITY FIX: Do NOT grant access just because user has permissions elsewhere
-			// Removed: automatic cluster access based on any permissions
 		} else if source.Source == "hub-kubernetes" && cluster == qf.HubClusterName {
 			// Hub API only applies to hub cluster (dynamically detected)
 			return len(source.ClusterScopedKinds) > 0 || len(source.NamespacedKinds) > 0

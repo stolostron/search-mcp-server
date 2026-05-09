@@ -94,17 +94,6 @@ func (r *RBACResolver) ResolveUserPermissions(ctx context.Context, userToken str
 	return filters, nil
 }
 
-// getHubClusterName dynamically detects the hub cluster name using database query
-func (r *RBACResolver) getHubClusterName(ctx context.Context) (string, error) {
-	// Use HubRBACClient's hub cluster detection logic
-	hubClient, err := NewHubRBACClient(r.config, r.resourceDiscovery)
-	if err != nil {
-		return "", fmt.Errorf("failed to create hub RBAC client for cluster name detection: %w", err)
-	}
-
-	return hubClient.getHubClusterName(ctx)
-}
-
 // createUserKubernetesConfig creates a Kubernetes config using the user's token
 func (r *RBACResolver) createUserKubernetesConfig(userToken string) (*rest.Config, error) {
 	return CreateDiscoveryConfig(r.config.KubernetesURL, userToken, r.config.AuthTimeout, r.config.SkipTLS), nil
@@ -412,10 +401,8 @@ func (r *RBACResolver) logDiscoveryResult(apiGroup, resource, kind string, resul
 		}
 	case "cache":
 		log.Printf("[DISCOVERY-DEBUG] ✅ Cache hit: %s/%s → %s", apiGroup, resource, kind)
-	case "hardcoded":
-		log.Printf("[DISCOVERY-DEBUG] ⚠️  Hardcoded fallback: %s/%s → %s", apiGroup, resource, kind)
-	case "algorithmic":
-		log.Printf("[DISCOVERY-DEBUG] ❌ Algorithmic fallback: %s/%s → %s (discovery failed)", apiGroup, resource, kind)
+	case "not_found":
+		log.Printf("[DISCOVERY-DEBUG] ❌ Resource not found: %s/%s", apiGroup, resource)
 	default:
 		log.Printf("[DISCOVERY-ERROR] Unknown discovery source '%s' for %s/%s → %s", source, apiGroup, resource, kind)
 	}

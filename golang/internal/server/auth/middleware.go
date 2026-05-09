@@ -100,26 +100,7 @@ func (m *AuthMiddleware) Handler(next http.Handler) http.Handler {
 		// Update user context with header source
 		validationResult.User.HeaderSource = headerSource
 
-		// OLD APPROACH: Traditional ACM admin-only check (commented out for comparison)
-		/*
-		userToken := strings.TrimPrefix(authHeader, "Bearer ")
-		hasACMAccess, err := m.validator.CheckACMAdminPermissions(validationResult.User, userToken)
-		if err != nil {
-			log.Printf("[AUTH] Permission check error for user %s: %v", validationResult.User.Username, err)
-			m.sendAuthError(w, "Permission check failed", err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		if !hasACMAccess {
-			log.Printf("[AUTH] ACM admin access denied for user: %s - insufficient permissions", validationResult.User.Username)
-			m.sendAuthError(w, "Access denied",
-				"ACM administrator permissions required. User must have permissions to create ManagedClusters or be in system:masters group.",
-				http.StatusForbidden)
-			return
-		}
-		*/
-
-		// NEW APPROACH: Granular RBAC - Skip admin check, use permission resolution directly
+		// Granular RBAC - use permission resolution for authorization
 		userToken := authHeader  // Full "Bearer <token>" string
 		queryFilters, err := m.resolveUserPermissions(r.Context(), userToken)
 		if err != nil {

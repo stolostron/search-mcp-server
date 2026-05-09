@@ -10,8 +10,10 @@ RUN go mod download
 # Copy source code
 COPY . .
 
-# Build the binary (CGO_ENABLED=0 for static linking)
-RUN CGO_ENABLED=0 GOOS=linux go build -o bin/acm-mcp-server-go cmd/server/main.go
+# Build the binary with memory optimizations for cross-compilation
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build -ldflags="-s -w" \
+    -o bin/acm-mcp-server-go cmd/server/main.go
 
 # Final stage - minimal UBI image following OpenShift best practices
 FROM registry.access.redhat.com/ubi9/ubi-minimal:latest

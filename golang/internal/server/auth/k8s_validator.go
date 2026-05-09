@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -47,11 +48,7 @@ func (v *KubernetesValidator) ValidateBearerToken(authHeader string) (*TokenVali
 	}
 
 	// Handle both Bearer-prefixed and raw tokens
-	if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
-		token = authHeader[7:] // Remove 'Bearer ' prefix
-	} else {
-		token = authHeader // Use as raw token
-	}
+	token = strings.TrimPrefix(authHeader, "Bearer ")
 
 	// Basic token length validation
 	if len(token) < 10 {
