@@ -455,7 +455,7 @@ func (t *HTTPTransport) handleToolsCall(ctx context.Context, w http.ResponseWrit
 		return
 	}
 
-	// SECURITY FIX: Ensure authentication when auth is enabled
+	// Ensure authentication when auth is enabled
 	if t.config.EnableAuth && userCtx == nil {
 		log.Printf("[SECURITY] Unauthenticated tool call blocked: tool=%s", name)
 		t.sendJSONRPCError(w, requestID, -32001, "Authentication required", http.StatusUnauthorized)

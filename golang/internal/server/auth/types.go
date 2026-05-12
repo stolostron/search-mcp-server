@@ -49,7 +49,7 @@ func (qf *QueryFilters) HasWildcardAccess() bool {
 		}
 
 		// Check for namespaced resource wildcard (within allowed clusters)
-		// SECURITY FIX: Check both cluster-qualified and legacy bare namespace keys
+		// Check both cluster-qualified and legacy bare namespace keys
 		for namespaceKey, kinds := range source.NamespacedKinds {
 			// Check cluster-qualified wildcard keys like "cluster-a/*"
 			if strings.HasSuffix(namespaceKey, "/*") {
@@ -82,14 +82,14 @@ func (qf *QueryFilters) IsClusterAllowed(cluster string) bool {
 
 	for _, source := range qf.PermissionSources {
 		if source.Source == "userpermission" {
-			// SECURITY FIX: Check ManagedClusters map for SPECIFIC cluster access
+			// Check ManagedClusters map for SPECIFIC cluster access
 			if _, exists := source.ManagedClusters["*"]; exists {
 				return true // Wildcard cluster access
 			}
 			if _, exists := source.ManagedClusters[cluster]; exists {
 				return true // Specific cluster access
 			}
-			// SECURITY FIX: Do NOT grant access just because user has permissions elsewhere
+			// Do NOT grant access just because user has permissions elsewhere
 		} else if source.Source == "hub-kubernetes" && cluster == qf.HubClusterName {
 			// Hub API only applies to hub cluster (dynamically detected)
 			return len(source.ClusterScopedKinds) > 0 || len(source.NamespacedKinds) > 0
@@ -107,7 +107,7 @@ func (qf *QueryFilters) IsNamespaceAllowedInCluster(cluster, namespace string) b
 
 	for _, source := range qf.PermissionSources {
 		if source.Source == "userpermission" || source.Source == "userpermission-cr" {
-			// SECURITY FIX: First verify user has access to the cluster
+			// First verify user has access to the cluster
 			hasClusterAccess := false
 			if _, exists := source.ManagedClusters["*"]; exists {
 				hasClusterAccess = true // Wildcard cluster access
@@ -119,7 +119,7 @@ func (qf *QueryFilters) IsNamespaceAllowedInCluster(cluster, namespace string) b
 				continue // Skip this source - user doesn't have access to this cluster
 			}
 
-			// SECURITY FIX: Check cluster-qualified namespace keys for userpermission-cr source
+			// Check cluster-qualified namespace keys for userpermission-cr source
 			if source.Source == "userpermission-cr" {
 				// Check cluster-qualified wildcard: "cluster/*"
 				clusterWildcardKey := cluster + "/*"

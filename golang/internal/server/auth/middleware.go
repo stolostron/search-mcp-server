@@ -254,7 +254,7 @@ func RequireAuth(authMiddleware *AuthMiddleware, next http.HandlerFunc) http.Han
 
 // GetAuthorizedTools returns tools available to the authenticated user
 func GetAuthorizedTools(userCtx *UserContext) []string {
-	// SECURITY FIX: Require valid authentication
+	// Require valid authentication
 	if userCtx == nil {
 		log.Printf("[SECURITY] GetAuthorizedTools called with nil userCtx - denying all access")
 		return []string{} // Return empty list - no tools authorized

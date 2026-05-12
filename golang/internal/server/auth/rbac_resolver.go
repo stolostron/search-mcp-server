@@ -51,7 +51,6 @@ func (r *RBACResolver) ResolveUserPermissions(ctx context.Context, userToken str
 		log.Printf("[RBAC-SECURITY] UserPermission API failed: %v", err)
 		// Don't fail completely - hub permissions might still work
 	} else if len(managedSource.ClusterScopedKinds) > 0 || len(managedSource.NamespacedKinds) > 0 {
-		// SECURITY FIX: Only append sources with actual permissions
 		permissionSources = append(permissionSources, *managedSource)
 		log.Printf("[RBAC-DEBUG] UserPermission API returned %d cluster-scoped kinds, %d namespaced mappings", len(managedSource.ClusterScopedKinds), len(managedSource.NamespacedKinds))
 	} else {
@@ -66,24 +65,19 @@ func (r *RBACResolver) ResolveUserPermissions(ctx context.Context, userToken str
 		// Don't fail completely - managed permissions might still work
 		hubClusterName = "local-cluster" // Fallback only when API fails
 	} else if len(hubSource.ClusterScopedKinds) > 0 || len(hubSource.NamespacedKinds) > 0 {
-		// SECURITY FIX: Only append sources with actual permissions
 		permissionSources = append(permissionSources, *hubSource)
 		log.Printf("[RBAC-DEBUG] Hub Kubernetes API returned %d cluster-scoped kinds, %d namespaced mappings", len(hubSource.ClusterScopedKinds), len(hubSource.NamespacedKinds))
 
-		// M.1 FIX: Use hub cluster name from resolved permissions (no brittle map iteration!)
 		hubClusterName = resolvedHub
 	} else {
 		log.Printf("[RBAC-DEBUG] Hub Kubernetes API returned 0 permissions - not adding source")
-		// M.1 FIX: Still use resolved hub cluster name even if no permissions
 		hubClusterName = resolvedHub
 	}
 
-	// 3. SECURITY FIX: Must have at least one source WITH actual permissions
 	if len(permissionSources) == 0 {
 		return nil, fmt.Errorf("user has no permissions across any source - denying access for security")
 	}
 
-	// 4. M.1 FIX: Use hub cluster name from resolved permissions (no redundant lookup)
 
 	filters := &QueryFilters{
 		PermissionSources: permissionSources,
@@ -144,7 +138,7 @@ func (r *RBACResolver) resolveUserPermissionAPI(ctx context.Context, userToken s
 
 	log.Printf("[RBAC-DEBUG] Querying UserPermission CRs directly (avoiding buggy API consolidation)")
 
-	// FIX: Query UserPermission CRs directly like search-v2-api does
+	// Query UserPermission CRs directly like search-v2-api does
 	// This avoids the buggy GetSelfPermissionRules() API that loses cluster-namespace relationships
 	userPermissions, err := r.getUserPermissionCRsDirectly(ctx, userConfig)
 	if err != nil {
@@ -377,7 +371,7 @@ func (r *RBACResolver) mapResourceToKindWithToken(ctx context.Context, apiGroup,
 	}
 
 	// Use discovery to get the correct Kind, passing userToken for authentication
-	// SECURITY FIX: Use request context instead of background to respect cancellation
+	// Use request context instead of background to respect cancellation
 	kind, discoveryResult := r.resourceDiscovery.GetResourceKind(ctx, userToken, apiGroup, resource)
 
 	// Log the discovery result for audit and debugging

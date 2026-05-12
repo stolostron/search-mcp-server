@@ -550,7 +550,7 @@ func (f *FindResourcesCore) buildClusterScopedConditions(source auth.PermissionS
 	var allConditions []string
 	var allParams []interface{}
 
-	// SECURITY FIX: Process each cluster's cluster-scoped permissions separately (prevents Cartesian products)
+	// Process each cluster's cluster-scoped permissions separately (prevents Cartesian products)
 	for cluster, allowedKinds := range source.ClusterScopedKinds {
 		if len(allowedKinds) == 0 {
 			continue
@@ -603,7 +603,7 @@ func (f *FindResourcesCore) buildClusterScopedConditions(source auth.PermissionS
 		}
 
 		if len(resourceConditions) > 0 {
-			// SECURITY FIX: Create explicit (cluster = 'specific-cluster' AND kind IN ('allowed', 'kinds'))
+			// Create explicit (cluster = 'specific-cluster' AND kind IN ('allowed', 'kinds'))
 			condition := fmt.Sprintf("(cluster = %s AND (%s))", "%s", strings.Join(resourceConditions, " OR "))
 			allConditions = append(allConditions, condition)
 			allParams = append(allParams, cluster)
@@ -633,7 +633,7 @@ func (f *FindResourcesCore) buildNamespacedConditions(source auth.PermissionSour
 		if kindFilter != nil {
 			requestedKinds := f.convertKindFilter(kindFilter)
 			if len(requestedKinds) > 0 {
-				// SECURITY FIX: Check permissions for ALL requested kinds in this namespace
+				// Check permissions for ALL requested kinds in this namespace
 				var authorizedKinds []string
 
 				for _, requestedKind := range requestedKinds {
@@ -711,7 +711,7 @@ func (f *FindResourcesCore) buildNamespacedConditions(source auth.PermissionSour
 			if namespace == "*" {
 				// Wildcard namespace access
 				if cluster != "" {
-					// SECURITY FIX: Wildcard namespace but specific cluster (applies to ALL sources)
+					// Wildcard namespace but specific cluster (applies to ALL sources)
 					namespaceCondition = fmt.Sprintf("(cluster = %s AND (%s))", "%s", strings.Join(resourceConditions, " OR "))
 					namespaceParams = append(namespaceParams, cluster)
 					namespaceParams = append(namespaceParams, resourceParams...)
@@ -752,7 +752,7 @@ func (f *FindResourcesCore) buildNamespacedConditions(source auth.PermissionSour
 }
 
 // convertKindFilter converts kind filter to slice for processing multiple kinds
-// SECURITY FIX: Now returns ALL requested kinds to prevent authorization bypasses
+// Now returns ALL requested kinds to prevent authorization bypasses
 // Supports both arrays and comma-separated strings (e.g., "Pod,ConfigMap,Service")
 func (f *FindResourcesCore) convertKindFilter(kindFilter interface{}) []string {
 	if kindFilter == nil {
@@ -765,7 +765,7 @@ func (f *FindResourcesCore) convertKindFilter(kindFilter interface{}) []string {
 			return nil
 		}
 
-		// COMMA SUPPORT FIX: Handle comma-separated kinds like "Pod,ConfigMap,Service"
+		// Handle comma-separated kinds like "Pod,ConfigMap,Service"
 		var kinds []string
 		for _, kind := range strings.Split(v, ",") {
 			trimmed := strings.TrimSpace(kind)
@@ -776,7 +776,7 @@ func (f *FindResourcesCore) convertKindFilter(kindFilter interface{}) []string {
 		return kinds
 
 	case []string:
-		// SECURITY FIX: Return ALL kinds, not just the first one
+		// Return ALL kinds, not just the first one
 		if len(v) > 0 {
 			// Clean up any empty strings
 			var kinds []string
@@ -882,7 +882,7 @@ func (f *FindResourcesCore) buildKindConditions(kind interface{}, builder *utils
 	var kinds []string
 	switch v := kind.(type) {
 	case string:
-		// COMMA SUPPORT FIX: Handle comma-separated kinds like "ConfigMap,Pod"
+		// Handle comma-separated kinds like "ConfigMap,Pod"
 		if v == "" {
 			return nil // Empty string, no filter needed
 		}

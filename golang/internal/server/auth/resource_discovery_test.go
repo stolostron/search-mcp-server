@@ -127,7 +127,7 @@ func TestResourceDiscoveryFallbackHierarchy(t *testing.T) {
 
 	t.Run("simplified discovery - no fallbacks", func(t *testing.T) {
 		// Test that resources use cache when available, otherwise return not found
-		// Fallbacks were removed per reviewer feedback (A2) to simplify discovery logic
+		// Fallbacks were removed to simplify discovery logic
 
 		testCases := []struct {
 			resource       string
@@ -146,7 +146,7 @@ func TestResourceDiscoveryFallbackHierarchy(t *testing.T) {
 
 				assert.Equal(t, tc.expectedKind, kind)
 				assert.NotNil(t, result)
-				// Should use cache when available, otherwise not_found (no fallbacks per A2 fix)
+				// Should use cache when available, otherwise not_found (no fallbacks)
 				assert.Equal(t, tc.expectedSource, result.Source)
 			})
 		}
@@ -154,7 +154,7 @@ func TestResourceDiscoveryFallbackHierarchy(t *testing.T) {
 
 	t.Run("unknown resources - no fallbacks", func(t *testing.T) {
 		// Test that completely unknown resources return not_found
-		// Algorithmic fallbacks were removed per reviewer feedback (A2) to simplify logic
+		// Algorithmic fallbacks were removed to simplify logic
 		testCases := []struct {
 			resource string
 		}{
@@ -228,11 +228,12 @@ func TestResourceDiscoveryIntegrationWithRBAC(t *testing.T) {
 	t.Run("RBAC resolver handles discovery errors gracefully", func(t *testing.T) {
 		// Test with a resolver that has no discovery initialized (error scenario)
 		errorResolver := NewRBACResolver(config, nil) // nil database for tests
-		// Don't initialize discovery to simulate error condition
+		// Explicitly set discovery to nil to simulate error condition
+		errorResolver.resourceDiscovery = nil
 
 		kind := errorResolver.mapResourceToKindWithToken(context.Background(), "", "pods", "Bearer test-token")
-		// Should use algorithmic fallback
-		assert.Equal(t, "Pod", kind)
+		// Should return empty string when discovery is unavailable
+		assert.Equal(t, "", kind)
 	})
 }
 

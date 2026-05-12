@@ -240,12 +240,12 @@ func (h *HubRBACClient) getClusterScopedResources(ctx context.Context, client ku
 
 	log.Printf("[HUB-RBAC-DEBUG] Starting parallel check of %d cluster-scoped resource types", len(clusterScopedResourceTypes))
 
-	// PHASE 3: Parallelize SSAR API calls with concurrency limiting (CodeRabbit Issue #4 fix)
+	// PHASE 3: Parallelize SSAR API calls with concurrency limiting
 	var resources []Resource
 	var mutex sync.Mutex
 	var wg sync.WaitGroup
 
-	// CONCURRENCY FIX: Limit concurrent API calls to prevent API server overload
+	// Limit concurrent API calls to prevent API server overload
 	const maxConcurrent = 10
 	semaphore := make(chan struct{}, maxConcurrent)
 
@@ -283,13 +283,13 @@ func (h *HubRBACClient) getClusterScopedResources(ctx context.Context, client ku
 			result, err := client.AuthorizationV1().SelfSubjectAccessReviews().Create(
 				ctx, accessCheck, metav1.CreateOptions{})
 			if err != nil {
-				// Check if context is canceled before retrying (CodeRabbit Issue #4 fix)
+				// Check if context is canceled before retrying
 				if ctx.Err() != nil {
 					log.Printf("[HUB-RBAC-DEBUG] Context canceled, aborting retry for %s", rt.Resource)
 					return
 				}
 
-				// CRITICAL FIX: Retry failed SSAR calls that cause missing resource permissions
+				// Retry failed SSAR calls that cause missing resource permissions
 				log.Printf("[HUB-RBAC-WARNING] SSAR failed for %s, retrying once: %v", rt.Resource, err)
 
 				// Use context for sleep too
@@ -339,8 +339,7 @@ func (h *HubRBACClient) getClusterScopedResources(ctx context.Context, client ku
 
 // getNamespacedKinds uses parallel SelfSubjectRulesReview like search-v2-api
 func (h *HubRBACClient) getNamespacedKinds(ctx context.Context, client kubernetes.Interface) (map[string][]Resource, error) {
-	// OPTIMIZED: Get all namespaces directly and let resource-specific filtering determine access
-	// This eliminates redundant SSRR calls - was doing 2 API calls per namespace, now just 1
+	// Get all namespaces directly and let resource-specific filtering determine access
 	namespaces, err := h.getNamespaces(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get namespaces from database: %w", err)
@@ -348,12 +347,12 @@ func (h *HubRBACClient) getNamespacedKinds(ctx context.Context, client kubernete
 
 	log.Printf("[HUB-RBAC-DEBUG] Starting parallel discovery of %d namespaces from database", len(namespaces))
 
-	// PHASE 3: Parallelize SSRR calls per namespace with concurrency limiting (CodeRabbit Issue #4 fix)
+	// PHASE 3: Parallelize SSRR calls per namespace with concurrency limiting
 	resourceMap := make(map[string][]Resource)
 	var mutex sync.Mutex
 	var wg sync.WaitGroup
 
-	// CONCURRENCY FIX: Limit concurrent API calls to prevent API server overload
+	// Limit concurrent API calls to prevent API server overload
 	const maxConcurrent = 10
 	semaphore := make(chan struct{}, maxConcurrent)
 
@@ -383,13 +382,13 @@ func (h *HubRBACClient) getNamespacedKinds(ctx context.Context, client kubernete
 			result, err := client.AuthorizationV1().SelfSubjectRulesReviews().Create(
 				ctx, rulesCheck, metav1.CreateOptions{})
 			if err != nil {
-				// Check if context is canceled before retrying (CodeRabbit Issue #4 fix)
+				// Check if context is canceled before retrying
 				if ctx.Err() != nil {
 					log.Printf("[HUB-RBAC-DEBUG] Context canceled, aborting retry for namespace %s", ns)
 					return
 				}
 
-				// CRITICAL FIX: Retry failed SSRR calls that cause missing namespace permissions
+				// Retry failed SSRR calls that cause missing namespace permissions
 				log.Printf("[HUB-RBAC-WARNING] SSRR failed for namespace %s, retrying once: %v", ns, err)
 
 				// Use context for sleep too
@@ -419,7 +418,7 @@ func (h *HubRBACClient) getNamespacedKinds(ctx context.Context, client kubernete
 					continue
 				}
 
-				// BUG FIX: Skip specific-named permissions (only grant general namespace access)
+				// Skip specific-named permissions (only grant general namespace access)
 				if len(rule.ResourceNames) > 0 {
 					log.Printf("[HUB-RBAC-DEBUG] Skipping specific-named permission in namespace %s: %v resources=%v names=%v",
 						ns, rule.APIGroups, rule.Resources, rule.ResourceNames)
@@ -537,49 +536,34 @@ func (h *HubRBACClient) getNamespaces(ctx context.Context) ([]string, error) {
 	return namespaces, nil
 }
 
-// mapResourceToKind maps resource names to Kinds using basic heuristics
+// mapResourceToKind maps resource names to Kinds using resource discovery
 func (h *HubRBACClient) mapResourceToKind(resource string, apiGroups []string) string {
 	// Handle wildcard
 	if resource == "*" {
 		return "*"
 	}
 
-	// Use algorithmic mapping (same as in rbac_resolver.go)
-	return h.algorithmicResourceToKind(resource)
+	// Use proper resource discovery instead of algorithmic fallbacks for security
+	if h.resourceDiscovery != nil {
+		// Determine API group from apiGroups slice
+		apiGroup := ""
+		if len(apiGroups) > 0 && apiGroups[0] != "" {
+			apiGroup = apiGroups[0]
+		}
+
+		// Use resource discovery with a background context for internal mapping
+		// This uses the same secure database-backed discovery as the rest of the system
+		kind, result := h.resourceDiscovery.GetResourceKind(context.Background(), "", apiGroup, resource)
+		if result != nil && result.Source != "not_found" {
+			return kind
+		}
+	}
+
+	// If resource discovery fails, return empty string (fail secure)
+	log.Printf("[HUB-RBAC-DEBUG] Resource discovery failed for %s, returning empty kind for security", resource)
+	return ""
 }
 
-// algorithmicResourceToKind provides basic resource-to-kind mapping
-func (h *HubRBACClient) algorithmicResourceToKind(resource string) string {
-	if len(resource) == 0 {
-		return ""
-	}
-
-	// Handle common plural-to-singular patterns
-	var singular string
-
-	if strings.HasSuffix(resource, "ies") {
-		// policies → policy, categories → category
-		base := strings.TrimSuffix(resource, "ies")
-		singular = base + "y"
-	} else if strings.HasSuffix(resource, "s") && !strings.HasSuffix(resource, "ss") {
-		// pods → pod, deployments → deployment
-		// But not: services → service (keep ss intact)
-		singular = strings.TrimSuffix(resource, "s")
-	} else {
-		// No plural pattern detected, use as-is
-		singular = resource
-	}
-
-	// Capitalize first letter to get Kind
-	if len(singular) == 0 {
-		return ""
-	}
-
-	kind := strings.ToUpper(singular[:1]) + singular[1:]
-	log.Printf("[HUB-RBAC-DEBUG] Mapped resource %s → Kind %s", resource, kind)
-
-	return kind
-}
 
 // getUserUIDFromToken extracts user UID from token using TokenReview
 func (h *HubRBACClient) getUserUIDFromToken(ctx context.Context, userToken string) (string, error) {
@@ -624,7 +608,7 @@ func getHubRBACCache(config *AuthConfig) *HubRBACCache {
 	cacheOnce.Do(func() {
 		// Default to 5 minutes like search-v2-api, configurable via DiscoveryTTL
 		ttl := config.DiscoveryTTL
-		if ttl == 0 {
+		if ttl <= 0 {
 			ttl = 5 * time.Minute
 		}
 
@@ -738,7 +722,6 @@ func (h *HubRBACClient) getClusterScopedResourcesFromDatabase(ctx context.Contex
 		return nil, fmt.Errorf("database connection not available for hub resource discovery")
 	}
 
-	// SECURITY FIX: Use only kind_plural (no unsafe fallback) per Jorge's security review
 	query := `
 		SELECT DISTINCT
 			COALESCE(data->>'apigroup', '') as apigroup,
