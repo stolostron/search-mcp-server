@@ -252,7 +252,6 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:testpass@localhost:5432/search
         run: |
-          cd golang
           go test -v -tags=integration ./test/integration
 ```
 
@@ -260,7 +259,7 @@ jobs:
 
 ```bash
 === RUN   TestIntegration
-Running Suite: Integration Suite - /golang/test/integration
+Running Suite: Integration Suite - /test/integration
 ================================================================
 Random Seed: 1768841993
 

@@ -1,275 +1,140 @@
-# ACM Search MCP Server
+# MCP Server for Red Hat ACM (Go)
 
-> ⚠️ **EXPERIMENTAL SOFTWARE**
->
-> Do not use this in production environment - this is still experimental
-
-A Model Context Protocol (MCP) server that provides secure access to ACM (Advanced Cluster Management) search databases. Enables AI assistants and MCP clients to query and analyze Kubernetes resources across managed clusters through a standardized interface.
-
-## Features
-
-- **ACM Resource Analysis**: Advanced search across Kubernetes resources in managed clusters
-- **Wildcard Namespace Filtering**: Support for shell-style patterns like `open-cluster-management*`
-- **Multiple Output Modes**: Tables, counts, health analysis, and summaries
-- **Security**: Kubernetes token authentication with ACM admin authorization
-- **Performance**: Fast queries with configurable limits and optimization
-- **Multiple Transport Modes**: HTTP server and stdio support
+Model Context Protocol (MCP) server providing access to Red Hat Advanced Cluster Management (ACM) search database and Kubernetes resources across managed clusters.
 
 ## Quick Start
 
-### Prerequisites
-- OpenShift CLI (`oc`) installed and configured
-- Access to an OpenShift cluster with Red Hat ACM deployed
-- User account with proper permissions (see [Authorization](#authorization))
-
-### Deployment
-```bash
-# 1. Login to cluster
-oc login https://your-cluster-url
-
-# 2. Generate database connection secret (auto-discovers ACM)
-./scripts/create-secret.sh
-
-# 3. Deploy using pre-built images
-make deploy-prebuilt
-
-# 4. Get connection info
-make status
-```
-
-### Connection
-```bash
-# Get your connection details
-export TOKEN=$(oc whoami -t)
-export ROUTE_URL=$(oc get route acm-search-mcp-server-route -n acm-search -o jsonpath='{.spec.host}')
-
-# Option A: HTTPS Route (requires certificate handling)
-# this env has to be exported if using the https route
-export NODE_TLS_REJECT_UNAUTHORIZED=0
-claude mcp add \
-  --transport http \
-  --scope project \
-  acm-search \
-  https://$ROUTE_URL/mcp \
-  --header "Authorization: Bearer $TOKEN"
-
-# Option B: HTTP Port-forward (no certificate issues)
-oc port-forward service/acm-search-mcp-server-service 8080:80 -n acm-search
-claude mcp add --scope project --transport http acm-search \
-  http://localhost:8080/mcp --header "Authorization: Bearer $TOKEN"
-```
-
-## Tools & Usage
-
-### Available Tools
-
-**Default Mode** (secure):
-- `find_resources` - Advanced search across ACM managed cluster resources
-
-### Wildcard Namespace Filtering
-
-```json
-// Single wildcard - all open-cluster-management namespaces
-{
-  "name": "find_resources",
-  "arguments": {
-    "kind": "Pod",
-    "namespace": "open-cluster-management*"
-  }
-}
-
-// Multiple patterns - mix exact and wildcard
-{
-  "name": "find_resources",
-  "arguments": {
-    "kind": "Pod",
-    "namespace": "kube-*,default,openshift-*"
-  }
-}
-```
-
-**Supported patterns**: `*` (any chars), `?` (single char), comma-separated lists
-
-### Output Modes
-
-- **Default**: Table format with resource details
-- **count**: Resource counts with percentages
-- **health**: Health analysis with status breakdown
-- **summary**: Overview statistics by cluster/namespace/kind
-
-## Authentication & Authorization
-
-### User Requirements
-
-Access is granted to users who have **ANY** of the following:
-
-1. **System Cluster Admin Groups**:
-   - `system:masters` (traditional cluster admins)
-   - `system:cluster-admins` (OpenShift cluster admins like `kube:admin`)
-
-2. **Custom Groups with Cluster Admin Role**:
-   - Any group granted `cluster-admin` via ClusterRoleBindings
-   - Example: Custom LDAP groups like "ACM-Demo", "Platform-Admins"
-
-3. **ACM Admin Permissions**:
-   - Users who can create ManagedClusters (`managedclusters.cluster.open-cluster-management.io`)
-   - Users with `open-cluster-management:cluster-manager-admin` ClusterRole
-
-### Granting Access
-
-**For LDAP/Corporate Users:**
-```bash
-# Grant ACM admin role
-oc adm policy add-cluster-role-to-user open-cluster-management:cluster-manager-admin user@company.com
-
-# Or create custom group with cluster-admin (for broader access)
-oc adm policy add-cluster-role-to-group cluster-admin platform-admins
-```
-
-**For Service Accounts:**
-```bash
-oc create sa acm-search-automation -n acm-search
-oc adm policy add-cluster-role-to-user open-cluster-management:cluster-manager-admin \
-  system:serviceaccount:acm-search:acm-search-automation
-export TOKEN=$(oc create token acm-search-automation -n acm-search --duration=8760h)
-```
-
-### MCP Server RBAC Requirements
-
-The MCP server deployment requires these **specific permissions** (NOT `system:auth-delegator`):
-
-```yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: acm-search-mcp-auth-role
-rules:
-- apiGroups: ["authentication.k8s.io"]
-  resources: ["tokenreviews"]
-  verbs: ["create"]                          # Token validation only
-# Note: Uses SelfSubjectAccessReview with user's token for permission checking
-```
-
-This ClusterRole is automatically created by `make deploy-prebuilt`.
-
-### Authorization Flow
-
-1. **Token Validation** → Kubernetes TokenReview API validates bearer token
-2. **Cluster Admin Check** → SelfSubjectAccessReview with user's token for `*` `*` permissions
-3. **ACM Admin Check** → SelfSubjectAccessReview with user's token for ManagedCluster creation
-4. **Grant/Deny Access** → Allow if either check passes (either/or logic)
-
-## Troubleshooting
-
-### Common Issues
-
-**Access Denied Error:**
-```bash
-# Check your permissions
-oc auth can-i create managedclusters.cluster.open-cluster-management.io
-oc auth can-i "*" "*" --all-namespaces
-
-# Grant ACM admin if needed
-oc adm policy add-cluster-role-to-user open-cluster-management:cluster-manager-admin $(oc whoami)
-```
-
-**Database Connection Issues:**
-```bash
-# Check ACM namespace and database secret
-oc get secret --all-namespaces | grep search-postgres
-
-# Regenerate secret if wrong namespace detected
-./scripts/create-secret.sh
-oc rollout restart deployment/acm-search-mcp-server -n acm-search
-```
-
-**Pod CrashLoopBackOff:**
-```bash
-# Check logs for errors
-make logs
-
-# Usually database auth - regenerate secret with current credentials
-./scripts/create-secret.sh
-oc rollout restart deployment/acm-search-mcp-server -n acm-search
-```
-
-**Token Authentication Failed:**
-```bash
-# Verify token and headers
-export TOKEN=$(oc whoami -t)
-curl -k -H "Authorization: Bearer $TOKEN" https://your-route/info
-
-# Test both header formats
-curl -k -H "kubernetes-authorization: Bearer $TOKEN" https://your-route/info
-```
-
-### ACM Namespace Discovery
-
-The deployment automatically discovers ACM namespace, but if it fails:
+### Production Deployment (Recommended)
 
 ```bash
-# Find ACM manually
-oc get secret --all-namespaces | grep search-postgres
-oc get namespace | grep -E "(acm|ocm|open-cluster|multicluster)"
-oc get multiclusterhub -A --no-headers | awk '{print $1;}'
+# Option 1: From packaged repository (recommended)
+helm repo add acm-search https://stolostron.github.io/search-mcp-server
+helm repo update
+helm install acm-mcp-server acm-search/acm-mcp-server --create-namespace --namespace acm-search
 
-# Common ACM namespaces: open-cluster-management, ocm, rhacm, multicluster-engine
+# Option 2: From local chart
+helm install acm-mcp-server ./helm/acm-mcp-server --create-namespace --namespace acm-search
+
+# With custom configuration
+helm install acm-mcp-server acm-search/acm-mcp-server \
+  --create-namespace --namespace acm-search \
+  --set image.repository=quay.io/yourorg/acm-mcp-server-go \
+  --set logLevel=debug
 ```
 
-## Development
+### Development/Testing
 
-### Build & Deploy
 ```bash
-# 1. Install dependencies and compile TypeScript
-npm install                 # Install Node.js dependencies
-npm run build               # Compile TypeScript to JavaScript (dist/)
+# Local development
+DATABASE_URL="postgresql://user:pass@acm-hub:5432/search" go run ./cmd/server
 
-# 2. Deploy
-./scripts/create-secret.sh  # Generate database connection
-make deploy                 # Build container + deploy custom image
-make rebuild                # Clean everything + rebuild from scratch
+# HTTP transport (for web/API access)
+DATABASE_URL="your-db-url" go run ./cmd/server --transport=http --port=8080
+
+# STDIO transport (for Claude Desktop integration)
+DATABASE_URL="your-db-url" go run ./cmd/server --transport=stdio
 ```
 
-**Important**: Always run `npm run build` after modifying TypeScript files, as the container uses compiled JavaScript from `dist/`.
+## Available Tools
 
-### Testing & Operations
+- **`find_resources`** - Advanced Kubernetes resource search across all managed clusters with comprehensive filtering:
+  - **Basic filters**: kind, name, namespace, cluster, status
+  - **Advanced filters**: labelSelector, clusterSelector, textSearch, ageNewerThan, ageOlderThan
+  - **Output control**: outputMode (list/count/summary/health), groupBy, sortBy, sortOrder, limit, countOnly
+
+## Authentication (Production)
+
+Authentication auto-enables in Kubernetes environments:
+
 ```bash
-make status                 # Deployment health + connection info
-make test                   # Test all endpoints
-make logs                   # View server logs
-make clean-all              # Remove everything
+# Zero-config production deployment (auth auto-enabled)
+helm install acm-mcp-server ./helm/acm-mcp-server --create-namespace --namespace acm-search
+
+# Disable auth for testing (not recommended in production)
+helm install acm-mcp-server ./helm/acm-mcp-server \
+  --create-namespace --namespace acm-search \
+  --set authentication.enabled=false
+
+# Local testing with RBAC
+MCP_ENABLE_AUTH=true MCP_KUBECONFIG=~/.kube/config DATABASE_URL="..." go run ./cmd/server
 ```
 
-### Project Structure
+## Helm Deployment
+
+Complete Helm deployment with ACM auto-discovery and authentication:
+
+```bash
+# Install (auto-discovers ACM database credentials)
+helm install acm-mcp-server ./helm/acm-mcp-server --create-namespace --namespace acm-search
+
+# Check status
+helm status acm-mcp-server --namespace acm-search
+kubectl get pods,svc,route -n acm-search
+
+# Test deployment
+make test-mcp-deployed
+
+# Uninstall
+helm uninstall acm-mcp-server --namespace acm-search
 ```
-src/
-├── auth/token-validator.ts     # Kubernetes token validation + ACM authorization
-├── find-resources/             # ACM resource search functionality
-├── utils/cross-resource.ts     # Resource filtering with wildcard support
-├── server.ts                   # Core MCP server implementation
-└── http-server.ts              # HTTP server entry point
+
+See [`helm-install.md`](helm-install.md) for complete Helm deployment guide.
+
+### Makefile Targets
+
+```bash
+make help                   # Show all available targets
+make build                  # Build Go binary
+make run                    # Build and run locally
+make container-build        # Build container image
+make helm-install           # Deploy with Helm
+make helm-upgrade          # Upgrade existing deployment
+make test-mcp-deployed     # Test deployed server
 ```
 
-## Reference
+## Configuration
 
-### Quick Commands
-| Task | Command |
-|------|---------|
-| **Deploy** | `./scripts/create-secret.sh && make deploy-prebuilt` |
-| **Export** | `export NODE_TLS_REJECT_UNAUTHORIZED=0` |
-| **Connect** | `claude mcp add --scope project --transport http acm-search https://route/mcp --header "Authorization: Bearer $TOKEN"` |
-| **Status** | `make status` |
-| **Logs** | `make logs` |
-| **Clean** | `make clean-all` |
+All configuration via environment variables or Helm values.
 
-### Connection URLs
-- **HTTPS Route**: `https://acm-search-mcp-server-route-acm-search.apps.CLUSTER_DOMAIN/mcp`
-- **HTTP Port-forward**: `http://localhost:8080/mcp` (with `oc port-forward service/acm-search-mcp-server-service 8080:80 -n acm-search`)
+**Required:**
+- `DATABASE_URL` - PostgreSQL connection to ACM search database (auto-discovered in Helm)
 
-### Registry
-- **Image**: `quay.io/stolostron/search-mcp-server:dev-preview`
-- **Repository**: `git@github.com:stolostron/search-mcp-server.git`
+**Common Options:**
+- `MCP_TRANSPORT_MODE=auto|http|stdio` (default: auto)
+- `MCP_ENABLE_AUTH=true|false` (default: auto-detect)
+- `MCP_HTTP_PORT=8080` (HTTP transport port)
+- `LOG_LEVEL=info|debug` (default: info) - Controls logging verbosity
 
-## License
+**Chart.yaml-Driven Configuration:**
+All app metadata is sourced from Chart.yaml:
+- `APP_NAME` - Application name (from chart name)
+- `APP_DISPLAY_NAME` - Display name (from chart metadata)
+- `APP_DESCRIPTION` - Application description (from chart description)
+- `APP_VERSION` - Version (from chart appVersion)
 
-MIT License
+**Debug Configuration:**
+```bash
+# Enable debug logging for troubleshooting
+helm install acm-mcp-server acm-search/acm-mcp-server \
+  --set logLevel=debug \
+  --namespace acm-search
+# Shows: configuration dump, database connectivity details, health check logs
+```
+
+## Examples
+
+```bash
+# Basic: Find all failing pods across fleet
+echo '{"jsonrpc":"2.0","method":"tools/call","id":1,"params":{"name":"find_resources","arguments":{"kind":"Pod","status":"Failed,Error,CrashLoopBackOff"}}}' | go run ./cmd/server
+
+# Advanced: Find pods with specific labels created in last hour
+echo '{"jsonrpc":"2.0","method":"tools/call","id":1,"params":{"name":"find_resources","arguments":{"kind":"Pod","labelSelector":"app=nginx","ageNewerThan":"1h","outputMode":"count","groupBy":"status"}}}' | go run ./cmd/server
+
+# Complex: Health analysis of resources across production clusters
+echo '{"jsonrpc":"2.0","method":"tools/call","id":1,"params":{"name":"find_resources","arguments":{"clusterSelector":"env=prod","outputMode":"health","ageOlderThan":"1w"}}}' | go run ./cmd/server
+
+# Web interface
+curl -X POST http://localhost:8080/mcp -d '{"jsonrpc":"2.0","method":"tools/list","id":1}' -H "Content-Type: application/json"
+```
+
+Built for Red Hat Advanced Cluster Management search integration.

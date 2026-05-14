@@ -18,7 +18,7 @@ Install from the published Helm repository:
 
 ```bash
 # Add the ACM MCP Helm repository
-helm repo add acm-search https://stolostron.github.io/search-mcp-server
+helm repo add acm-search https://raw.githubusercontent.com/stolostron/search-mcp-server/main/charts
 helm repo update
 
 # Install with auto-discovery (recommended)
@@ -40,7 +40,7 @@ For development or when using local chart modifications:
 ```bash
 # Clone the repository
 git clone https://github.com/stolostron/search-mcp-server.git
-cd search-mcp-server/golang
+cd search-mcp-server
 
 # Install with auto-discovery from local chart
 helm install acm-mcp-server ./helm/acm-mcp-server \

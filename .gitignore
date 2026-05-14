@@ -9,27 +9,26 @@ dist/
 build/
 bin/
 
+# Docker
+.dockerignore
+
 # Go build artifacts
-golang/bin/
-golang/mcp-server
-golang/examples
-golang/server
-golang/acm-mcp-server-go
+examples
+server
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
-golang/*.test
-golang/*.out
+*.test
+*.out
 
-golang/search-mcp-server
-golang/**/test_binary
-golang/**/*_binary
+**/test_binary
+**/*_binary
 
-golang/test_result*
-golang/**/*_result
-golang/**/*.log
+test_result*
+**/*_result
+**/*.log
 
 # Environment variables and secrets
 .env
@@ -50,9 +49,6 @@ k8s/rbac_oauth_minimal.yaml
 k8s/rbac_oauth.yaml
 k8s/service-account_bearer.yaml
 k8s/service-account_oauth.yaml
-
-# Deprecated scripts
-scripts/setup-oauth.sh
 
 # OAuth-specific documentation
 README_oauth.md
@@ -94,16 +90,15 @@ Makefile.old
 #private
 .mcp.json
 CLAUDE.md
-FIND_RESOURCES_ENHANCEMENT_PLAN.md
 buddy-report.md
 postgresql-security-analysis-v2.md
 postgresql-security-analysis.md
 security-analysis-report-corrected.md
 security-analysis-report.md
 .claude/
-golang-implementation.md
-status.md
 test-plan.md
 test.md
-STATUS_*.md
-STATUS_*.ts
+test-result
+.claude-golang/
+.mcp-golang.json
+userpermission-api-bug-report.md

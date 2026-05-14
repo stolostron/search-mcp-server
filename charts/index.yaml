@@ -3,10 +3,10 @@ entries:
   acm-mcp-server:
   - apiVersion: v2
     appVersion: 0.1.0
-    created: "2026-02-24T14:08:20.821363-08:00"
+    created: "2026-05-13T16:48:55.15172-07:00"
     description: MCP server for Red Hat Advanced Cluster Management - Model Context
       Protocol server for ACM search functionality
-    digest: e7dfcc037c48fd000f9281e8f4d7ba4b726e6b35df851793d11fb78d49f48239
+    digest: 4916a6498154568cf5b1c7226213b56ad0804c67936ad123880ab8a867b79da2
     home: https://github.com/stolostron/search-mcp-server
     keywords:
     - acm
@@ -21,6 +21,6 @@ entries:
     - https://github.com/stolostron/search-mcp-server
     type: application
     urls:
-    - https://stolostron.github.io/search-mcp-server/acm-mcp-server-0.1.0.tgz
+    - https://raw.githubusercontent.com/stolostron/search-mcp-server/main/charts/acm-mcp-server-0.1.0.tgz
     version: 0.1.0
-generated: "2026-02-24T14:08:20.81874-08:00"
+generated: "2026-05-13T16:48:55.151204-07:00"
