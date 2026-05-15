@@ -24,7 +24,7 @@ func NewKubernetesValidator(config *K8sConfig) *KubernetesValidator {
 	// Create HTTP client with appropriate TLS settings
 	transport := &http.Transport{}
 	if !config.TLSVerify {
-		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} // #nosec G402 -- intentional for test environments only, controlled by config.SkipTLS
 	}
 
 	return &KubernetesValidator{
@@ -252,10 +252,10 @@ func (v *KubernetesValidator) getServiceAccountToken() (string, error) {
 	// Read token from file
 	tokenPath := v.config.TokenPath
 	if tokenPath == "" {
-		tokenPath = "/var/run/secrets/kubernetes.io/serviceaccount/token" // Default K8s path
+		tokenPath = "/var/run/secrets/kubernetes.io/serviceaccount/token" // #nosec G101 -- not a credential, this is the standard K8s service account token path
 	}
 
-	tokenBytes, err := os.ReadFile(tokenPath)
+	tokenBytes, err := os.ReadFile(tokenPath) // #nosec G304 -- path is from config or the fixed K8s service account path above
 	if err != nil {
 		return "", fmt.Errorf("failed to read service account token from %s: %w", tokenPath, err)
 	}
