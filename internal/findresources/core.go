@@ -228,124 +228,6 @@ type QueryPlan struct {
 	Params []interface{}
 }
 
-// buildQuery constructs the SQL query based on the arguments
-func (f *FindResourcesCore) buildQuery(args FindResourcesArgs, targetClusters []string) (*QueryPlan, error) {
-	// Initialize SQL builder for WHERE conditions
-	sqlBuilder := utils.NewSQLBuilder(1) // Start with parameter index 1
-
-	// Base SELECT clause (without FROM - that's added later)
-	var selectClause string
-	if args.OutputMode == OutputModeList {
-		selectClause = "SELECT uid, cluster, data"
-	} else {
-		// For aggregation modes, we still need all data for processing
-		selectClause = "SELECT uid, cluster, data"
-	}
-
-	// Build WHERE conditions using utility modules
-
-	// 1. Kind filter
-	if args.Kind != nil {
-		err := f.buildKindConditions(args.Kind, sqlBuilder)
-		if err != nil {
-			return nil, fmt.Errorf("kind filter failed: %w", err)
-		}
-	}
-
-	// 2. Name filter
-	if args.Name != "" {
-		err := f.buildNameConditions(args.Name, sqlBuilder)
-		if err != nil {
-			return nil, fmt.Errorf("name filter failed: %w", err)
-		}
-	}
-
-	// 3. Namespace filter
-	if args.Namespace != nil {
-		err := f.buildNamespaceConditions(args.Namespace, sqlBuilder)
-		if err != nil {
-			return nil, fmt.Errorf("namespace filter failed: %w", err)
-		}
-	}
-
-	// 4. Cluster filter (combine explicit clusters with targetClusters from clusterSelector)
-	clusterList := f.combineClusterFilters(args.Cluster, targetClusters)
-	if len(clusterList) > 0 {
-		err := f.buildClusterConditions(clusterList, sqlBuilder)
-		if err != nil {
-			return nil, fmt.Errorf("cluster filter failed: %w", err)
-		}
-	}
-
-	// 5. Label selector filter
-	if args.LabelSelector != "" {
-		err := f.buildLabelConditions(args.LabelSelector, sqlBuilder)
-		if err != nil {
-			return nil, fmt.Errorf("label selector filter failed: %w", err)
-		}
-	}
-
-	// 6. Status filter
-	if args.Status != nil {
-		err := f.buildStatusConditions(args.Status, args.Kind, sqlBuilder)
-		if err != nil {
-			return nil, fmt.Errorf("status filter failed: %w", err)
-		}
-	}
-
-	// 7. Compliance filter (for Policy resources)
-	if args.Compliance != nil {
-		err := f.buildComplianceConditions(args.Compliance, sqlBuilder)
-		if err != nil {
-			return nil, fmt.Errorf("compliance filter failed: %w", err)
-		}
-	}
-
-	// 8. Text search filter
-	if args.TextSearch != "" {
-		err := f.buildTextSearchConditions(args.TextSearch, sqlBuilder)
-		if err != nil {
-			return nil, fmt.Errorf("text search filter failed: %w", err)
-		}
-	}
-
-	// 9. Time filters
-	if args.AgeNewerThan != "" || args.AgeOlderThan != "" {
-		err := f.buildTimeConditions(args.AgeNewerThan, args.AgeOlderThan, sqlBuilder)
-		if err != nil {
-			return nil, fmt.Errorf("time filter failed: %w", err)
-		}
-	}
-
-	// Build final SQL query
-	whereClause, params := sqlBuilder.BuildConditions()
-
-	// Construct the complete SQL query
-	var sqlQuery strings.Builder
-	sqlQuery.WriteString(selectClause)
-	sqlQuery.WriteString(" FROM search.resources")
-
-	if whereClause != "" {
-		sqlQuery.WriteString(" WHERE ")
-		sqlQuery.WriteString(whereClause)
-	}
-
-	// Add ORDER BY clause for list mode
-	if args.OutputMode == OutputModeList {
-		orderBy := f.buildOrderByClause(args.SortBy, args.SortOrder)
-		sqlQuery.WriteString(" ORDER BY ")
-		sqlQuery.WriteString(orderBy)
-
-		// Add LIMIT clause
-		sqlQuery.WriteString(fmt.Sprintf(" LIMIT %d", args.Limit))
-	}
-
-	return &QueryPlan{
-		SQL:    sqlQuery.String(),
-		Params: params,
-	}, nil
-}
-
 // buildAuthorizedQuery builds a SQL query with authorization filters applied first
 func (f *FindResourcesCore) buildAuthorizedQuery(args FindResourcesArgs, targetClusters []string, userCtx *auth.UserContext) (*QueryPlan, error) {
 	// Initialize SQL builder for WHERE conditions
@@ -722,17 +604,18 @@ func (f *FindResourcesCore) buildNamespacedConditions(source auth.PermissionSour
 				}
 			} else {
 				// Specific namespace access
-				if source.Source == "hub-kubernetes" {
+				switch source.Source {
+				case "hub-kubernetes":
 					// Hub cluster resources
 					namespaceCondition = fmt.Sprintf("(cluster = %s AND data->>'namespace' = %s AND (%s))", "%s", "%s", strings.Join(resourceConditions, " OR "))
 					namespaceParams = append(namespaceParams, hubClusterName, namespace)
 					namespaceParams = append(namespaceParams, resourceParams...)
-				} else if source.Source == "userpermission-cr" {
+				case "userpermission-cr":
 					// UserPermission CR resources with explicit cluster-namespace pairing
 					namespaceCondition = fmt.Sprintf("(cluster = %s AND data->>'namespace' = %s AND (%s))", "%s", "%s", strings.Join(resourceConditions, " OR "))
 					namespaceParams = append(namespaceParams, cluster, namespace)
 					namespaceParams = append(namespaceParams, resourceParams...)
-				} else {
+				default:
 					// Legacy UserPermission API resources (any managed cluster) - should not happen with our fix
 					namespaceCondition = fmt.Sprintf("(data->>'namespace' = %s AND (%s))", "%s", strings.Join(resourceConditions, " OR "))
 					namespaceParams = append(namespaceParams, namespace)
@@ -791,16 +674,6 @@ func (f *FindResourcesCore) convertKindFilter(kindFilter interface{}) []string {
 		return nil
 	}
 	return nil
-}
-
-// containsVerb checks if a verb slice contains a specific verb
-func (f *FindResourcesCore) containsVerb(verbs []string, verb string) bool {
-	for _, v := range verbs {
-		if v == verb {
-			return true
-		}
-	}
-	return false
 }
 
 // containsWildcard checks if a string slice contains "*" wildcard

@@ -1,5 +1,7 @@
 .PHONY: build run test lint clean coverage integration container-build container-push helm-template helm-package helm-install helm-upgrade helm-uninstall
 
+GOPATH := $(shell go env GOPATH)
+
 # Build Go binary
 build:
 	go build -o bin/acm-mcp-server-go cmd/server/main.go
@@ -22,8 +24,13 @@ test-integration:
 
 
 # Linting
-lint:
-	golangci-lint run
+.PHONY: lint
+lint: ## Run lint and gosec tool.
+	@command -v golangci-lint >/dev/null 2>&1 || \
+		curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b "$(GOPATH)/bin" v2.4.0
+	CGO_ENABLED=1 GOGC=25 golangci-lint run --timeout=3m
+	@command -v gosec >/dev/null 2>&1 || go install github.com/securego/gosec/v2/cmd/gosec@latest
+	gosec ./...
 
 # Test coverage
 coverage:
@@ -143,8 +150,9 @@ check: fmt vet lint test
 install-tools:
 	@command -v golangci-lint >/dev/null 2>&1 || { \
 		echo "Installing golangci-lint..."; \
-		curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin; \
+		curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b "$(GOPATH)/bin" v2.4.0; \
 	}
+	@command -v gosec >/dev/null 2>&1 || go install github.com/securego/gosec/v2/cmd/gosec@latest
 
 # Help
 help:
