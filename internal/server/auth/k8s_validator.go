@@ -2,6 +2,7 @@ package auth
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -37,7 +38,7 @@ func NewKubernetesValidator(config *K8sConfig) *KubernetesValidator {
 }
 
 // ValidateBearerToken validates a bearer token using Kubernetes TokenReview API
-func (v *KubernetesValidator) ValidateBearerToken(authHeader string) (*TokenValidationResult, error) {
+func (v *KubernetesValidator) ValidateBearerToken(ctx context.Context, authHeader string) (*TokenValidationResult, error) {
 	// Extract token - handle both "Bearer <token>" and raw "<token>" formats
 	var token string
 	if authHeader == "" {
@@ -77,7 +78,7 @@ func (v *KubernetesValidator) ValidateBearerToken(authHeader string) (*TokenVali
 	}
 
 	// Call Kubernetes TokenReview API
-	response, err := v.callKubernetesAPI("/apis/authentication.k8s.io/v1/tokenreviews", tokenReviewRequest, saToken)
+	response, err := v.callKubernetesAPI(ctx, "/apis/authentication.k8s.io/v1/tokenreviews", tokenReviewRequest, saToken)
 	if err != nil {
 		return &TokenValidationResult{
 			Valid: false,
@@ -138,9 +139,9 @@ func (v *KubernetesValidator) ValidateBearerToken(authHeader string) (*TokenVali
 }
 
 // CheckACMAdminPermissions checks if a user has ACM administrator permissions
-func (v *KubernetesValidator) CheckACMAdminPermissions(userContext *UserContext, userToken string) (bool, error) {
+func (v *KubernetesValidator) CheckACMAdminPermissions(ctx context.Context, userContext *UserContext, userToken string) (bool, error) {
 	// Check if user has cluster admin permissions
-	hasClusterAdmin, err := v.checkSelfSubjectAccessReview(userToken, ClusterAdminPermission)
+	hasClusterAdmin, err := v.checkSelfSubjectAccessReview(ctx, userToken, ClusterAdminPermission)
 	if err != nil {
 		return false, fmt.Errorf("cluster admin check failed: %w", err)
 	}
@@ -150,7 +151,7 @@ func (v *KubernetesValidator) CheckACMAdminPermissions(userContext *UserContext,
 	}
 
 	// Check ACM-specific permissions
-	hasACMAdmin, err := v.checkSelfSubjectAccessReview(userToken, ACMAdminPermission)
+	hasACMAdmin, err := v.checkSelfSubjectAccessReview(ctx, userToken, ACMAdminPermission)
 	if err != nil {
 		return false, fmt.Errorf("ACM admin check failed: %w", err)
 	}
@@ -159,7 +160,7 @@ func (v *KubernetesValidator) CheckACMAdminPermissions(userContext *UserContext,
 }
 
 // checkSelfSubjectAccessReview performs permission check using user's own token
-func (v *KubernetesValidator) checkSelfSubjectAccessReview(userToken string, permission Permission) (bool, error) {
+func (v *KubernetesValidator) checkSelfSubjectAccessReview(ctx context.Context, userToken string, permission Permission) (bool, error) {
 	selfSubjectAccessReview := map[string]interface{}{
 		"apiVersion": "authorization.k8s.io/v1",
 		"kind":       "SelfSubjectAccessReview",
@@ -173,7 +174,7 @@ func (v *KubernetesValidator) checkSelfSubjectAccessReview(userToken string, per
 	}
 
 	// Use user's token for this call (not service account token)
-	response, err := v.callKubernetesAPI("/apis/authorization.k8s.io/v1/selfsubjectaccessreviews", selfSubjectAccessReview, userToken)
+	response, err := v.callKubernetesAPI(ctx, "/apis/authorization.k8s.io/v1/selfsubjectaccessreviews", selfSubjectAccessReview, userToken)
 	if err != nil {
 		return false, fmt.Errorf("SelfSubjectAccessReview API call failed: %w", err)
 	}
@@ -189,7 +190,7 @@ func (v *KubernetesValidator) checkSelfSubjectAccessReview(userToken string, per
 }
 
 // callKubernetesAPI makes HTTP calls to Kubernetes API
-func (v *KubernetesValidator) callKubernetesAPI(path string, requestBody interface{}, token string) (map[string]interface{}, error) {
+func (v *KubernetesValidator) callKubernetesAPI(ctx context.Context, path string, requestBody interface{}, token string) (map[string]interface{}, error) {
 	// Determine API URL
 	var apiURL string
 	if v.config.URL != "" {
@@ -205,7 +206,7 @@ func (v *KubernetesValidator) callKubernetesAPI(path string, requestBody interfa
 	}
 
 	// Create HTTP request
-	req, err := http.NewRequest("POST", apiURL, bytes.NewBuffer(bodyBytes))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, apiURL, bytes.NewBuffer(bodyBytes))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create HTTP request: %w", err)
 	}

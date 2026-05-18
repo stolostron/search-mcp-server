@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -84,7 +85,7 @@ func (m *AuthMiddleware) Handler(next http.Handler) http.Handler {
 		}
 
 		// Validate token (with caching if enabled)
-		validationResult, err := m.validateToken(authHeader)
+		validationResult, err := m.validateToken(r.Context(), authHeader)
 		if err != nil {
 			log.Printf("[AUTH] Token validation error: %v", err)
 			m.sendAuthError(w, "Internal authentication error", err.Error(), http.StatusInternalServerError)
@@ -152,7 +153,7 @@ func (m *AuthMiddleware) extractAuthHeader(r *http.Request) (string, string) {
 }
 
 // validateToken validates a token with optional caching
-func (m *AuthMiddleware) validateToken(authHeader string) (*TokenValidationResult, error) {
+func (m *AuthMiddleware) validateToken(ctx context.Context, authHeader string) (*TokenValidationResult, error) {
 	// Check cache if enabled
 	if m.config.CacheTokens {
 		if result := m.getCachedToken(authHeader); result != nil {
@@ -161,7 +162,7 @@ func (m *AuthMiddleware) validateToken(authHeader string) (*TokenValidationResul
 	}
 
 	// Validate token via Kubernetes API
-	result, err := m.validator.ValidateBearerToken(authHeader)
+	result, err := m.validator.ValidateBearerToken(ctx, authHeader)
 	if err != nil {
 		return nil, err
 	}
