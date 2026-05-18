@@ -214,14 +214,13 @@ type AuthConfig struct {
 
 // K8sConfig represents Kubernetes client configuration.
 type K8sConfig struct {
-	Host           string
-	Port           string
-	URL            string
-	Token          string
-	TokenPath      string
-	KubeconfigPath string
-	TLSVerify      bool
-	Timeout        time.Duration
+	Host      string
+	Port      string
+	URL       string
+	Token     string
+	TokenPath string
+	TLSVerify bool
+	Timeout   time.Duration
 }
 
 // Permission represents a specific Kubernetes permission check.

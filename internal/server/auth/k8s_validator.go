@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 // KubernetesValidator handles token validation via Kubernetes APIs
@@ -340,7 +342,9 @@ func (c *AuthConfig) GetKubernetesConfig() (*K8sConfig, error) {
 		} else if c.TokenPath != "" {
 			k8sConfig.TokenPath = c.TokenPath
 		} else if c.KubeconfigPath != "" {
-			k8sConfig.KubeconfigPath = c.KubeconfigPath
+			if err := extractKubeconfigToken(c.KubeconfigPath, k8sConfig); err != nil {
+				return nil, err
+			}
 		} else {
 			return nil, fmt.Errorf("auth enabled but no token source provided")
 		}
@@ -350,7 +354,9 @@ func (c *AuthConfig) GetKubernetesConfig() (*K8sConfig, error) {
 
 	// Fallback - try to find kubeconfig
 	if kubeconfigPath := defaultKubeconfigPath(); kubeconfigPath != "" {
-		k8sConfig.KubeconfigPath = kubeconfigPath
+		if err := extractKubeconfigDetails(kubeconfigPath, k8sConfig); err != nil {
+			return nil, err
+		}
 		return k8sConfig, nil
 	}
 
@@ -369,4 +375,36 @@ func defaultKubeconfigPath() string {
 	}
 
 	return ""
+}
+
+// extractKubeconfigDetails parses a kubeconfig and populates both URL and token in k8sConfig.
+func extractKubeconfigDetails(kubeconfigPath string, k8sConfig *K8sConfig) error {
+	restConfig, err := clientcmd.BuildConfigFromFlags("", kubeconfigPath)
+	if err != nil {
+		return fmt.Errorf("failed to parse kubeconfig %s: %w", kubeconfigPath, err)
+	}
+	k8sConfig.URL = restConfig.Host
+	if restConfig.BearerToken != "" {
+		k8sConfig.Token = restConfig.BearerToken
+	} else if restConfig.BearerTokenFile != "" {
+		k8sConfig.TokenPath = restConfig.BearerTokenFile
+	}
+	return nil
+}
+
+// extractKubeconfigToken parses a kubeconfig and populates only the token fields in k8sConfig,
+// leaving the URL unchanged (used when the URL is already known via MCP_K8S_URL).
+func extractKubeconfigToken(kubeconfigPath string, k8sConfig *K8sConfig) error {
+	restConfig, err := clientcmd.BuildConfigFromFlags("", kubeconfigPath)
+	if err != nil {
+		return fmt.Errorf("failed to parse kubeconfig %s: %w", kubeconfigPath, err)
+	}
+	if restConfig.BearerToken != "" {
+		k8sConfig.Token = restConfig.BearerToken
+	} else if restConfig.BearerTokenFile != "" {
+		k8sConfig.TokenPath = restConfig.BearerTokenFile
+	} else {
+		return fmt.Errorf("kubeconfig %s has no bearer token or token file", kubeconfigPath)
+	}
+	return nil
 }
