@@ -212,7 +212,7 @@ func (r *RBACResolver) resolveUserPermissionAPI(ctx context.Context, userToken s
 							allowedKinds = append(allowedKinds, kind)
 							log.Printf("[RBAC-DEBUG] UserPerm %d, Rule %d: Mapped resource '%s' → kind '%s'", i, k, sanitizeForLog(resource), sanitizeForLog(kind)) // #nosec G706 -- sanitized
 						} else {
-							log.Printf("[RBAC-DEBUG] UserPerm %d, Rule %d: Failed to map resource '%s' to kind", i, k, resource)
+							log.Printf("[RBAC-DEBUG] UserPerm %d, Rule %d: Failed to map resource '%s' to kind", i, k, sanitizeForLog(resource)) // #nosec G706 -- sanitized
 						}
 					}
 				}
@@ -340,7 +340,7 @@ func (r *RBACResolver) resolveHubKubernetesAPI(ctx context.Context, userToken st
 		for _, resource := range resources {
 			if !slices.Contains(source.NamespacedKinds[namespace], resource.Kind) {
 				source.NamespacedKinds[namespace] = append(source.NamespacedKinds[namespace], resource.Kind)
-				log.Printf("[HUB-RBAC-DEBUG] Added hub namespace '%s' → kind '%s'", namespace, resource.Kind)
+				log.Printf("[HUB-RBAC-DEBUG] Added hub namespace '%s' → kind '%s'", sanitizeForLog(namespace), sanitizeForLog(resource.Kind)) // #nosec G706 -- sanitized
 			}
 		}
 	}
