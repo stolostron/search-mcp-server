@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -370,6 +371,7 @@ func defaultKubeconfigPath() string {
 		kubeconfigPath = os.ExpandEnv("$HOME/.kube/config")
 	}
 
+	kubeconfigPath = filepath.Clean(kubeconfigPath)
 	if _, err := os.Stat(kubeconfigPath); err == nil {
 		return kubeconfigPath
 	}

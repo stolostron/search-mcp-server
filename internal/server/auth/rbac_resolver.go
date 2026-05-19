@@ -210,7 +210,7 @@ func (r *RBACResolver) resolveUserPermissionAPI(ctx context.Context, userToken s
 						kind := r.mapResourceToKindWithToken(ctx, "", resource, userToken)
 						if kind != "" {
 							allowedKinds = append(allowedKinds, kind)
-							log.Printf("[RBAC-DEBUG] UserPerm %d, Rule %d: Mapped resource '%s' → kind '%s'", i, k, resource, kind)
+							log.Printf("[RBAC-DEBUG] UserPerm %d, Rule %d: Mapped resource '%s' → kind '%s'", i, k, sanitizeForLog(resource), sanitizeForLog(kind)) // #nosec G706 -- sanitized
 						} else {
 							log.Printf("[RBAC-DEBUG] UserPerm %d, Rule %d: Failed to map resource '%s' to kind", i, k, resource)
 						}
@@ -238,8 +238,8 @@ func (r *RBACResolver) resolveUserPermissionAPI(ctx context.Context, userToken s
 					for _, kind := range allowedKinds {
 						if !slices.Contains(source.ClusterScopedKinds[cluster], kind) {
 							source.ClusterScopedKinds[cluster] = append(source.ClusterScopedKinds[cluster], kind)
-							log.Printf("[RBAC-DEBUG] UserPerm %d, Binding %d: Added cluster-scoped kind '%s' for cluster '%s'",
-								i, j, kind, cluster)
+							log.Printf("[RBAC-DEBUG] UserPerm %d, Binding %d: Added cluster-scoped kind '%s' for cluster '%s'", // #nosec G706 -- sanitized
+								i, j, sanitizeForLog(kind), sanitizeForLog(cluster))
 						}
 					}
 				} else {
@@ -257,8 +257,8 @@ func (r *RBACResolver) resolveUserPermissionAPI(ctx context.Context, userToken s
 						for _, kind := range allowedKinds {
 							if !slices.Contains(source.NamespacedKinds[namespaceKey], kind) {
 								source.NamespacedKinds[namespaceKey] = append(source.NamespacedKinds[namespaceKey], kind)
-								log.Printf("[RBAC-DEBUG] UserPerm %d, Binding %d: Added namespace '%s' → kind '%s'",
-									i, j, namespaceKey, kind)
+								log.Printf("[RBAC-DEBUG] UserPerm %d, Binding %d: Added namespace '%s' → kind '%s'", // #nosec G706 -- sanitized
+									i, j, sanitizeForLog(namespaceKey), sanitizeForLog(kind))
 							}
 						}
 					}
@@ -324,7 +324,7 @@ func (r *RBACResolver) resolveHubKubernetesAPI(ctx context.Context, userToken st
 		for _, resource := range hubPermissions.ClusterScopedResources {
 			if !slices.Contains(source.ClusterScopedKinds[hubCluster], resource.Kind) {
 				source.ClusterScopedKinds[hubCluster] = append(source.ClusterScopedKinds[hubCluster], resource.Kind)
-				log.Printf("[HUB-RBAC-DEBUG] Added hub cluster-scoped kind: %s for cluster: %s", resource.Kind, hubCluster)
+				log.Printf("[HUB-RBAC-DEBUG] Added hub cluster-scoped kind: %s for cluster: %s", sanitizeForLog(resource.Kind), sanitizeForLog(hubCluster)) // #nosec G706 -- sanitized
 			}
 		}
 	}
@@ -389,16 +389,16 @@ func (r *RBACResolver) logDiscoveryResult(apiGroup, resource, kind string, resul
 
 	switch source {
 	case "discovery":
-		log.Printf("[DISCOVERY-DEBUG] ✅ Live discovery success: %s/%s → %s", apiGroup, resource, kind)
+		log.Printf("[DISCOVERY-DEBUG] ✅ Live discovery success: %s/%s → %s", sanitizeForLog(apiGroup), sanitizeForLog(resource), sanitizeForLog(kind)) // #nosec G706 -- sanitized
 		if result != nil && len(result.ResourceToKind) > 0 {
-			log.Printf("[DISCOVERY-DEBUG] Discovery found %d total resource mappings", len(result.ResourceToKind))
+			log.Printf("[DISCOVERY-DEBUG] Discovery found %d total resource mappings", len(result.ResourceToKind)) // #nosec G706 -- integer value, not user input
 		}
 	case "cache":
-		log.Printf("[DISCOVERY-DEBUG] ✅ Cache hit: %s/%s → %s", apiGroup, resource, kind)
+		log.Printf("[DISCOVERY-DEBUG] ✅ Cache hit: %s/%s → %s", sanitizeForLog(apiGroup), sanitizeForLog(resource), sanitizeForLog(kind)) // #nosec G706 -- sanitized
 	case "not_found":
-		log.Printf("[DISCOVERY-DEBUG] ❌ Resource not found: %s/%s", apiGroup, resource)
+		log.Printf("[DISCOVERY-DEBUG] ❌ Resource not found: %s/%s", sanitizeForLog(apiGroup), sanitizeForLog(resource))
 	default:
-		log.Printf("[DISCOVERY-ERROR] Unknown discovery source '%s' for %s/%s → %s", source, apiGroup, resource, kind)
+		log.Printf("[DISCOVERY-ERROR] Unknown discovery source '%s' for %s/%s → %s", sanitizeForLog(source), sanitizeForLog(apiGroup), sanitizeForLog(resource), sanitizeForLog(kind)) // #nosec G706 -- sanitized
 	}
 
 	// Log discovery error if present

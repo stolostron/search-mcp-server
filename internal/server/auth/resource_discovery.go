@@ -90,7 +90,7 @@ func (rd *ResourceDiscovery) GetResourceKind(ctx context.Context, userToken, api
 		log.Printf("[DISCOVERY-DEBUG] 🔄 Cache stale, performing discovery...")
 		if discovered, err := rd.discoverResources(ctx, userToken); err == nil {
 			if kind, found := discovered[resource]; found {
-				log.Printf("[DISCOVERY-DEBUG] ✅ Discovery success: %s → %s", resource, kind)
+				log.Printf("[DISCOVERY-DEBUG] ✅ Discovery success: %s → %s", sanitizeForLog(resource), sanitizeForLog(kind)) // #nosec G706 -- sanitized
 				return kind, &DiscoveryResult{
 					ResourceToKind: discovered,
 					Source:         "discovery",
@@ -260,11 +260,11 @@ func (rd *ResourceDiscovery) discoverResourcesFromKubernetes(ctx context.Context
 
 		groupVersion, err := schema.ParseGroupVersion(apiResourceList.GroupVersion)
 		if err != nil {
-			log.Printf("[DISCOVERY-DEBUG] Failed to parse group version %s: %v", apiResourceList.GroupVersion, err)
+			log.Printf("[DISCOVERY-DEBUG] Failed to parse group version %s: %v", sanitizeForLog(apiResourceList.GroupVersion), err) // #nosec G706 -- sanitized
 			continue
 		}
 
-		log.Printf("[DISCOVERY-DEBUG] Processing API group: %s", groupVersion.String())
+		log.Printf("[DISCOVERY-DEBUG] Processing API group: %s", sanitizeForLog(groupVersion.String())) // #nosec G706 -- sanitized
 
 		for _, apiResource := range apiResourceList.APIResources {
 			// Map resource name to Kind

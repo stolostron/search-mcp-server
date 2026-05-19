@@ -190,7 +190,7 @@ func (h *HubRBACClient) isClusterAdmin(ctx context.Context, client kubernetes.In
 	}
 
 	isAdmin := result.Status.Allowed
-	log.Printf("[HUB-RBAC-DEBUG] Cluster admin check result: %v", isAdmin)
+	log.Printf("[HUB-RBAC-DEBUG] Cluster admin check result: %v", isAdmin) // #nosec G706 -- isAdmin is a bool, not user input
 	return isAdmin
 }
 

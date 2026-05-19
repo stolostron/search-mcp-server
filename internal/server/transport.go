@@ -159,6 +159,7 @@ func (tm *TransportManager) startConcurrent(ctx context.Context) error {
 
 			// Create cancellable context for this transport
 			transportCtx, cancel := context.WithCancel(ctx)
+			defer cancel()
 
 			tm.mutex.Lock()
 			tm.running[t.GetName()] = true

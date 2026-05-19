@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -72,7 +73,7 @@ func (m *AuthMiddleware) Handler(next http.Handler) http.Handler {
 			return
 		}
 
-		log.Printf("[AUTH] %s %s - Checking authorization", r.Method, r.URL.Path)
+		log.Printf("[AUTH] %s %s - Checking authorization", sanitizeForLog(r.Method), sanitizeForLog(r.URL.Path)) // #nosec G706 -- sanitized
 
 		// Extract authorization header
 		authHeader, headerSource := m.extractAuthHeader(r)
@@ -129,7 +130,7 @@ func (m *AuthMiddleware) Handler(next http.Handler) http.Handler {
 			validationResult.User.Username,
 			len(queryFilters.PermissionSources))
 
-		log.Printf("[AUTH] Access granted for user: %s (via %s header)", validationResult.User.Username, headerSource)
+		log.Printf("[AUTH] Access granted for user: %s (via %s header)", sanitizeForLog(validationResult.User.Username), sanitizeForLog(headerSource)) // #nosec G706 -- sanitized
 
 		// Add user context to request
 		ctx := WithUserContext(r.Context(), validationResult.User)
@@ -252,6 +253,13 @@ func RequireAuth(authMiddleware *AuthMiddleware, next http.HandlerFunc) http.Han
 	return authMiddleware.Handler(http.HandlerFunc(next)).ServeHTTP
 }
 
+
+// sanitizeForLog removes newline characters from strings to prevent log injection (G706).
+func sanitizeForLog(s string) string {
+	s = strings.ReplaceAll(s, "\n", "")
+	s = strings.ReplaceAll(s, "\r", "")
+	return s
+}
 
 // GetAuthorizedTools returns tools available to the authenticated user
 func GetAuthorizedTools(userCtx *UserContext) []string {
