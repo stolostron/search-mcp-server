@@ -47,9 +47,9 @@ deps:
 	go mod tidy
 
 # Container configuration
-REGISTRY ?= quay.io/bjoydeep
-IMAGE_NAME ?= acm-mcp-server-go
-IMAGE_TAG ?= dev
+REGISTRY ?= quay.io/stolostron
+IMAGE_NAME ?= acm-mcp-server
+IMAGE_TAG ?= dev-preview
 IMAGE ?= $(IMAGE_NAME):$(IMAGE_TAG)
 PLATFORM ?= linux/amd64
 CONTAINER_TOOL ?= podman
