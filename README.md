@@ -138,3 +138,5 @@ curl -X POST http://localhost:8080/mcp -d '{"jsonrpc":"2.0","method":"tools/list
 ```
 
 Built for Red Hat Advanced Cluster Management search integration.
+
+Updated: 05/20/2026
