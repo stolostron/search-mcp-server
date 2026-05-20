@@ -18,7 +18,7 @@ helm install acm-mcp-server ./helm/acm-mcp-server --create-namespace --namespace
 # With custom configuration
 helm install acm-mcp-server acm-search/acm-mcp-server \
   --create-namespace --namespace acm-search \
-  --set image.repository=quay.io/yourorg/acm-mcp-server-go \
+  --set image.repository=quay.io/stolostron/search-mcp-server \
   --set logLevel=debug
 ```
 

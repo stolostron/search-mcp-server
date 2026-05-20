@@ -2,8 +2,8 @@
 replicaCount: 1
 
 image:
-  repository: quay.io/bjoydeep/acm-mcp-server-go
-  tag: dev
+  repository: quay.io/stolostron/search-mcp-server
+  tag: dev-preview
   pullPolicy: Always
 
 nameOverride: ""
