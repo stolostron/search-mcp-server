@@ -39,7 +39,7 @@ spec:
     - name: hermetic
       value: 'true'
     - name: prefetch-input
-      value: '[{"type": "gomod", "path": "golang"}]'
+      value: '[{"type": "gomod", "path": "."}]'
     - name: build-args
       value:
         - MCP_VERSION=0.1
