@@ -5,18 +5,18 @@ FROM brew.registry.redhat.io/rh-osbs/openshift-golang-builder:rhel_9_1.25 AS bui
 WORKDIR /go/src/github.com/stolostron/search-mcp-server
 COPY . .
 RUN go mod vendor
-RUN CGO_ENABLED=0 go build -trimpath -o bin/acm-mcp-server-go cmd/server/main.go
+RUN CGO_ENABLED=0 go build -trimpath -o bin/acm-mcp-server cmd/server/main.go
 
 FROM registry.access.redhat.com/ubi9/ubi-minimal:latest
 
-COPY --from=builder /go/src/github.com/stolostron/search-mcp-server/bin/acm-mcp-server-go /bin/acm-mcp-server-go
+COPY --from=builder /go/src/github.com/stolostron/search-mcp-server/bin/acm-mcp-server /bin/acm-mcp-server
 
 ENV USER_UID=1001
 
 EXPOSE 8080
 
 USER ${USER_UID}
-ENTRYPOINT ["/bin/acm-mcp-server-go"]
+ENTRYPOINT ["/bin/acm-mcp-server"]
 
 ARG MCP_VERSION=${MCP_VERSION}
 
