@@ -8,13 +8,13 @@ metadata:
     pipelinesascode.tekton.dev/cancel-in-progress: "false"
     pipelinesascode.tekton.dev/max-keep-runs: "3"
     pipelinesascode.tekton.dev/on-cel-expression: event == "push" && target_branch
-      == "main"
+      == "release-0.1"
   creationTimestamp: null
   labels:
     appstudio.openshift.io/application: acm-mcp-server-0-1
-    appstudio.openshift.io/component: search-mcp-server-01
+    appstudio.openshift.io/component: search-mcp-server-0-1
     pipelines.appstudio.openshift.io/type: build
-  name: search-mcp-server-01-on-push
+  name: search-mcp-server-0-1-on-push
   namespace: acm-mcp-server-tenant
 spec:
   params:
@@ -23,7 +23,7 @@ spec:
     - name: revision
       value: '{{revision}}'
     - name: output-image
-      value: quay.io/redhat-user-workloads/acm-mcp-server-tenant/search-mcp-server-01:{{revision}}
+      value: quay.io/redhat-user-workloads/acm-mcp-server-tenant/search-mcp-server-0-1:{{revision}}
     - name: build-platforms
       value:
         - linux/x86_64
@@ -33,7 +33,7 @@ spec:
     - name: dockerfile
       value: Dockerfile.rhtap
     - name: path-context
-      value: golang
+      value: .
     - name: build-source-image
       value: 'true'
     - name: hermetic
@@ -51,9 +51,9 @@ spec:
       - name: revision
         value: main
       - name: pathInRepo
-        value: pipelines/common.yaml
+        value: pipelines/common-base.yaml
   taskRunTemplate:
-    serviceAccountName: build-pipeline-search-mcp-server-01
+    serviceAccountName: build-pipeline-search-mcp-server-0-1
   workspaces:
     - name: git-auth
       secret:
