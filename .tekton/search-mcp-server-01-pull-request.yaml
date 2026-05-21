@@ -33,7 +33,7 @@ spec:
     - name: dockerfile
       value: Dockerfile.rhtap
     - name: path-context
-      value: golang
+      value: .
     - name: build-source-image
       value: 'true'
     - name: hermetic
