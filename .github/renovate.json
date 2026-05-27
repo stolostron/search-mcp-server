@@ -13,9 +13,6 @@
           "matchBaseBranches": [
             "release-2.*"
           ],
-          "matchManagers": [
-            "gomod"
-          ],
           "enabled": false
         }
       ]
