@@ -1,0 +1,28 @@
+{
+    "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+    "dockerfile": {
+      "enabled": false
+    },
+    "gomod": {
+      "packageRules": [
+        {
+          "matchDepTypes": ["indirect"],
+          "enabled": false
+        },
+        {
+          "matchBaseBranches": [
+            "release-2.*"
+          ],
+          "matchManagers": [
+            "gomod"
+          ],
+          "enabled": false
+        }
+      ]
+    },
+    "osvVulnerabilityAlerts": true,
+    "timezone": "America/New_York",
+    "vulnerabilityAlerts": {
+        "enabled": true
+    }
+}
