@@ -504,8 +504,9 @@ func (f *FindResourcesCore) buildNamespacedConditions(source auth.PermissionSour
 				namespaceParams = append(namespaceParams, cluster)
 				namespaceParams = append(namespaceParams, resourceParams...)
 			} else {
-				namespaceCondition = resourceCondition
-				namespaceParams = resourceParams
+				// SECURITY: empty cluster with wildcard namespace would grant unscoped access — deny
+				log.Printf("[RBAC-SECURITY] Skipping wildcard namespace rule with empty cluster (would grant unscoped access)")
+				continue
 			}
 		} else {
 			namespaceCondition = fmt.Sprintf("(cluster = %s AND data->>'namespace' = %s AND (%s))", "%s", "%s", resourceCondition)
