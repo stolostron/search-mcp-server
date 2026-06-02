@@ -7,13 +7,20 @@ import (
 	"time"
 )
 
+// ResourcePermission pairs a Kubernetes Kind with its API group.
+// Prevents cross-API-group resource leakage (e.g., certificates.cert-manager.io vs certificates.networking.k8s.io).
+type ResourcePermission struct {
+	Kind     string `json:"kind"`
+	APIGroup string `json:"apigroup"`
+}
+
 // PermissionSource represents one coherent permission set following search-v2-api's proven approach.
 // Direct namespace-kind mapping prevents Cartesian products by design.
 type PermissionSource struct {
-	Source             string              `json:"source"`               // "userpermission" or "hub-kubernetes"
-	ClusterScopedKinds map[string][]string `json:"cluster_scoped_kinds"` // cluster → allowed cluster-scoped Kinds
-	NamespacedKinds    map[string][]string `json:"namespaced_kinds"`     // "cluster/namespace" → allowed Kinds mapping
-	ManagedClusters    map[string]struct{} `json:"managed_clusters"`     // Accessible managed clusters
+	Source             string                          `json:"source"`               // "userpermission-cr" or "hub-kubernetes"
+	ClusterScopedKinds map[string][]ResourcePermission `json:"cluster_scoped_kinds"` // cluster → allowed (Kind, APIGroup) pairs
+	NamespacedKinds    map[string][]ResourcePermission `json:"namespaced_kinds"`     // "cluster/namespace" → allowed (Kind, APIGroup) pairs
+	ManagedClusters    map[string]struct{}             `json:"managed_clusters"`     // Accessible managed clusters
 }
 
 // QueryFilters represents authorization filters for database queries.
@@ -33,25 +40,25 @@ func (qf *QueryFilters) HasWildcardAccess() bool {
 			return true
 		}
 
-		for _, kinds := range source.ClusterScopedKinds {
-			for _, kind := range kinds {
-				if kind == "*" {
+		for _, perms := range source.ClusterScopedKinds {
+			for _, perm := range perms {
+				if perm.Kind == "*" {
 					return true
 				}
 			}
 		}
 
-		for namespaceKey, kinds := range source.NamespacedKinds {
+		for namespaceKey, perms := range source.NamespacedKinds {
 			if strings.HasSuffix(namespaceKey, "/*") {
-				for _, kind := range kinds {
-					if kind == "*" {
+				for _, perm := range perms {
+					if perm.Kind == "*" {
 						return true
 					}
 				}
 			}
 			if namespaceKey == "*" {
-				for _, kind := range kinds {
-					if kind == "*" {
+				for _, perm := range perms {
+					if perm.Kind == "*" {
 						return true
 					}
 				}
@@ -138,16 +145,16 @@ func (qf *QueryFilters) IsResourceKindAllowed(kind string) bool {
 	}
 
 	for _, source := range qf.PermissionSources {
-		for _, clusterKinds := range source.ClusterScopedKinds {
-			for _, clusterKind := range clusterKinds {
-				if clusterKind == "*" || clusterKind == kind {
+		for _, perms := range source.ClusterScopedKinds {
+			for _, perm := range perms {
+				if perm.Kind == "*" || perm.Kind == kind {
 					return true
 				}
 			}
 		}
-		for _, kinds := range source.NamespacedKinds {
-			for _, namespacedKind := range kinds {
-				if namespacedKind == "*" || namespacedKind == kind {
+		for _, perms := range source.NamespacedKinds {
+			for _, perm := range perms {
+				if perm.Kind == "*" || perm.Kind == kind {
 					return true
 				}
 			}

@@ -172,8 +172,8 @@ func (r *RBACResolver) resolveUserPermissionAPI(ctx context.Context, userToken s
 	// Process UserPermission CRs correctly to preserve cluster-namespace relationships
 	source := &PermissionSource{
 		Source:              "userpermission-cr",
-		ClusterScopedKinds:  make(map[string][]string), // cluster → allowed cluster-scoped Kinds
-		NamespacedKinds:     make(map[string][]string), // Direct "cluster/namespace" → allowed Kinds mapping
+		ClusterScopedKinds:  make(map[string][]ResourcePermission),
+		NamespacedKinds:     make(map[string][]ResourcePermission),
 		ManagedClusters:     make(map[string]struct{}),
 	}
 
@@ -201,24 +201,28 @@ func (r *RBACResolver) resolveUserPermissionAPI(ctx context.Context, userToken s
 					continue
 				}
 
-				// Map API resource names to Kubernetes Kinds using discovery
-				var allowedKinds []string
+				// Map API resource names to Kubernetes Kinds, pairing with APIGroups
+				var allowedPerms []ResourcePermission
 				for _, resource := range rule.Resources {
 					if resource == "*" {
-						allowedKinds = append(allowedKinds, "*")
+						for _, apiGroup := range rule.APIGroups {
+							allowedPerms = append(allowedPerms, ResourcePermission{Kind: "*", APIGroup: apiGroup})
+						}
 					} else {
 						kind := r.mapResourceToKindWithToken(ctx, "", resource, userToken)
 						if kind != "" {
-							allowedKinds = append(allowedKinds, kind)
-							log.Printf("[RBAC-DEBUG] UserPerm %d, Rule %d: Mapped resource '%s' → kind '%s'", i, k, sanitizeForLog(resource), sanitizeForLog(kind)) // #nosec G706 -- sanitized
+							for _, apiGroup := range rule.APIGroups {
+								allowedPerms = append(allowedPerms, ResourcePermission{Kind: kind, APIGroup: apiGroup})
+							}
+							log.Printf("[RBAC-DEBUG] UserPerm %d, Rule %d: Mapped resource '%s' → kind '%s' (apiGroups: %v)", i, k, sanitizeForLog(resource), sanitizeForLog(kind), rule.APIGroups) // #nosec G706 -- sanitized
 						} else {
 							log.Printf("[RBAC-DEBUG] UserPerm %d, Rule %d: Failed to map resource '%s' to kind", i, k, sanitizeForLog(resource)) // #nosec G706 -- sanitized
 						}
 					}
 				}
 
-				// Skip rule if no valid kinds found
-				if len(allowedKinds) == 0 {
+				// Skip rule if no valid permissions found
+				if len(allowedPerms) == 0 {
 					log.Printf("[RBAC-DEBUG] UserPerm %d, Rule %d: Skipping, no valid kinds", i, k)
 					continue
 				}
@@ -231,15 +235,15 @@ func (r *RBACResolver) resolveUserPermissionAPI(ctx context.Context, userToken s
 
 					// Initialize cluster if not exists
 					if _, exists := source.ClusterScopedKinds[cluster]; !exists {
-						source.ClusterScopedKinds[cluster] = []string{}
+						source.ClusterScopedKinds[cluster] = []ResourcePermission{}
 					}
 
-					// Add allowed kinds to this specific cluster ONLY
-					for _, kind := range allowedKinds {
-						if !slices.Contains(source.ClusterScopedKinds[cluster], kind) {
-							source.ClusterScopedKinds[cluster] = append(source.ClusterScopedKinds[cluster], kind)
-							log.Printf("[RBAC-DEBUG] UserPerm %d, Binding %d: Added cluster-scoped kind '%s' for cluster '%s'", // #nosec G706 -- sanitized
-								i, j, sanitizeForLog(kind), sanitizeForLog(cluster))
+					// Add allowed permissions to this specific cluster ONLY
+					for _, perm := range allowedPerms {
+						if !containsResourcePermission(source.ClusterScopedKinds[cluster], perm) {
+							source.ClusterScopedKinds[cluster] = append(source.ClusterScopedKinds[cluster], perm)
+							log.Printf("[RBAC-DEBUG] UserPerm %d, Binding %d: Added cluster-scoped kind '%s' (apigroup '%s') for cluster '%s'", // #nosec G706 -- sanitized
+								i, j, sanitizeForLog(perm.Kind), sanitizeForLog(perm.APIGroup), sanitizeForLog(cluster))
 						}
 					}
 				} else {
@@ -250,15 +254,15 @@ func (r *RBACResolver) resolveUserPermissionAPI(ctx context.Context, userToken s
 
 						// Initialize namespace if not exists
 						if _, exists := source.NamespacedKinds[namespaceKey]; !exists {
-							source.NamespacedKinds[namespaceKey] = []string{}
+							source.NamespacedKinds[namespaceKey] = []ResourcePermission{}
 						}
 
-						// Add allowed kinds to this specific cluster/namespace combination
-						for _, kind := range allowedKinds {
-							if !slices.Contains(source.NamespacedKinds[namespaceKey], kind) {
-								source.NamespacedKinds[namespaceKey] = append(source.NamespacedKinds[namespaceKey], kind)
-								log.Printf("[RBAC-DEBUG] UserPerm %d, Binding %d: Added namespace '%s' → kind '%s'", // #nosec G706 -- sanitized
-									i, j, sanitizeForLog(namespaceKey), sanitizeForLog(kind))
+						// Add allowed permissions to this specific cluster/namespace combination
+						for _, perm := range allowedPerms {
+							if !containsResourcePermission(source.NamespacedKinds[namespaceKey], perm) {
+								source.NamespacedKinds[namespaceKey] = append(source.NamespacedKinds[namespaceKey], perm)
+								log.Printf("[RBAC-DEBUG] UserPerm %d, Binding %d: Added namespace '%s' → kind '%s' (apigroup '%s')", // #nosec G706 -- sanitized
+									i, j, sanitizeForLog(namespaceKey), sanitizeForLog(perm.Kind), sanitizeForLog(perm.APIGroup))
 							}
 						}
 					}
@@ -267,19 +271,19 @@ func (r *RBACResolver) resolveUserPermissionAPI(ctx context.Context, userToken s
 		}
 	}
 
-	// Count total cluster-scoped kinds across all clusters
-	totalClusterScopedKinds := 0
-	for _, kinds := range source.ClusterScopedKinds {
-		totalClusterScopedKinds += len(kinds)
+	// Count total cluster-scoped permissions across all clusters
+	totalClusterScopedPerms := 0
+	for _, perms := range source.ClusterScopedKinds {
+		totalClusterScopedPerms += len(perms)
 	}
-	log.Printf("[RBAC-DEBUG] UserPermission CR source: %d cluster-scoped kinds across %d clusters, %d namespace mappings, %d managed clusters",
-		totalClusterScopedKinds, len(source.ClusterScopedKinds), len(source.NamespacedKinds), len(source.ManagedClusters))
+	log.Printf("[RBAC-DEBUG] UserPermission CR source: %d cluster-scoped perms across %d clusters, %d namespace mappings, %d managed clusters",
+		totalClusterScopedPerms, len(source.ClusterScopedKinds), len(source.NamespacedKinds), len(source.ManagedClusters))
 
 	// Additional debug: show the actual mappings to verify cluster-kind relationships
 	if logLevel := os.Getenv("LOG_LEVEL"); logLevel == "debug" {
-		log.Printf("[RBAC-DEBUG] Cluster-scoped kinds by cluster: %v", source.ClusterScopedKinds)
-		for nsKey, kinds := range source.NamespacedKinds {
-			log.Printf("[RBAC-DEBUG] Namespace '%s' → kinds: %v", nsKey, kinds)
+		log.Printf("[RBAC-DEBUG] Cluster-scoped perms by cluster: %v", source.ClusterScopedKinds)
+		for nsKey, perms := range source.NamespacedKinds {
+			log.Printf("[RBAC-DEBUG] Namespace '%s' → perms: %v", nsKey, perms)
 		}
 		var clusters []string
 		for cluster := range source.ManagedClusters {
@@ -289,6 +293,16 @@ func (r *RBACResolver) resolveUserPermissionAPI(ctx context.Context, userToken s
 	}
 
 	return source, nil
+}
+
+// containsResourcePermission checks if a slice already contains a matching ResourcePermission
+func containsResourcePermission(perms []ResourcePermission, target ResourcePermission) bool {
+	for _, p := range perms {
+		if p.Kind == target.Kind && p.APIGroup == target.APIGroup {
+			return true
+		}
+	}
+	return false
 }
 
 // resolveHubKubernetesAPI handles hub cluster permissions using direct namespace→resource mapping
@@ -307,8 +321,8 @@ func (r *RBACResolver) resolveHubKubernetesAPI(ctx context.Context, userToken st
 	// Convert to direct mapping structure (NO Cartesian products)
 	source := &PermissionSource{
 		Source:              "hub-kubernetes",
-		ClusterScopedKinds:  make(map[string][]string), // cluster → allowed cluster-scoped Kinds
-		NamespacedKinds:     make(map[string][]string), // Direct namespace→resource mapping
+		ClusterScopedKinds:  make(map[string][]ResourcePermission),
+		NamespacedKinds:     make(map[string][]ResourcePermission),
 		ManagedClusters:     map[string]struct{}{hubPermissions.HubClusterName: {}}, // Hub cluster only (dynamically detected)
 	}
 
@@ -318,13 +332,14 @@ func (r *RBACResolver) resolveHubKubernetesAPI(ctx context.Context, userToken st
 
 		// Initialize hub cluster if not exists
 		if _, exists := source.ClusterScopedKinds[hubCluster]; !exists {
-			source.ClusterScopedKinds[hubCluster] = []string{}
+			source.ClusterScopedKinds[hubCluster] = []ResourcePermission{}
 		}
 
 		for _, resource := range hubPermissions.ClusterScopedResources {
-			if !slices.Contains(source.ClusterScopedKinds[hubCluster], resource.Kind) {
-				source.ClusterScopedKinds[hubCluster] = append(source.ClusterScopedKinds[hubCluster], resource.Kind)
-				log.Printf("[HUB-RBAC-DEBUG] Added hub cluster-scoped kind: %s for cluster: %s", sanitizeForLog(resource.Kind), sanitizeForLog(hubCluster)) // #nosec G706 -- sanitized
+			perm := ResourcePermission{Kind: resource.Kind, APIGroup: resource.Group}
+			if !containsResourcePermission(source.ClusterScopedKinds[hubCluster], perm) {
+				source.ClusterScopedKinds[hubCluster] = append(source.ClusterScopedKinds[hubCluster], perm)
+				log.Printf("[HUB-RBAC-DEBUG] Added hub cluster-scoped kind: %s (apigroup: %s) for cluster: %s", sanitizeForLog(resource.Kind), sanitizeForLog(resource.Group), sanitizeForLog(hubCluster)) // #nosec G706 -- sanitized
 			}
 		}
 	}
@@ -333,25 +348,26 @@ func (r *RBACResolver) resolveHubKubernetesAPI(ctx context.Context, userToken st
 	for namespace, resources := range hubPermissions.NamespacedKinds {
 		// Initialize namespace if not exists
 		if _, exists := source.NamespacedKinds[namespace]; !exists {
-			source.NamespacedKinds[namespace] = []string{}
+			source.NamespacedKinds[namespace] = []ResourcePermission{}
 		}
 
-		// Add each resource kind to this specific namespace (prevents cross-multiplication)
+		// Add each resource permission to this specific namespace (prevents cross-multiplication)
 		for _, resource := range resources {
-			if !slices.Contains(source.NamespacedKinds[namespace], resource.Kind) {
-				source.NamespacedKinds[namespace] = append(source.NamespacedKinds[namespace], resource.Kind)
-				log.Printf("[HUB-RBAC-DEBUG] Added hub namespace '%s' → kind '%s'", sanitizeForLog(namespace), sanitizeForLog(resource.Kind)) // #nosec G706 -- sanitized
+			perm := ResourcePermission{Kind: resource.Kind, APIGroup: resource.Group}
+			if !containsResourcePermission(source.NamespacedKinds[namespace], perm) {
+				source.NamespacedKinds[namespace] = append(source.NamespacedKinds[namespace], perm)
+				log.Printf("[HUB-RBAC-DEBUG] Added hub namespace '%s' → kind '%s' (apigroup: '%s')", sanitizeForLog(namespace), sanitizeForLog(resource.Kind), sanitizeForLog(resource.Group)) // #nosec G706 -- sanitized
 			}
 		}
 	}
 
-	// Count total cluster-scoped kinds across all clusters
-	totalClusterScopedKinds := 0
-	for _, kinds := range source.ClusterScopedKinds {
-		totalClusterScopedKinds += len(kinds)
+	// Count total cluster-scoped permissions across all clusters
+	totalClusterScopedPerms := 0
+	for _, perms := range source.ClusterScopedKinds {
+		totalClusterScopedPerms += len(perms)
 	}
-	log.Printf("[HUB-RBAC-DEBUG] Hub permissions: %d cluster-scoped kinds across %d clusters, %d namespace mappings",
-		totalClusterScopedKinds, len(source.ClusterScopedKinds), len(source.NamespacedKinds))
+	log.Printf("[HUB-RBAC-DEBUG] Hub permissions: %d cluster-scoped perms across %d clusters, %d namespace mappings",
+		totalClusterScopedPerms, len(source.ClusterScopedKinds), len(source.NamespacedKinds))
 
 	return source, hubPermissions.HubClusterName, nil
 }
