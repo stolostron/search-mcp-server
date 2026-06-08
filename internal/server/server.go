@@ -101,8 +101,9 @@ func NewPostgresMCPServerWithConfig(serverConfig *ServerConfig) (*PostgresMCPSer
 	// Initialize database queries
 	dbQueries := database.NewDatabaseQueries(dbConn)
 
-	// Initialize find resources core
-	findCore := findresources.NewFindResourcesCore(dbQueries)
+	// Initialize find resources core with configured sanitization mode.
+	// MCP_SANITIZATION_MODE controls prompt injection handling: allow, warn, or block (default).
+	findCore := findresources.NewFindResourcesCoreWithMode(dbQueries, serverConfig.SanitizationMode)
 	formatter := findresources.NewFindResourcesFormatter()
 
 	// Create server instance

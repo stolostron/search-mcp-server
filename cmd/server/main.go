@@ -95,6 +95,7 @@ Environment Variables:
   MCP_ENABLE_STREAMING      Enable streaming for large datasets (default: true)
   MCP_STREAM_BUFFER         Resources per chunk (default: 100)
   MCP_MAX_RESPONSE_SIZE     Max resources before streaming (default: 1000)
+  MCP_SANITIZATION_MODE     Prompt injection handling: allow, warn, block (default: block)
   LOG_LEVEL                 Log level: debug, info (default: info)
 
 Examples:
