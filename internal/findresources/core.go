@@ -22,24 +22,12 @@ type FindResourcesCore struct {
 	sanitizer *sanitize.Sanitizer
 }
 
-// NewFindResourcesCore creates a new instance of FindResourcesCore with the
-// default sanitization mode (block). Existing callers are unaffected.
+// NewFindResourcesCore creates a new instance of FindResourcesCore.
+// Detected prompt injection patterns in resource metadata are always redacted.
 func NewFindResourcesCore(dbQueries *database.DatabaseQueries) *FindResourcesCore {
-	return newFindResourcesCoreWithMode(dbQueries, string(sanitize.ModeBlock))
-}
-
-// NewFindResourcesCoreWithMode creates a FindResourcesCore with a custom
-// sanitization mode ("allow", "warn", or "block").
-func NewFindResourcesCoreWithMode(dbQueries *database.DatabaseQueries, mode string) *FindResourcesCore {
-	return newFindResourcesCoreWithMode(dbQueries, mode)
-}
-
-func newFindResourcesCoreWithMode(dbQueries *database.DatabaseQueries, mode string) *FindResourcesCore {
-	cfg := sanitize.DefaultConfig()
-	cfg.Mode = sanitize.Mode(mode)
 	return &FindResourcesCore{
 		dbQueries: dbQueries,
-		sanitizer: sanitize.New(cfg),
+		sanitizer: sanitize.New(sanitize.DefaultConfig()),
 	}
 }
 
@@ -1019,6 +1007,9 @@ func (f *FindResourcesCore) processCountMode(queryResult *types.QueryResult, arg
 		if !ok {
 			continue
 		}
+
+		// Sanitize resource data to prevent prompt injection via groupBy labels/status.
+		dataMap = f.sanitizer.SanitizeResourceDataMap(dataMap)
 
 		// Determine grouping key based on groupBy parameter
 		groupKey := f.extractGroupKey(dataMap, row, args.GroupBy)

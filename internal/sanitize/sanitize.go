@@ -5,38 +5,36 @@ import (
 	"log"
 )
 
-// RedactionMarker is the string used to replace redacted values in block mode.
+// RedactionMarker is the string used to replace values containing injection patterns.
 const RedactionMarker = "[REDACTED: potential prompt injection detected]"
 
 // Sanitizer applies prompt injection sanitization to resource metadata.
-// It is safe to use from multiple goroutines.
+// Detected injection patterns are always redacted. It is safe to use from
+// multiple goroutines.
 type Sanitizer struct {
 	cfg Config
 }
 
 // New returns a Sanitizer with the given configuration.
+// It makes a defensive copy of cfg.FieldPolicy so that the caller cannot
+// affect the Sanitizer's behavior by mutating the map after construction.
 func New(cfg Config) *Sanitizer {
+	fp := make(map[string]FieldPolicy, len(cfg.FieldPolicy))
+	for k, v := range cfg.FieldPolicy {
+		fp[k] = v
+	}
+	cfg.FieldPolicy = fp
 	return &Sanitizer{cfg: cfg}
 }
 
 // SanitizeString checks a single string value for injection patterns.
-// It returns the (possibly redacted) string and whether a detection occurred.
-//
-//   - ModeAllow: always returns (value, false) — no-op.
-//   - ModeWarn:  logs a warning, returns (value, true) — value is unchanged.
-//   - ModeBlock: returns (RedactionMarker, true) — value is replaced.
+// If a pattern is detected the RedactionMarker is returned and detected is true.
+// Otherwise the original value and false are returned.
 func (s *Sanitizer) SanitizeString(field, value string) (string, bool) {
-	if s.cfg.Mode == ModeAllow {
-		return value, false
-	}
 	if !InjectionDetected(value) {
 		return value, false
 	}
-	log.Printf("[sanitize] prompt injection pattern detected in field %q (mode=%s)", field, s.cfg.Mode)
-	if s.cfg.Mode == ModeWarn {
-		return value, true
-	}
-	// ModeBlock
+	log.Printf("[sanitize] prompt injection pattern detected in field %q", field)
 	return RedactionMarker, true
 }
 
@@ -47,8 +45,8 @@ func (s *Sanitizer) SanitizeString(field, value string) (string, bool) {
 //
 // The input map is never mutated; a new map is always returned.
 func (s *Sanitizer) SanitizeResourceDataMap(dataMap map[string]interface{}) map[string]interface{} {
-	if s.cfg.Mode == ModeAllow {
-		return dataMap
+	if dataMap == nil {
+		return nil
 	}
 	result := make(map[string]interface{}, len(dataMap))
 	for k, v := range dataMap {
@@ -60,7 +58,7 @@ func (s *Sanitizer) SanitizeResourceDataMap(dataMap map[string]interface{}) map[
 		case PolicySkip:
 			result[k] = v
 		case PolicyRedactFully:
-			log.Printf("[sanitize] fully redacting field %q (mode=%s)", k, s.cfg.Mode)
+			log.Printf("[sanitize] fully redacting field %q", k)
 			result[k] = RedactionMarker
 		default: // PolicySanitizeStrings
 			result[k] = s.sanitizeValue(k, v)

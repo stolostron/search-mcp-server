@@ -25,9 +25,8 @@ type ServerConfig struct {
 	MaxResponseSize  int  `env:"MCP_MAX_RESPONSE_SIZE" default:"1000"` // Max resources before streaming
 
 	// Security Configuration
-	EnableCORS       bool     `env:"MCP_ENABLE_CORS" default:"true"`
-	AllowedOrigins   []string `env:"MCP_ALLOWED_ORIGINS" default:"*"`
-	SanitizationMode string   `env:"MCP_SANITIZATION_MODE" default:"block"` // allow, warn, block
+	EnableCORS     bool     `env:"MCP_ENABLE_CORS" default:"true"`
+	AllowedOrigins []string `env:"MCP_ALLOWED_ORIGINS" default:"*"`
 
 	// Authentication Configuration (auto-enabled in Kubernetes environments)
 	EnableAuth        bool          `env:"MCP_ENABLE_AUTH"`                    // Smart default: auto-detect K8s
@@ -82,7 +81,6 @@ func LoadServerConfig() *ServerConfig {
 
 	// Security Configuration
 	config.EnableCORS = getEnvBoolOrDefault("MCP_ENABLE_CORS", true)
-	config.SanitizationMode = getEnvOrDefault("MCP_SANITIZATION_MODE", "block")
 	originsStr := getEnvOrDefault("MCP_ALLOWED_ORIGINS", "*")
 	if originsStr == "*" {
 		config.AllowedOrigins = []string{"*"}

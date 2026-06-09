@@ -1,12 +1,10 @@
 sessions:
----
 - date: "2026-06-08"
   title: "[search-mcp] SAR-01: Create implementation plan for prompt injection mitigation"
   jira: "ACM-34948"
   jira_url: "https://redhat.atlassian.net/browse/ACM-34948"
-  pr: ~
-  summary: "Define the implementation plan to resolve the prompt injection vulnerability in search-mcp tool responses"
----
+  pr: "https://github.com/stolostron/search-mcp-server/pull/55"
+  summary: "Implemented internal/sanitize/ package with injection-pattern regexes applied to processListMode, processCountMode, and processHealthMode"
 - date: "2026-06-04"
   title: "Investigate prompt injection mitigations for find_resources tool responses"
   jira: "ACM-32466"

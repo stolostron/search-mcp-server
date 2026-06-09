@@ -21,7 +21,7 @@ func GetCentralizedToolDefinitions() []ToolDefinition {
 	return []ToolDefinition{
 		{
 			Name:        "find_resources",
-			Description: "Find and analyze Kubernetes resources across ACM managed clusters with advanced filtering, counting, and health analysis. Note: free-text metadata fields (status messages, annotations, labels) are sanitized for security — values matching known prompt injection patterns are replaced with a redaction marker.",
+			Description: "Find and analyze Kubernetes resources across ACM managed clusters with advanced filtering, counting, and health analysis. Security note: free-text metadata fields (status messages, annotations, labels) are inspected for prompt injection patterns and matching values are replaced with a redaction marker.",
 			Options: []mcp.ToolOption{
 				// Basic filters
 				mcp.WithString("kind",
