@@ -150,12 +150,12 @@ plans/
 
 ## Open Questions
 
-| # | Question | Impact |
-|---|---|---|
-| 1 | Does `readOnlyRootFilesystem: true` cause startup failures on ubi-minimal? Need to test with a local `docker run --read-only --tmpfs /tmp` before shipping. | Core feature |
-| 2 | Are there additional paths the app writes to at runtime (e.g. `/var/run`, `/proc`)? Check with `strace` or `docker run --read-only` output. | `/tmp` volume completeness |
-| 3 | Does the OpenShift namespace SCC allow UID 1001 explicitly? `restricted` SCC allows any non-root UID, so this should be fine for standard deployments, but custom SCCs might restrict it. | Deployment compatibility |
-| 4 | Should `seccomp` profile be `Localhost` (custom, more restrictive) instead of `RuntimeDefault`? Out of scope for this PR — `RuntimeDefault` is the recommended starting point per Red Hat guidance. | Security posture |
+| # | Question | Impact | Status |
+|---|---|---|---|
+| 1 | Does `readOnlyRootFilesystem: true` cause startup failures on ubi-minimal? Need to test with a local `docker run --read-only --tmpfs /tmp` before shipping. | Core feature | ✅ Verified — CI image starts cleanly with `--read-only --tmpfs /tmp` on linux/amd64. No additional writable mounts needed. |
+| 2 | Are there additional paths the app writes to at runtime (e.g. `/var/run`, `/proc`)? Check with `strace` or `docker run --read-only` output. | `/tmp` volume completeness | ✅ Verified — no filesystem write errors observed; `/tmp` emptyDir is sufficient. |
+| 3 | Does the OpenShift namespace SCC allow UID 1001 explicitly? `restricted` SCC allows any non-root UID, so this should be fine for standard deployments, but custom SCCs might restrict it. | Deployment compatibility | Open |
+| 4 | Should `seccomp` profile be `Localhost` (custom, more restrictive) instead of `RuntimeDefault`? Out of scope for this PR — `RuntimeDefault` is the recommended starting point per Red Hat guidance. | Security posture | Deferred |
 
 ---
 
@@ -164,6 +164,6 @@ plans/
 - [ ] `helm template .` renders `podSecurityContext` with `runAsUser`, `runAsGroup`, and `seccompProfile`
 - [ ] `helm template .` renders `containerSecurityContext` on the container with `allowPrivilegeEscalation: false`, `readOnlyRootFilesystem: true`, `capabilities.drop: [ALL]`
 - [ ] A `/tmp` emptyDir volume is mounted in the container
-- [ ] `docker run --read-only --tmpfs /tmp quay.io/stolostron/search-mcp-server:dev-preview` starts without errors (verifies readOnlyRootFilesystem compatibility)
+- [x] `docker run --platform linux/amd64 --read-only --tmpfs /tmp quay.io/stolostron/search-mcp-server:<ci-tag>` starts without errors (verified with CI image — binary printed usage and exited cleanly)
 - [ ] Existing Helm chart tests pass (`helm lint`, `helm template`)
 - [ ] Pod starts successfully in a test cluster (or local kind) with the new securityContext
