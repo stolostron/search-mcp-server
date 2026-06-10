@@ -1,7 +1,6 @@
 # ACM-35066: Implementation Plan — Container Security Hardening
 
-**Jira:** https://redhat.atlassian.net/browse/ACM-35066
-**Parent:** https://redhat.atlassian.net/browse/ACM-32468
+**Jira:** https://redhat.atlassian.net/browse/ACM-32468
 **Date:** 2026-06-10
 
 ---
