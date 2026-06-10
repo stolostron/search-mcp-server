@@ -141,7 +141,7 @@ helm/acm-mcp-server/
   templates/
     deployment.yaml      modified  (container securityContext + /tmp volume)
 plans/
-  ACM-35066-container-hardening-plan.md   new (this file)
+  ACM-3506632468-container-hardening-plan.md   new (this file)
   INDEX.md                                modified
 ```
 
