@@ -1,0 +1,25 @@
+sessions:
+- date: "2026-06-10"
+  title: "[search-mcp] SAR-03: Create implementation plan for container security hardening"
+  jira: "ACM-35066"
+  jira_url: "https://redhat.atlassian.net/browse/ACM-35066"
+  pr: ~
+  summary: "Plan the Helm chart changes to add full container security hardening: drop ALL capabilities, readOnlyRootFilesystem, allowPrivilegeEscalation=false, seccomp RuntimeDefault, explicit runAsUser/runAsGroup"
+- date: "2026-06-10"
+  title: "[search-mcp] SAR-02: Create implementation plan for MCP Gateway adoption"
+  jira: "ACM-35061"
+  jira_url: "https://redhat.atlassian.net/browse/ACM-35061"
+  pr: ~
+  summary: "Plan how to integrate Kuadrant MCP Gateway in front of search-mcp-server to address network isolation, rate limiting, and body size enforcement"
+- date: "2026-06-08"
+  title: "[search-mcp] SAR-01: Create implementation plan for prompt injection mitigation"
+  jira: "ACM-34948"
+  jira_url: "https://redhat.atlassian.net/browse/ACM-34948"
+  pr: "https://github.com/stolostron/search-mcp-server/pull/55"
+  summary: "Implemented internal/sanitize/ package with injection-pattern regexes applied to processListMode, processCountMode, and processHealthMode"
+- date: "2026-06-04"
+  title: "Investigate prompt injection mitigations for find_resources tool responses"
+  jira: "ACM-32466"
+  jira_url: "https://redhat.atlassian.net/browse/ACM-32466"
+  pr: ~
+  summary: "Research and document mitigations for prompt injection via tool responses in search-mcp-server"
