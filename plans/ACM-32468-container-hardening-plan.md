@@ -154,7 +154,7 @@ plans/
 | 1 | Does `readOnlyRootFilesystem: true` cause startup failures on ubi-minimal? Need to test with a local `docker run --read-only --tmpfs /tmp` before shipping. | Core feature | ✅ Verified — CI image starts cleanly with `--read-only --tmpfs /tmp` on linux/amd64. No additional writable mounts needed. |
 | 2 | Are there additional paths the app writes to at runtime (e.g. `/var/run`, `/proc`)? Check with `strace` or `docker run --read-only` output. | `/tmp` volume completeness | ✅ Verified — no filesystem write errors observed; `/tmp` emptyDir is sufficient. |
 | 3 | Does the OpenShift namespace SCC allow UID 1001 explicitly? `restricted` SCC allows any non-root UID, so this should be fine for standard deployments, but custom SCCs might restrict it. | Deployment compatibility | ✅ Resolved — `restricted-v2` uses `MustRunAsRange` with namespace UID range `1000770000/10000`; UID 1001 is outside this range. Removed `runAsUser`/`runAsGroup` from values.yaml; OpenShift assigns the UID automatically. |
-| 4 | Should `seccomp` profile be `Localhost` (custom, more restrictive) instead of `RuntimeDefault`? Out of scope for this PR — `RuntimeDefault` is the recommended starting point per Red Hat guidance. | Security posture | Deferred |
+| 4 | Should `seccomp` profile be `Localhost` (custom, more restrictive) instead of `RuntimeDefault`? Out of scope for this PR — `RuntimeDefault` is the recommended starting point per Red Hat guidance. | Security posture | ✅ Resolved — `restricted-v2` SCC only permits `["runtime/default"]`; `Localhost` would fail admission. All other ACM pods in `open-cluster-management` use `RuntimeDefault`. No action needed. |
 
 ---
 
