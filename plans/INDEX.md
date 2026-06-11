@@ -1,4 +1,10 @@
 sessions:
+- date: "2026-06-10"
+  title: "[search-mcp] SAR-03: Create implementation plan for container security hardening"
+  jira: "ACM-32468"
+  jira_url: "https://redhat.atlassian.net/browse/ACM-32468"
+  pr: "https://github.com/stolostron/search-mcp-server/pull/56"
+  summary: "Plan the Helm chart changes to add full container security hardening: drop ALL capabilities, readOnlyRootFilesystem, allowPrivilegeEscalation=false, seccomp RuntimeDefault, explicit runAsUser/runAsGroup"
 - date: "2026-06-08"
   title: "[search-mcp] SAR-01: Prompt injection mitigation (implemented)"
   jira: "ACM-32466"
@@ -6,4 +12,3 @@ sessions:
   pr: "https://github.com/stolostron/search-mcp-server/pull/55"
   plan: "plans/ACM-32466-prompt-injection-implementation-plan.md"
   summary: "Shipped internal/sanitize/ (always-redact regexes) wired into processListMode, processCountMode, and processHealthMode; MCP_SANITIZATION_MODE and integration tests deferred"
-

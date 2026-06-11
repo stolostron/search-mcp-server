@@ -49,7 +49,7 @@ deps:
 # Container configuration
 REGISTRY ?= quay.io/stolostron
 IMAGE_NAME ?= acm-mcp-server
-IMAGE_TAG ?= dev-preview
+IMAGE_TAG ?= v0.1.0
 IMAGE ?= $(IMAGE_NAME):$(IMAGE_TAG)
 PLATFORM ?= linux/amd64
 CONTAINER_TOOL ?= podman

@@ -3,7 +3,7 @@ replicaCount: 1
 
 image:
   repository: quay.io/stolostron/search-mcp-server
-  tag: dev-preview
+  tag: v0.1.0
   pullPolicy: Always
 
 nameOverride: ""
@@ -78,8 +78,22 @@ healthCheck:
   periodSeconds: 10
 
 # Pod security context
+# Note: runAsUser/runAsGroup are intentionally omitted — OpenShift automatically assigns
+# a UID from the namespace's allocated SCC range (MustRunAsRange). Hardcoding UID 1001
+# would fail admission since project UID ranges are typically in the 1000000000+ space.
+# runAsNonRoot: true ensures the assigned UID is always non-root.
 podSecurityContext:
   runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+# Container security context
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
 
 # Node selection
 nodeSelector: {}

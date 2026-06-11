@@ -221,7 +221,7 @@ logLevel: "debug"   # Verbose: includes configuration dump, connectivity details
 ```bash
 helm install acm-mcp-server ./helm/acm-mcp-server \
   --set image.repository=quay.io/stolostron/search-mcp-server \
-  --set image.tag=dev-preview
+  --set image.tag=v0.1.0
 ```
 
 ### Resource Limits
