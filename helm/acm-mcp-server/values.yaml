@@ -78,10 +78,12 @@ healthCheck:
   periodSeconds: 10
 
 # Pod security context
+# Note: runAsUser/runAsGroup are intentionally omitted — OpenShift automatically assigns
+# a UID from the namespace's allocated SCC range (MustRunAsRange). Hardcoding UID 1001
+# would fail admission since project UID ranges are typically in the 1000000000+ space.
+# runAsNonRoot: true ensures the assigned UID is always non-root.
 podSecurityContext:
   runAsNonRoot: true
-  runAsUser: 1001
-  runAsGroup: 1001
   seccompProfile:
     type: RuntimeDefault
 

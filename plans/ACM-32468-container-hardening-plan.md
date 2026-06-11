@@ -1,4 +1,4 @@
-# ACM-35066: Implementation Plan — Container Security Hardening
+# ACM-32468: Implementation Plan — Container Security Hardening
 
 **Jira:** https://redhat.atlassian.net/browse/ACM-32468
 **Date:** 2026-06-10
@@ -33,7 +33,7 @@ implicitly allowed.
 | Read-only filesystem | writable | `readOnlyRootFilesystem: true` + `/tmp` emptyDir |
 | Privilege escalation | allowed (default) | `allowPrivilegeEscalation: false` |
 | Seccomp profile | none | `RuntimeDefault` |
-| Explicit UID/GID | only `runAsNonRoot: true` | `runAsUser: 1001`, `runAsGroup: 1001` |
+| Explicit UID/GID | only `runAsNonRoot: true` | omitted — OpenShift assigns from SCC range |
 
 ---
 
@@ -45,10 +45,11 @@ Replace the current `podSecurityContext` block and add a new `containerSecurityC
 
 ```yaml
 # Pod-level security context
+# runAsUser/runAsGroup intentionally omitted — OpenShift SCC (MustRunAsRange) assigns
+# a UID from the namespace's allocated range (e.g. 1000770000/10000). Hardcoding 1001
+# would fail SCC admission. runAsNonRoot: true ensures the assigned UID is non-root.
 podSecurityContext:
   runAsNonRoot: true
-  runAsUser: 1001        # matches Dockerfile USER_UID
-  runAsGroup: 1001
   seccompProfile:
     type: RuntimeDefault
 
@@ -121,15 +122,14 @@ dangerous ones (`ptrace`, `mount`, `reboot`, etc.). Safe for this workload.
 `Localhost` (a custom profile) would be more restrictive but requires a profile file
 shipped to every node — not practical at this stage.
 
-### `runAsUser: 1001` / `runAsGroup: 1001`
-Matches the UID already set in the Dockerfile (`USER_UID=1001`). No functional change;
-makes the intent explicit and prevents the pod from being scheduled if the image were
-accidentally rebuilt without the `USER` directive.
+### `runAsUser` / `runAsGroup` — intentionally omitted
+OpenShift uses `MustRunAsRange` on the `restricted-v2` SCC, assigning UIDs from the
+namespace's allocated range (verified: `1000770000/10000` on the test cluster). Hardcoding
+UID 1001 would fall outside this range and fail SCC admission.
 
-In OpenShift, when `runAsNonRoot: true` is set without a UID, the platform assigns a
-random UID from the namespace SCC range. Explicit UID 1001 means we must ensure the
-namespace SCC allows UID 1001 (the `restricted` SCC on OCP allows any UID > 0, so this
-is fine for standard deployments).
+`runAsNonRoot: true` is sufficient — OpenShift guarantees the assigned UID is non-root,
+and the Dockerfile's `USER 1001` serves as a fallback for plain Kubernetes environments
+where no SCC is present.
 
 ---
 
@@ -141,7 +141,7 @@ helm/acm-mcp-server/
   templates/
     deployment.yaml      modified  (container securityContext + /tmp volume)
 plans/
-  ACM-3506632468-container-hardening-plan.md   new (this file)
+  ACM-32468-container-hardening-plan.md   new (this file)
   INDEX.md                                modified
 ```
 
@@ -153,14 +153,14 @@ plans/
 |---|---|---|---|
 | 1 | Does `readOnlyRootFilesystem: true` cause startup failures on ubi-minimal? Need to test with a local `docker run --read-only --tmpfs /tmp` before shipping. | Core feature | ✅ Verified — CI image starts cleanly with `--read-only --tmpfs /tmp` on linux/amd64. No additional writable mounts needed. |
 | 2 | Are there additional paths the app writes to at runtime (e.g. `/var/run`, `/proc`)? Check with `strace` or `docker run --read-only` output. | `/tmp` volume completeness | ✅ Verified — no filesystem write errors observed; `/tmp` emptyDir is sufficient. |
-| 3 | Does the OpenShift namespace SCC allow UID 1001 explicitly? `restricted` SCC allows any non-root UID, so this should be fine for standard deployments, but custom SCCs might restrict it. | Deployment compatibility | Open |
+| 3 | Does the OpenShift namespace SCC allow UID 1001 explicitly? `restricted` SCC allows any non-root UID, so this should be fine for standard deployments, but custom SCCs might restrict it. | Deployment compatibility | ✅ Resolved — `restricted-v2` uses `MustRunAsRange` with namespace UID range `1000770000/10000`; UID 1001 is outside this range. Removed `runAsUser`/`runAsGroup` from values.yaml; OpenShift assigns the UID automatically. |
 | 4 | Should `seccomp` profile be `Localhost` (custom, more restrictive) instead of `RuntimeDefault`? Out of scope for this PR — `RuntimeDefault` is the recommended starting point per Red Hat guidance. | Security posture | Deferred |
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] `helm template .` renders `podSecurityContext` with `runAsUser`, `runAsGroup`, and `seccompProfile`
+- [ ] `helm template .` renders `podSecurityContext` with `runAsNonRoot: true` and `seccompProfile` (no `runAsUser`/`runAsGroup` — omitted for OpenShift SCC compatibility)
 - [ ] `helm template .` renders `containerSecurityContext` on the container with `allowPrivilegeEscalation: false`, `readOnlyRootFilesystem: true`, `capabilities.drop: [ALL]`
 - [ ] A `/tmp` emptyDir volume is mounted in the container
 - [x] `docker run --platform linux/amd64 --read-only --tmpfs /tmp quay.io/stolostron/search-mcp-server:<ci-tag>` starts without errors (verified with CI image — binary printed usage and exited cleanly)
