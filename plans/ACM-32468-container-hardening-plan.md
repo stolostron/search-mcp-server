@@ -160,9 +160,9 @@ plans/
 
 ## Acceptance Criteria
 
-- [ ] `helm template .` renders `podSecurityContext` with `runAsNonRoot: true` and `seccompProfile` (no `runAsUser`/`runAsGroup` — omitted for OpenShift SCC compatibility)
-- [ ] `helm template .` renders `containerSecurityContext` on the container with `allowPrivilegeEscalation: false`, `readOnlyRootFilesystem: true`, `capabilities.drop: [ALL]`
-- [ ] A `/tmp` emptyDir volume is mounted in the container
+- [x] `helm template .` renders `podSecurityContext` with `runAsNonRoot: true` and `seccompProfile` (no `runAsUser`/`runAsGroup` — omitted for OpenShift SCC compatibility)
+- [x] `helm template .` renders `containerSecurityContext` on the container with `allowPrivilegeEscalation: false`, `readOnlyRootFilesystem: true`, `capabilities.drop: [ALL]`
+- [x] A `/tmp` emptyDir volume is mounted in the container
 - [x] `docker run --platform linux/amd64 --read-only --tmpfs /tmp quay.io/stolostron/search-mcp-server:<ci-tag>` starts without errors (verified with CI image — binary printed usage and exited cleanly)
-- [ ] Existing Helm chart tests pass (`helm lint`, `helm template`)
-- [ ] Pod starts successfully in a test cluster (or local kind) with the new securityContext
+- [x] Existing Helm chart tests pass (`helm lint`, `helm template`) — 0 failures, 1 info (icon recommended)
+- [ ] Pod starts successfully in a test cluster with the new securityContext
