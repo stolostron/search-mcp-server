@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/stolostron/search-mcp-server/internal/sanitize"
 	"github.com/stolostron/search-mcp-server/internal/server/auth"
 	"github.com/stolostron/search-mcp-server/internal/utils"
 	"github.com/stolostron/search-mcp-server/pkg/database"
@@ -18,12 +19,15 @@ import (
 // FindResourcesCore implements the main find_resources logic
 type FindResourcesCore struct {
 	dbQueries *database.DatabaseQueries
+	sanitizer *sanitize.Sanitizer
 }
 
-// NewFindResourcesCore creates a new instance of FindResourcesCore
+// NewFindResourcesCore creates a new instance of FindResourcesCore.
+// Detected prompt injection patterns in resource metadata are always redacted.
 func NewFindResourcesCore(dbQueries *database.DatabaseQueries) *FindResourcesCore {
 	return &FindResourcesCore{
 		dbQueries: dbQueries,
+		sanitizer: sanitize.New(sanitize.DefaultConfig()),
 	}
 }
 
@@ -923,6 +927,9 @@ func (f *FindResourcesCore) processListMode(queryResult *types.QueryResult, args
 			continue
 		}
 
+		// Sanitize resource data to prevent prompt injection via metadata fields.
+		dataMap = f.sanitizer.SanitizeResourceDataMap(dataMap)
+
 		// Extract standard fields
 		resource := ResourceResult{
 			Cluster: cluster,
@@ -1000,6 +1007,9 @@ func (f *FindResourcesCore) processCountMode(queryResult *types.QueryResult, arg
 		if !ok {
 			continue
 		}
+
+		// Sanitize resource data to prevent prompt injection via groupBy labels/status.
+		dataMap = f.sanitizer.SanitizeResourceDataMap(dataMap)
 
 		// Determine grouping key based on groupBy parameter
 		groupKey := f.extractGroupKey(dataMap, row, args.GroupBy)
@@ -1105,6 +1115,9 @@ func (f *FindResourcesCore) processHealthMode(queryResult *types.QueryResult, ar
 		if !ok {
 			continue
 		}
+
+		// Sanitize resource data to prevent prompt injection via status/metadata fields.
+		dataMap = f.sanitizer.SanitizeResourceDataMap(dataMap)
 
 		// Determine health status
 		healthStatus, actualStatus := f.determineHealthStatus(dataMap)

@@ -101,7 +101,8 @@ func NewPostgresMCPServerWithConfig(serverConfig *ServerConfig) (*PostgresMCPSer
 	// Initialize database queries
 	dbQueries := database.NewDatabaseQueries(dbConn)
 
-	// Initialize find resources core
+	// Initialize find resources core. Prompt injection patterns in resource
+	// metadata are always redacted before being returned to the LLM.
 	findCore := findresources.NewFindResourcesCore(dbQueries)
 	formatter := findresources.NewFindResourcesFormatter()
 
