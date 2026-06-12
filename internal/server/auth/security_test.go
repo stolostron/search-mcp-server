@@ -21,6 +21,9 @@ func TestTokenCacheKeyIsHashed(t *testing.T) {
 	_, rawPresent := m.tokenCache[rawToken]
 	assert.False(t, rawPresent, "raw bearer token must not be stored as a cache key")
 
+	_, hashedPresent := m.tokenCache[hashToken(rawToken)]
+	assert.True(t, hashedPresent, "SHA-256 hash must be used as the cache key")
+
 	got := m.getCachedToken(rawToken)
 	assert.NotNil(t, got, "getCachedToken must find the entry via its hash")
 	assert.True(t, got.Valid)

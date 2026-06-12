@@ -184,6 +184,26 @@ func hashToken(authHeader string) string {
 	return fmt.Sprintf("%x", sum)
 }
 
+// cloneValidationResult returns a deep copy of the result with request-scoped
+// fields (HeaderSource, QueryFilters) zeroed out. This prevents concurrent
+// requests that share a cached entry from racing on those mutable fields.
+func cloneValidationResult(in *TokenValidationResult) *TokenValidationResult {
+	if in == nil {
+		return nil
+	}
+	out := *in
+	if in.User != nil {
+		userCopy := *in.User
+		if in.User.Groups != nil {
+			userCopy.Groups = append([]string(nil), in.User.Groups...)
+		}
+		userCopy.HeaderSource = ""
+		userCopy.QueryFilters = nil
+		out.User = &userCopy
+	}
+	return &out
+}
+
 // getCachedToken retrieves a cached token validation result
 func (m *AuthMiddleware) getCachedToken(authHeader string) *TokenValidationResult {
 	m.cacheMutex.RLock()
@@ -191,7 +211,7 @@ func (m *AuthMiddleware) getCachedToken(authHeader string) *TokenValidationResul
 
 	if cached, exists := m.tokenCache[hashToken(authHeader)]; exists {
 		if time.Now().Before(cached.expiresAt) {
-			return cached.result
+			return cloneValidationResult(cached.result)
 		}
 	}
 
@@ -204,7 +224,7 @@ func (m *AuthMiddleware) cacheToken(authHeader string, result *TokenValidationRe
 	defer m.cacheMutex.Unlock()
 
 	m.tokenCache[hashToken(authHeader)] = &cachedToken{
-		result:    result,
+		result:    cloneValidationResult(result),
 		expiresAt: time.Now().Add(m.config.CacheTTL),
 	}
 }
