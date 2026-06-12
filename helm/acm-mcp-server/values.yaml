@@ -47,11 +47,7 @@ route:
     termination: edge
     insecureEdgeTerminationPolicy: Redirect
 
-# Service Account and RBAC
-serviceAccount:
-  create: true
-  name: ""
-
+# RBAC
 rbac:
   create: true
 

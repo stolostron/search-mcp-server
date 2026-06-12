@@ -54,9 +54,5 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 Create the name of the service account to use
 */}}
 {{- define "acm-mcp-server.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create }}
-{{- default (include "acm-mcp-server.fullname" .) .Values.serviceAccount.name }}
-{{- else }}
-{{- default "default" .Values.serviceAccount.name }}
-{{- end }}
+{{- include "acm-mcp-server.fullname" . }}
 {{- end }}
