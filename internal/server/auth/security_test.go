@@ -2,9 +2,147 @@ package auth
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
+
+// TestTokenCacheKeyIsHashed asserts that raw bearer tokens are never stored as cache keys.
+func TestTokenCacheKeyIsHashed(t *testing.T) {
+	rawToken := "Bearer super-secret-cluster-admin-token"
+
+	m := &AuthMiddleware{
+		config:     &AuthConfig{CacheTokens: true, CacheTTL: 5 * time.Minute},
+		tokenCache: make(map[string]*cachedToken),
+	}
+
+	m.cacheToken(rawToken, &TokenValidationResult{Valid: true})
+
+	_, rawPresent := m.tokenCache[rawToken]
+	assert.False(t, rawPresent, "raw bearer token must not be stored as a cache key")
+
+	_, hashedPresent := m.tokenCache[hashToken(rawToken)]
+	assert.True(t, hashedPresent, "SHA-256 hash must be used as the cache key")
+
+	got := m.getCachedToken(rawToken)
+	assert.NotNil(t, got, "getCachedToken must find the entry via its hash")
+	assert.True(t, got.Valid)
+}
+
+// TestCacheTokenMiss asserts that getCachedToken returns nil for unknown tokens.
+func TestCacheTokenMiss(t *testing.T) {
+	m := &AuthMiddleware{
+		config:     &AuthConfig{CacheTokens: true, CacheTTL: 5 * time.Minute},
+		tokenCache: make(map[string]*cachedToken),
+	}
+
+	got := m.getCachedToken("Bearer never-cached-token")
+	assert.Nil(t, got, "getCachedToken must return nil for an unknown token")
+}
+
+// TestCacheTokenExpiry asserts that getCachedToken returns nil once the TTL has elapsed.
+func TestCacheTokenExpiry(t *testing.T) {
+	m := &AuthMiddleware{
+		config:     &AuthConfig{CacheTokens: true, CacheTTL: time.Millisecond},
+		tokenCache: make(map[string]*cachedToken),
+	}
+
+	rawToken := "Bearer expiring-token"
+	m.cacheToken(rawToken, &TokenValidationResult{Valid: true})
+
+	// Immediately after caching the entry should be retrievable.
+	assert.NotNil(t, m.getCachedToken(rawToken), "entry should be present before TTL elapses")
+
+	// Wait for the TTL to elapse.
+	time.Sleep(5 * time.Millisecond)
+	assert.Nil(t, m.getCachedToken(rawToken), "getCachedToken must return nil after TTL elapses")
+}
+
+// TestCachedResultIsCloned asserts that mutating the result returned by getCachedToken
+// does not affect the entry stored in the cache (i.e. each caller gets an independent copy).
+func TestCachedResultIsCloned(t *testing.T) {
+	rawToken := "Bearer cluster-admin-token"
+	original := &TokenValidationResult{
+		Valid: true,
+		User: &UserContext{
+			Username: "alice",
+			Groups:   []string{"system:masters"},
+		},
+	}
+
+	m := &AuthMiddleware{
+		config:     &AuthConfig{CacheTokens: true, CacheTTL: 5 * time.Minute},
+		tokenCache: make(map[string]*cachedToken),
+	}
+	m.cacheToken(rawToken, original)
+
+	// First caller mutates the returned copy.
+	first := m.getCachedToken(rawToken)
+	assert.NotNil(t, first)
+	first.User.HeaderSource = "Authorization"
+	first.User.QueryFilters = &QueryFilters{HubClusterName: "local-cluster"}
+	first.User.Groups = append(first.User.Groups, "injected-group")
+
+	// Second caller must see a clean copy — no mutations from the first caller.
+	second := m.getCachedToken(rawToken)
+	assert.NotNil(t, second)
+	assert.Equal(t, "", second.User.HeaderSource, "HeaderSource must not leak between requests")
+	assert.Nil(t, second.User.QueryFilters, "QueryFilters must not leak between requests")
+	assert.Equal(t, []string{"system:masters"}, second.User.Groups, "Groups must not be shared between copies")
+}
+
+// TestCacheTokenDoesNotMutateStoredEntry asserts that mutating the result after calling
+// cacheToken does not corrupt the stored cache entry.
+func TestCacheTokenDoesNotMutateStoredEntry(t *testing.T) {
+	rawToken := "Bearer mutable-token"
+	result := &TokenValidationResult{
+		Valid: true,
+		User: &UserContext{
+			Username: "bob",
+			Groups:   []string{"developers"},
+		},
+	}
+
+	m := &AuthMiddleware{
+		config:     &AuthConfig{CacheTokens: true, CacheTTL: 5 * time.Minute},
+		tokenCache: make(map[string]*cachedToken),
+	}
+	m.cacheToken(rawToken, result)
+
+	// Simulate the request handler mutating the original pointer after caching.
+	result.User.HeaderSource = "kubernetes-authorization"
+	result.User.QueryFilters = &QueryFilters{HubClusterName: "hub"}
+	result.User.Groups = append(result.User.Groups, "extra-group")
+
+	// The cache must have stored an independent copy.
+	cached := m.getCachedToken(rawToken)
+	assert.NotNil(t, cached)
+	assert.Equal(t, "", cached.User.HeaderSource, "stored entry must not reflect post-cache mutation of HeaderSource")
+	assert.Nil(t, cached.User.QueryFilters, "stored entry must not reflect post-cache mutation of QueryFilters")
+	assert.Equal(t, []string{"developers"}, cached.User.Groups, "stored entry must not reflect post-cache mutation of Groups")
+}
+
+// TestCloneValidationResultNilSafety asserts that cloneValidationResult handles nil inputs.
+func TestCloneValidationResultNilSafety(t *testing.T) {
+	assert.Nil(t, cloneValidationResult(nil), "nil input must return nil")
+
+	resultNoUser := &TokenValidationResult{Valid: false, Error: "bad token"}
+	clone := cloneValidationResult(resultNoUser)
+	assert.NotNil(t, clone)
+	assert.Nil(t, clone.User, "clone of result with nil User must have nil User")
+	assert.Equal(t, "bad token", clone.Error)
+}
+
+// TestCloneValidationResultNilGroups asserts that a nil Groups slice is handled safely.
+func TestCloneValidationResultNilGroups(t *testing.T) {
+	result := &TokenValidationResult{
+		Valid: true,
+		User:  &UserContext{Username: "carol", Groups: nil},
+	}
+	clone := cloneValidationResult(result)
+	assert.NotNil(t, clone)
+	assert.Nil(t, clone.User.Groups, "nil Groups must remain nil in clone")
+}
 
 // TestPermissionSourceSecurityIsolation validates the new PermissionSource-based security model
 func TestPermissionSourceSecurityIsolation(t *testing.T) {
