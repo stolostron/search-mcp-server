@@ -34,7 +34,7 @@ func (s *Sanitizer) SanitizeString(field, value string) (string, bool) {
 	if !InjectionDetected(value) {
 		return value, false
 	}
-	log.Printf("[sanitize] prompt injection pattern detected in field %q", field)
+	log.Printf("[SANITIZE] prompt injection pattern detected in field %q", field)
 	return RedactionMarker, true
 }
 
@@ -58,7 +58,7 @@ func (s *Sanitizer) SanitizeResourceDataMap(dataMap map[string]interface{}) map[
 		case PolicySkip:
 			result[k] = v
 		case PolicyRedactFully:
-			log.Printf("[sanitize] fully redacting field %q", k)
+			log.Printf("[SANITIZE] fully redacting field %q", k)
 			result[k] = RedactionMarker
 		default: // PolicySanitizeStrings
 			result[k] = s.sanitizeValue(k, v)
