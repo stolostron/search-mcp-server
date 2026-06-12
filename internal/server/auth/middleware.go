@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -176,12 +177,19 @@ func (m *AuthMiddleware) validateToken(ctx context.Context, authHeader string) (
 	return result, nil
 }
 
+// hashToken returns the SHA-256 hex digest of the raw auth header value.
+// Used as the cache key to avoid retaining bearer tokens in heap memory.
+func hashToken(authHeader string) string {
+	sum := sha256.Sum256([]byte(authHeader))
+	return fmt.Sprintf("%x", sum)
+}
+
 // getCachedToken retrieves a cached token validation result
 func (m *AuthMiddleware) getCachedToken(authHeader string) *TokenValidationResult {
 	m.cacheMutex.RLock()
 	defer m.cacheMutex.RUnlock()
 
-	if cached, exists := m.tokenCache[authHeader]; exists {
+	if cached, exists := m.tokenCache[hashToken(authHeader)]; exists {
 		if time.Now().Before(cached.expiresAt) {
 			return cached.result
 		}
@@ -195,7 +203,7 @@ func (m *AuthMiddleware) cacheToken(authHeader string, result *TokenValidationRe
 	m.cacheMutex.Lock()
 	defer m.cacheMutex.Unlock()
 
-	m.tokenCache[authHeader] = &cachedToken{
+	m.tokenCache[hashToken(authHeader)] = &cachedToken{
 		result:    result,
 		expiresAt: time.Now().Add(m.config.CacheTTL),
 	}

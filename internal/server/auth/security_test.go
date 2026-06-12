@@ -2,9 +2,29 @@ package auth
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
+
+// TestTokenCacheKeyIsHashed asserts that raw bearer tokens are never stored as cache keys.
+func TestTokenCacheKeyIsHashed(t *testing.T) {
+	rawToken := "Bearer super-secret-cluster-admin-token"
+
+	m := &AuthMiddleware{
+		config:     &AuthConfig{CacheTokens: true, CacheTTL: 5 * time.Minute},
+		tokenCache: make(map[string]*cachedToken),
+	}
+
+	m.cacheToken(rawToken, &TokenValidationResult{Valid: true})
+
+	_, rawPresent := m.tokenCache[rawToken]
+	assert.False(t, rawPresent, "raw bearer token must not be stored as a cache key")
+
+	got := m.getCachedToken(rawToken)
+	assert.NotNil(t, got, "getCachedToken must find the entry via its hash")
+	assert.True(t, got.Valid)
+}
 
 // TestPermissionSourceSecurityIsolation validates the new PermissionSource-based security model
 func TestPermissionSourceSecurityIsolation(t *testing.T) {
