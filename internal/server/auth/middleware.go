@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -176,14 +177,41 @@ func (m *AuthMiddleware) validateToken(ctx context.Context, authHeader string) (
 	return result, nil
 }
 
+// hashToken returns the SHA-256 hex digest of the raw auth header value.
+// Used as the cache key to avoid retaining bearer tokens in heap memory.
+func hashToken(authHeader string) string {
+	sum := sha256.Sum256([]byte(authHeader))
+	return fmt.Sprintf("%x", sum)
+}
+
+// cloneValidationResult returns a deep copy of the result with request-scoped
+// fields (HeaderSource, QueryFilters) zeroed out. This prevents concurrent
+// requests that share a cached entry from racing on those mutable fields.
+func cloneValidationResult(in *TokenValidationResult) *TokenValidationResult {
+	if in == nil {
+		return nil
+	}
+	out := *in
+	if in.User != nil {
+		userCopy := *in.User
+		if in.User.Groups != nil {
+			userCopy.Groups = append([]string(nil), in.User.Groups...)
+		}
+		userCopy.HeaderSource = ""
+		userCopy.QueryFilters = nil
+		out.User = &userCopy
+	}
+	return &out
+}
+
 // getCachedToken retrieves a cached token validation result
 func (m *AuthMiddleware) getCachedToken(authHeader string) *TokenValidationResult {
 	m.cacheMutex.RLock()
 	defer m.cacheMutex.RUnlock()
 
-	if cached, exists := m.tokenCache[authHeader]; exists {
+	if cached, exists := m.tokenCache[hashToken(authHeader)]; exists {
 		if time.Now().Before(cached.expiresAt) {
-			return cached.result
+			return cloneValidationResult(cached.result)
 		}
 	}
 
@@ -195,8 +223,8 @@ func (m *AuthMiddleware) cacheToken(authHeader string, result *TokenValidationRe
 	m.cacheMutex.Lock()
 	defer m.cacheMutex.Unlock()
 
-	m.tokenCache[authHeader] = &cachedToken{
-		result:    result,
+	m.tokenCache[hashToken(authHeader)] = &cachedToken{
+		result:    cloneValidationResult(result),
 		expiresAt: time.Now().Add(m.config.CacheTTL),
 	}
 }
