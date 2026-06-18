@@ -39,7 +39,7 @@ authentication:
 
 ### Data flow
 
-```
+```text
 values.yaml                  deployment.yaml              Go Source
 ───────────                  ───────────────              ─────────
 authentication:              env MCP_K8S_SKIP_TLS         ServerConfig.SkipTLSVerify
@@ -155,7 +155,7 @@ explicitly set to `"false"`. Remove or correct it if set to `"true"`.
 
 Update to reflect the new secure default and document the override option:
 
-```
+```text
 MCP_K8S_SKIP_TLS   bool   false   Skip TLS verification for K8s API (testing only).
                                    Never set to true in production.
 ```
@@ -174,7 +174,7 @@ MCP_K8S_SKIP_TLS   bool   false   Skip TLS verification for K8s API (testing onl
 
 ## Files to Modify
 
-```
+```text
 helm/acm-mcp-server/
   values.yaml                              modified  (skipTLS: true → false)
 internal/server/auth/

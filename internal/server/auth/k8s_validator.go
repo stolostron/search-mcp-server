@@ -34,12 +34,15 @@ func NewKubernetesValidator(config *K8sConfig) *KubernetesValidator {
 	} else {
 		// Load the in-cluster CA certificate so the raw http.Client verifies the K8s API
 		// server certificate correctly. Falls back to the system trust store if the file
-		// is absent (e.g. local development outside a cluster).
+		// is absent (e.g. local development outside a cluster) or if PEM parsing fails.
+		tlsCfg := &tls.Config{MinVersion: tls.VersionTLS12}
 		if caCert, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"); err == nil {
 			caCertPool := x509.NewCertPool()
-			caCertPool.AppendCertsFromPEM(caCert)
-			transport.TLSClientConfig = &tls.Config{RootCAs: caCertPool}
+			if ok := caCertPool.AppendCertsFromPEM(caCert); ok {
+				tlsCfg.RootCAs = caCertPool
+			}
 		}
+		transport.TLSClientConfig = tlsCfg
 	}
 
 	return &KubernetesValidator{
