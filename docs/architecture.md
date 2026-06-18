@@ -325,7 +325,7 @@ Exactly one MCP tool is exposed: **`find_resources`**
 | `limit` | int | `50` | Max results (1–1000) |
 | `sortBy` | string | `name` | `name`, `created`, `namespace`, `cluster` |
 | `sortOrder` | enum | `asc` | `asc` or `desc` |
-| `stream` | bool | `false` | Enable streaming (HTTP only) |
+| `stream` | bool | `false` | Accepted but not yet functional per-request — streaming is controlled at the transport level, not per-call (see Known Limitations) |
 
 ### Tool Authorization (HTTP transport)
 
@@ -570,6 +570,23 @@ At `helm install` time, the Helm template:
 3. Extracts `database-user`, `database-password`, `database-name`
 4. Constructs `postgresql://<user>:<password>@search-postgres.<ns>.svc.cluster.local:5432/<db>`
 5. Stores base64-encoded in `acm-search-mcp-secret.data.database-url`
+
+**Failure scenarios:** If the `MultiClusterHub` CR is not found or the `search-postgres`
+Secret does not exist in the ACM namespace, the constructed `DATABASE_URL` is empty. The
+pod exits immediately at startup with a usage message (fail-safe; no silent misconfiguration).
+
+Before running `helm install`, verify the prerequisites exist:
+
+```bash
+# Confirm MultiClusterHub CR is present
+kubectl get multiclusterhub -A
+
+# Confirm search-postgres secret exists in the ACM namespace
+kubectl get secret search-postgres -n <acm-namespace>
+```
+
+If either is missing, ACM is not fully installed — resolve the ACM installation before
+deploying the MCP server.
 
 ---
 
