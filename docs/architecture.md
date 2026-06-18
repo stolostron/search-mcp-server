@@ -1,9 +1,5 @@
 # search-mcp-server: Architecture & Security Documentation
 
-**Addresses:** SAR-07 (SDLC-10288) — Architecture Documentation Missing
-**Jira:** https://redhat.atlassian.net/browse/ACM-32472
-**Date:** 2026-06-18
-
 ---
 
 ## Table of Contents
