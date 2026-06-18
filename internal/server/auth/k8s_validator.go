@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -28,7 +29,17 @@ func NewKubernetesValidator(config *K8sConfig) *KubernetesValidator {
 	// Create HTTP client with appropriate TLS settings
 	transport := &http.Transport{}
 	if !config.TLSVerify {
-		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} // #nosec G402 -- intentional for test environments only, controlled by config.SkipTLS
+		// #nosec G402 -- intentional for test environments only, controlled by config.TLSVerify
+		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	} else {
+		// Load the in-cluster CA certificate so the raw http.Client verifies the K8s API
+		// server certificate correctly. Falls back to the system trust store if the file
+		// is absent (e.g. local development outside a cluster).
+		if caCert, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"); err == nil {
+			caCertPool := x509.NewCertPool()
+			caCertPool.AppendCertsFromPEM(caCert)
+			transport.TLSClientConfig = &tls.Config{RootCAs: caCertPool}
+		}
 	}
 
 	return &KubernetesValidator{

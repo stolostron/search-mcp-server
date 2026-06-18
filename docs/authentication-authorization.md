@@ -86,13 +86,23 @@ type AuthConfig struct {
     // Manual overrides (testing/development)  
     KubernetesURL   string        // Full cluster URL
     TokenValue      string        // Direct service account token
-    SkipTLS         bool          // Skip TLS verification (default: false, testing only)
+    SkipTLS         bool          // Skip TLS verification (default: false — never set true in production)
 }
 ```
 
 ### Environment Variables
-- `KUBERNETES_SERVICE_HOST` / `KUBERNETES_SERVICE_PORT`: Auto-detected in cluster
-- `LOG_LEVEL=debug`: Enables comprehensive auth logging
+
+| Variable | Default | Description |
+|---|---|---|
+| `KUBERNETES_SERVICE_HOST` / `KUBERNETES_SERVICE_PORT` | auto | Auto-detected in cluster; used to build the K8s API URL |
+| `MCP_ENABLE_AUTH` | auto | Enable/disable auth (`true`/`false`); defaults to `true` when running in Kubernetes |
+| `MCP_AUTH_TIMEOUT` | `5s` | Timeout for K8s API calls during token validation |
+| `MCP_AUTH_CACHE` | `true` | Cache validated tokens in memory |
+| `MCP_AUTH_CACHE_TTL` | `5m` | TTL for cached token validations |
+| `MCP_K8S_SKIP_TLS` | `false` | Skip TLS certificate verification for K8s API connections. **Never set to `true` in production** — disabling TLS verification exposes bearer tokens to man-in-the-middle attacks. Valid only for local development with self-signed certificates. |
+| `MCP_K8S_URL` | — | Override the K8s API URL (testing only) |
+| `MCP_SA_TOKEN` | — | Service account token value override (testing only) |
+| `LOG_LEVEL` | `info` | Set to `debug` to enable comprehensive auth logging |
 
 ## Security Scenarios
 
