@@ -62,8 +62,10 @@ resources:
 authentication:
   # Enable authentication for production deployments
   enabled: true
-  # Skip TLS verification when connecting to Kubernetes API (for testing/dev clusters)
-  skipTLS: true
+  # Skip TLS verification when connecting to Kubernetes API
+  # Default: false (TLS verification enabled for production security)
+  # Set to true only for development/testing with self-signed certificates
+  skipTLS: false
 
 # Health check configuration
 healthCheck:
