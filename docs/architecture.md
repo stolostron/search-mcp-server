@@ -354,7 +354,7 @@ being included in MCP responses.
 | `name`, `namespace`, `kind`, `cluster`, `created`, `_uid`, `_hubClusterName` | Skip (no sanitization) | DNS-safe identifiers; no free text |
 | `status`, `annotation`, `label`, and all other JSONB fields | SanitizeStrings | May contain arbitrary user content |
 
-**Detection:** 22 compiled regular expressions covering patterns including:
+**Detection:** Compiled regular expressions (see `internal/sanitize/patterns.go`) covering patterns including:
 - Instruction overrides (`ignore previous instructions`, `system prompt`, etc.)
 | - Role assumption (`you are now`, `act as`, `pretend to be`)
 - Data exfiltration patterns (`send to`, `transmit`, `POST to`)
@@ -479,7 +479,7 @@ KUBERNETES_SERVICE_HOST env var set?
 |---|---|
 | `http` | HTTP server on `MCP_HTTP_HOST:MCP_HTTP_PORT` (default `0.0.0.0:8080`) |
 | `stdio` | Read from stdin, write to stdout; streaming disabled |
-| `auto` (default) | HTTP if `MCP_HTTP_MODE` or `MCP_HTTP_PORT` set; STDIO if stdin is a terminal; otherwise HTTP |
+| `auto` (default) | STDIO if stdin is a terminal; otherwise HTTP |
 
 ### HTTP Transport
 
@@ -651,7 +651,7 @@ deploying the MCP server.
 | Token never stored plaintext in cache | Cache keyed by SHA-256 hash of raw header | `auth/middleware.go:183-185` |
 | Cache isolation between concurrent requests | Deep clone returned per request; mutable fields zeroed before storage | `auth/middleware.go:190-205` |
 | Database is read-only | SQL validation rejects mutation keywords; parameterized queries prevent injection | `pkg/database/queries.go:validateQuery` |
-| Prompt injection defence | 22-pattern regex sanitizer on all returned JSONB free-text fields | `internal/sanitize/` |
+| Prompt injection defence | Regex sanitizer (see `internal/sanitize/patterns.go`) on all returned JSONB free-text fields | `internal/sanitize/` |
 | Service account minimal privilege | Only `tokenreviews:create`; no data-read permissions | `helm/templates/rbac.yaml` |
 | Container hardening | No capabilities; read-only filesystem; non-root; `RuntimeDefault` seccomp | `helm/acm-mcp-server/values.yaml` |
 | TLS on K8s API connections | CA cert loaded from SA mount; `InsecureSkipVerify` requires explicit opt-in | `auth/k8s_validator.go:NewKubernetesValidator` |
