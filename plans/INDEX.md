@@ -1,5 +1,13 @@
 sessions:
 ---
+- date: "2026-06-18"
+  title: "[search-mcp] SAR-04: Plan to enable TLS verification by default for K8s API"
+  jira: "ACM-35727"
+  jira_url: "https://redhat.atlassian.net/browse/ACM-35727"
+  pr: ~
+  plan: "plans/ACM-32469-enable-tls-verification-plan.md"
+  summary: "Change Helm chart default from skipTLS:true to skipTLS:false, fix KubernetesValidator CA cert loading for the raw http.Client path, and update documentation"
+---
 - date: "2026-06-12"
   title: "[search-mcp] Hash token cache keys with SHA-256 in auth middleware"
   jira: "ACM-35364"
