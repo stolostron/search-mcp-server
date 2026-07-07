@@ -551,30 +551,29 @@ func (t *HTTPTransport) isOriginAllowed(origin string) bool {
 func (t *HTTPTransport) handleHealth(w http.ResponseWriter, r *http.Request) {
 	atomic.AddInt64(&t.requestCount, 1)
 
+	w.Header().Set("Content-Type", "application/json")
+
 	if t.mcpServer == nil {
 		atomic.AddInt64(&t.errorCount, 1)
-		http.Error(w, "Server not initialized", http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "degraded"})
 		return
 	}
 
 	health := t.mcpServer.Health(r.Context())
 
-	w.Header().Set("Content-Type", "application/json")
-
-	// Set HTTP status code based on health status
+	// Return only a minimal status to avoid disclosing internal details
+	// (SAR-08: health endpoint must not expose DB pool stats, transport config,
+	// bind address, or streaming settings to unauthenticated callers).
+	status := "ok"
+	httpStatus := http.StatusOK
 	if health["status"] == "unhealthy" {
-		w.WriteHeader(http.StatusInternalServerError)
+		status = "degraded"
+		httpStatus = http.StatusInternalServerError
 	}
 
-	responseData := map[string]interface{}{
-		"status":        health["status"],
-		"transport":     "http-mcp",
-		"address":       t.config.GetHTTPAddr(),
-		"mcp_compliant": true,
-		"health":        health,
-	}
-
-	_ = json.NewEncoder(w).Encode(responseData)
+	w.WriteHeader(httpStatus)
+	_ = json.NewEncoder(w).Encode(map[string]string{"status": status})
 }
 
 func (t *HTTPTransport) handleMetrics(w http.ResponseWriter, r *http.Request) {

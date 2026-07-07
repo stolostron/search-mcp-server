@@ -2,6 +2,9 @@ package server
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 
@@ -176,6 +179,87 @@ func TestIsRunningInTerminal(t *testing.T) {
 	// Just check that it returns a boolean without error
 	result := isRunningInTerminal()
 	assert.IsType(t, true, result)
+}
+
+// TestHandleHealth_NilServer verifies that a nil mcpServer yields HTTP 500
+// and {"status":"degraded"} with no internal details.
+func TestHandleHealth_NilServer(t *testing.T) {
+	transport := &HTTPTransport{
+		config: &ServerConfig{HTTPHost: "0.0.0.0", HTTPPort: "8080"},
+		// mcpServer intentionally left nil
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	rr := httptest.NewRecorder()
+
+	transport.handleHealth(rr, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+	assert.Equal(t, "application/json", rr.Header().Get("Content-Type"))
+
+	var body map[string]string
+	err := json.NewDecoder(rr.Body).Decode(&body)
+	assert.NoError(t, err)
+	assert.Equal(t, "degraded", body["status"])
+
+	// Must not leak internal details
+	assert.Len(t, body, 1, "response must contain only 'status'")
+}
+
+// TestHandleHealth_ContentType verifies the Content-Type header is set correctly
+// for all health responses regardless of server state.
+func TestHandleHealth_ContentType(t *testing.T) {
+	transport := &HTTPTransport{
+		config: &ServerConfig{HTTPHost: "0.0.0.0", HTTPPort: "8080"},
+		// mcpServer nil — easiest path that avoids a live DB
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	rr := httptest.NewRecorder()
+
+	transport.handleHealth(rr, req)
+
+	assert.Equal(t, "application/json", rr.Header().Get("Content-Type"))
+}
+
+// TestHandleHealth_ResponseShape verifies the exact JSON shape of the response,
+// ensuring no internal details (pool stats, config, transport info) are disclosed.
+// Uses nil mcpServer to avoid needing a live database connection.
+func TestHandleHealth_ResponseShape(t *testing.T) {
+	transport := &HTTPTransport{
+		config: &ServerConfig{HTTPHost: "0.0.0.0", HTTPPort: "8080"},
+		// mcpServer nil — triggers the degraded path, sufficient to verify shape
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	rr := httptest.NewRecorder()
+	transport.handleHealth(rr, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+
+	var body map[string]interface{}
+	require_noError(t, json.NewDecoder(rr.Body).Decode(&body))
+
+	assert.Equal(t, "degraded", body["status"])
+	assert.Len(t, body, 1, "response must contain only the 'status' key")
+
+	// Explicit checks for fields that must NOT appear (SAR-08)
+	for _, forbidden := range []string{
+		"transport", "address", "mcp_compliant", "health",
+		"database", "configuration", "transports",
+		"stream_buffer_size", "max_response_size",
+	} {
+		assert.NotContains(t, body, forbidden,
+			"field %q must not be disclosed to unauthenticated callers", forbidden)
+	}
+}
+
+// require_noError is a small helper to fail fast on decode errors.
+func require_noError(t *testing.T, err error) {
+	t.Helper()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 }
 
 func TestTransportManager_AutoRegisterTransports(t *testing.T) {
