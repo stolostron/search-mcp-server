@@ -20,7 +20,7 @@ func isVerboseServerLoggingEnabled() bool {
 // logIfVerboseServer prints debug messages only if verbose logging is enabled
 func logIfVerboseServer(format string, args ...interface{}) {
 	if isVerboseServerLoggingEnabled() {
-		log.Printf("[MCP-SERVER-DEBUG] "+format, args...)
+		log.Printf("[MCP-SERVER-DEBUG] "+format, args...) // #nosec G706 -- format string comes from internal call sites only, never from user input
 	}
 }
 
