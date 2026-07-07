@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 // MockTransport is a mock implementation of Transport interface
@@ -238,7 +239,7 @@ func TestHandleHealth_ResponseShape(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, rr.Code)
 
 	var body map[string]interface{}
-	require_noError(t, json.NewDecoder(rr.Body).Decode(&body))
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&body))
 
 	assert.Equal(t, "degraded", body["status"])
 	assert.Len(t, body, 1, "response must contain only the 'status' key")
@@ -254,12 +255,66 @@ func TestHandleHealth_ResponseShape(t *testing.T) {
 	}
 }
 
-// require_noError is a small helper to fail fast on decode errors.
-func require_noError(t *testing.T, err error) {
-	t.Helper()
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+// stubHealthChecker is a test double for healthChecker that returns a fixed status.
+type stubHealthChecker struct {
+	status string
+}
+
+func (s *stubHealthChecker) Health(_ context.Context) map[string]interface{} {
+	return map[string]interface{}{"status": s.status}
+}
+
+// TestHandleHealth_OKBranch verifies that a healthy server returns HTTP 200
+// and {"status":"ok"} with no internal details.
+func TestHandleHealth_OKBranch(t *testing.T) {
+	transport := &HTTPTransport{
+		config:         &ServerConfig{HTTPHost: "0.0.0.0", HTTPPort: "8080"},
+		healthOverride: &stubHealthChecker{status: "healthy"},
 	}
+
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	rr := httptest.NewRecorder()
+
+	transport.handleHealth(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(t, "application/json", rr.Header().Get("Content-Type"))
+
+	var body map[string]interface{}
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&body))
+
+	assert.Equal(t, "ok", body["status"])
+	assert.Len(t, body, 1, "response must contain only 'status'")
+
+	// Verify no internal details are present
+	for _, forbidden := range []string{
+		"transport", "address", "mcp_compliant", "health",
+		"database", "configuration", "transports",
+	} {
+		assert.NotContains(t, body, forbidden)
+	}
+}
+
+// TestHandleHealth_DegradedBranch verifies that an unhealthy server returns HTTP 500
+// and {"status":"degraded"} with no internal details.
+func TestHandleHealth_DegradedBranch(t *testing.T) {
+	transport := &HTTPTransport{
+		config:         &ServerConfig{HTTPHost: "0.0.0.0", HTTPPort: "8080"},
+		healthOverride: &stubHealthChecker{status: "unhealthy"},
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	rr := httptest.NewRecorder()
+
+	transport.handleHealth(rr, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+
+	var body map[string]interface{}
+	require.NoError(t, json.NewDecoder(rr.Body).Decode(&body))
+
+	assert.Equal(t, "degraded", body["status"])
+	assert.Len(t, body, 1, "response must contain only 'status'")
 }
 
 func TestTransportManager_AutoRegisterTransports(t *testing.T) {
