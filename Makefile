@@ -27,7 +27,7 @@ test-integration:
 .PHONY: lint
 lint: ## Run lint and gosec tool.
 	@command -v golangci-lint >/dev/null 2>&1 || \
-		curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b "$(GOPATH)/bin" v2.4.0
+		curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b "$(GOPATH)/bin" v2.9.0
 	CGO_ENABLED=1 GOGC=25 golangci-lint run --timeout=3m
 	@command -v gosec >/dev/null 2>&1 || go install github.com/securego/gosec/v2/cmd/gosec@latest
 	gosec ./...
