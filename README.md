@@ -1,17 +1,56 @@
-# MCP Server for Red Hat ACM (Go)
+# MCP Server for Red Hat ACM
 
 Model Context Protocol (MCP) server providing access to Red Hat Advanced Cluster Management (ACM) search database and Kubernetes resources across managed clusters.
 
+**Tech Preview:** Not for production environments.
+
 ## Quick Start
 
-### Production Deployment (Recommended)
+**Pre-requisites:** 
+- Red Hat Advanced Cluster Management
+- [Helm](https://helm.sh/)
+
+### Deploy from Helm repository (recommended)
 
 ```bash
-# Option 1: From packaged repository (recommended)
-helm repo add acm-search https://raw.githubusercontent.com/stolostron/search-mcp-server/main/charts
-helm repo update
-helm install acm-mcp-server acm-search/acm-mcp-server --create-namespace --namespace acm-search
+helm repo add acm-mcp-server https://raw.githubusercontent.com/stolostron/search-mcp-server/main/charts
+helm install acm-mcp-server acm-mcp-server/acm-mcp-server --create-namespace --namespace acm-search
+```
 
+### Access the MCP server
+
+Connect from Claude Code
+
+```bash
+ROUTE_URL=$(oc get route acm-mcp-server -n acm-search -o jsonpath='{.spec.host}')
+TOKEN=$(oc whoami -t)
+claude mcp add --transport http -s project acm-search \
+  "https://$ROUTE_URL/mcp" \
+  --header "Authorization: Bearer $TOKEN"
+
+# If your cluster uses a self-signed certificate, start claude with
+# NODE_TLS_REJECT_UNAUTHORIZED=0 claude
+```
+
+```bash
+# Get the OpenShift ROUTE_URL and TOKEN
+ROUTE_URL=$(oc get route acm-mcp-server -n acm-search -o jsonpath='{.spec.host}')
+TOKEN=$(oc whoami -t)
+
+# Find failing pods across the fleet
+curl -k -X POST "https://$ROUTE_URL/mcp" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"tools/call","id":1,"params":{"name":"find_resources","arguments":{"kind":"Pod","status":"Failed,Error,CrashLoopBackOff","limit":10}}}'
+```
+
+
+
+## Development/Testing
+
+### Deployment alternative and customization
+
+```bash
 # Option 2: From local chart
 helm install acm-mcp-server ./helm/acm-mcp-server --create-namespace --namespace acm-search
 
@@ -22,7 +61,6 @@ helm install acm-mcp-server acm-search/acm-mcp-server \
   --set logLevel=debug
 ```
 
-### Development/Testing
 
 ```bash
 # Local development
