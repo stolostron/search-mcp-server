@@ -63,7 +63,13 @@ database:
 **How it works:**
 1. Finds `MultiClusterHub` custom resource anywhere in the cluster
 2. Identifies the ACM namespace (where MCH is installed)
-3. Extracts `search-postgres` secret from the same namespace
+3. Extracts database credentials from the same namespace, preferring the dedicated
+   read-only `search-postgres-mcp-readonly` secret (`search_mcp_ro` role). If that secret
+   doesn't exist yet — e.g. the hub's `search-v2-operator` hasn't been upgraded to a
+   version that provisions it ([ACM-32474](https://issues.redhat.com/browse/ACM-32474)) —
+   it falls back to the legacy read-write `search-postgres` admin secret so the chart still
+   installs. This fallback will be removed once the minimum supported ACM/MCE version
+   always provisions the read-only secret.
 4. Builds complete database URL: `postgresql://user:pass@search-postgres.acm-namespace.svc.cluster.local:5432/search`
 
 ### Manual Override Mode
@@ -143,11 +149,12 @@ make test-mcp-deployed
 
 ### Database Secret Not Found
 
-**Error**: `ACM MultiClusterHub found in namespace 'X', but search-postgres secret not found`
+**Error**: `acm-mcp-server: could not determine the database connection URL. With database.autoDiscover=true, neither the search-postgres-mcp-readonly nor the search-postgres Secret was found (or no MultiClusterHub resource exists) in the ACM namespace ...`
 
 **Solution**:
 - Check if ACM search component is enabled
-- Verify secret exists: `oc get secret search-postgres -n <acm-namespace>`
+- Verify one of the secrets exists (preferred): `oc get secret search-postgres-mcp-readonly -n <acm-namespace>`
+- Or the legacy admin secret (older `search-v2-operator`): `oc get secret search-postgres -n <acm-namespace>`
 
 ### Permission Issues
 

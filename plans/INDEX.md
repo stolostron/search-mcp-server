@@ -1,5 +1,13 @@
 sessions:
 ---
+- date: "2026-07-17"
+  title: "[search-mcp] SAR-09: Use dedicated read-only PostgreSQL user (search_mcp_ro), with fallback"
+  jira: "ACM-32474"
+  jira_url: "https://redhat.atlassian.net/browse/ACM-32474"
+  pr: ~
+  plan: "https://github.com/stolostron/search-v2-operator/blob/main/plans/ACM-32474-readonly-postgres-user-plan.md"
+  summary: "Updated helm/acm-mcp-server/templates/secret.yaml to prefer the search-postgres-mcp-readonly Secret (search_mcp_ro role, provisioned by search-v2-operator#737) over the legacy read-write search-postgres admin Secret, with automatic fallback to the legacy Secret when the read-only one doesn't exist yet (older search-v2-operator, since search-mcp-server has its own release cadence). Added a fail() guard so a missing MultiClusterHub/both Secrets produces a clear error instead of a malformed DATABASE_URL. Verified all three paths (read-only found, fallback, guard) against a live ACM 5.0 dev cluster. Updated helm-install.md and docs/architecture.md accordingly."
+---
 - date: "2026-06-18"
   title: "[search-mcp] SAR-07: Create architecture documentation and data flow diagrams"
   jira: "ACM-35728"
