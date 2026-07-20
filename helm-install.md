@@ -139,22 +139,19 @@ make test-mcp-deployed
 
 ## Troubleshooting
 
-### ACM Not Found
+### Database Connection URL Not Found
 
-**Error**: `ACM auto-discovery enabled but no MultiClusterHub found`
-
-**Solution**:
-- Verify ACM is installed: `oc get multiclusterhub --all-namespaces`
-- If ACM is not installed, use manual mode: `--set database.autoDiscover=false`
-
-### Database Secret Not Found
-
-**Error**: `acm-mcp-server: could not determine the database connection URL. With database.autoDiscover=true, neither the search-postgres-mcp-readonly nor the search-postgres Secret was found (or no MultiClusterHub resource exists) in the ACM namespace ...`
+**Error (auto-discovery mode)**: `acm-mcp-server: could not determine the database connection URL. With database.autoDiscover=true, neither the search-postgres-mcp-readonly nor the search-postgres Secret was found (or no MultiClusterHub resource exists) in the ACM namespace ...`
 
 **Solution**:
 - Check if ACM search component is enabled
 - Verify one of the secrets exists (preferred): `oc get secret search-postgres-mcp-readonly -n <acm-namespace>`
 - Or the legacy admin secret (older `search-v2-operator`): `oc get secret search-postgres -n <acm-namespace>`
+
+**Error (manual mode)**: `acm-mcp-server: database.url is required when database.autoDiscover=false ...`
+
+**Solution**:
+- Provide a valid PostgreSQL connection URL: `--set database.url=postgresql://user:password@host:5432/dbname`
 
 ### Permission Issues
 

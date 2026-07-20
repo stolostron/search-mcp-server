@@ -564,7 +564,7 @@ environments.
 
 ### Database Secret Auto-Discovery
 
-At `helm install` time, the Helm template:
+During `helm install`/`helm upgrade`, the Helm template:
 1. Reads the `MultiClusterHub` CR to locate the ACM operator namespace
 2. Reads the `search-postgres-mcp-readonly` Secret from that namespace — this holds the
    dedicated `search_mcp_ro` read-only role provisioned by `search-v2-operator`
