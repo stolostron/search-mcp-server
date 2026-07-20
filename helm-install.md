@@ -141,7 +141,7 @@ make test-mcp-deployed
 
 ### Database Connection URL Not Found
 
-**Error (auto-discovery mode)**: `acm-mcp-server: could not determine the database connection URL. With database.autoDiscover=true, neither the search-postgres-mcp-readonly nor the search-postgres Secret was found (or no MultiClusterHub resource exists) in the ACM namespace ...`
+**Error (auto-discovery mode)**: `acm-mcp-server: could not determine the database connection URL. With database.autoDiscover=true, neither the search-postgres-mcp-readonly nor the search-postgres Secret was found with non-empty database-user, database-password, and database-name fields (or no MultiClusterHub resource exists) in the ACM namespace ...`
 
 **Solution**:
 - Check if ACM search component is enabled
