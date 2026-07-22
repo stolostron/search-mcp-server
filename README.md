@@ -116,7 +116,7 @@ make test-mcp-deployed
 helm uninstall acm-mcp-server --namespace acm-search
 ```
 
-See [`helm-install.md`](helm-install.md) for complete Helm deployment guide.
+See [`docs/helm-install.md`](docs/helm-install.md) for complete Helm deployment guide.
 
 ### Makefile Targets
 
