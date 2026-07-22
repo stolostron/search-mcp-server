@@ -153,9 +153,9 @@ All app metadata is sourced from Chart.yaml:
 **Debug Configuration:**
 ```bash
 # Enable debug logging for troubleshooting
-helm install acm-mcp-server acm-search/acm-mcp-server \
-  --set logLevel=debug \
-  --namespace acm-search
+helm install acm-mcp-server acm-mcp-server/acm-mcp-server \
+  --create-namespace --namespace acm-search \
+  --set app.logLevel=debug
 # Shows: configuration dump, database connectivity details, health check logs
 ```
 

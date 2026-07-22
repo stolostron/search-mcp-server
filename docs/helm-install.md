@@ -301,7 +301,7 @@ ROUTE_URL=$(oc get route acm-mcp-server -n acm-search -o jsonpath='{.spec.host}'
 
 # For authenticated setup (when enabled)
 TOKEN=$(oc whoami -t)
-claude mcp add --transport http -s project acm-search \
+claude mcp add --transport http acm-search \
   "https://$ROUTE_URL/mcp" \
   --header "Authorization: Bearer $TOKEN"
 ```
