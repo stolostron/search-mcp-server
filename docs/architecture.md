@@ -537,7 +537,7 @@ Incoming request
 | `acm-mcp-server` | `Deployment` | 1 replica; non-root; read-only root filesystem; all caps dropped |
 | `acm-mcp-server` | `Service` | `ClusterIP`; port 80 → 8080 |
 | `acm-mcp-server` | `Route` | OpenShift; edge TLS; insecure redirect |
-| `acm-search-mcp-secret` | `Secret` | `database-url` key; auto-discovered from ACM search-postgres |
+| `acm-search-mcp-secret` | `Secret` | `database-url` key; auto-discovered from ACM `search-postgres-mcp-readonly` (fallback: `search-postgres`) |
 
 ### Container Security Profile
 
@@ -564,16 +564,25 @@ environments.
 
 ### Database Secret Auto-Discovery
 
-At `helm install` time, the Helm template:
+During `helm install`/`helm upgrade`, the Helm template:
 1. Reads the `MultiClusterHub` CR to locate the ACM operator namespace
-2. Reads the `search-postgres` Secret from that namespace
+2. Reads the `search-postgres-mcp-readonly` Secret from that namespace — this holds the
+   dedicated `search_mcp_ro` read-only role provisioned by `search-v2-operator`
+   ([ACM-32474](https://issues.redhat.com/browse/ACM-32474), SAR-09). If that Secret
+   doesn't exist yet (hub running an older `search-v2-operator` that predates the fix),
+   falls back to the legacy read-write `search-postgres` admin Secret so the chart still
+   installs. **This fallback is temporary** and will be removed once the minimum
+   supported ACM/MCE version always provisions the read-only Secret — search-mcp-server
+   has its own release cadence, separate from ACM/MCE, so both paths must be supported
+   during the transition.
 3. Extracts `database-user`, `database-password`, `database-name`
 4. Constructs `postgresql://<user>:<password>@search-postgres.<ns>.svc.cluster.local:5432/<db>`
 5. Stores base64-encoded in `acm-search-mcp-secret.data.database-url`
 
-**Failure scenarios:** If the `MultiClusterHub` CR is not found or the `search-postgres`
-Secret does not exist in the ACM namespace, the constructed `DATABASE_URL` is empty. The
-pod exits immediately at startup with a usage message (fail-safe; no silent misconfiguration).
+**Failure scenarios:** If the `MultiClusterHub` CR is not found, or neither the
+`search-postgres-mcp-readonly` nor `search-postgres` Secret exists in the ACM namespace,
+`helm install`/`upgrade` fails immediately with a `fail()` error naming the problem
+(fail-safe; no silent misconfiguration, no malformed `DATABASE_URL`).
 
 Before running `helm install`, verify the prerequisites exist:
 
@@ -581,12 +590,15 @@ Before running `helm install`, verify the prerequisites exist:
 # Confirm MultiClusterHub CR is present
 kubectl get multiclusterhub -A
 
-# Confirm search-postgres secret exists in the ACM namespace
+# Confirm a database credential secret exists in the ACM namespace (preferred, read-only)
+kubectl get secret search-postgres-mcp-readonly -n <acm-namespace>
+
+# ...or the legacy admin secret, if running an older search-v2-operator
 kubectl get secret search-postgres -n <acm-namespace>
 ```
 
-If either is missing, ACM is not fully installed — resolve the ACM installation before
-deploying the MCP server.
+If none of these are present, ACM is not fully installed — resolve the ACM installation
+before deploying the MCP server.
 
 ---
 
