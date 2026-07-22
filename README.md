@@ -25,7 +25,7 @@ For additional deployment options see [Helm Deployment](#helm-deployment).
 ```bash
 ROUTE_URL=$(oc get route acm-mcp-server -n acm-search -o jsonpath='{.spec.host}')
 TOKEN=$(oc whoami -t)
-claude mcp add --transport http -s project acm-search \
+claude mcp add --transport http acm-search \
   "https://$ROUTE_URL/mcp" \
   --header "Authorization: Bearer $TOKEN"
 
@@ -93,10 +93,10 @@ MCP_ENABLE_AUTH=true MCP_KUBECONFIG=~/.kube/config DATABASE_URL="..." go run ./c
 helm install acm-mcp-server ./helm/acm-mcp-server --create-namespace --namespace acm-search
 
 # With custom configuration
-helm install acm-mcp-server acm-search/acm-mcp-server \
+helm install acm-mcp-server acm-mcp-server/acm-mcp-server \
   --create-namespace --namespace acm-search \
   --set image.repository=quay.io/stolostron/search-mcp-server \
-  --set logLevel=debug
+  --set app.logLevel=debug
 ```
 
 ### Complete Helm deployment with ACM auto-discovery and authentication
