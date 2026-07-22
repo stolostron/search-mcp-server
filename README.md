@@ -19,7 +19,7 @@ helm install acm-mcp-server acm-mcp-server/acm-mcp-server --create-namespace --n
 
 ### Access the MCP server
 
-Connect from Claude Code
+#### Option 1: Connect from Claude Code
 
 ```bash
 ROUTE_URL=$(oc get route acm-mcp-server -n acm-search -o jsonpath='{.spec.host}')
@@ -28,20 +28,21 @@ claude mcp add --transport http -s project acm-search \
   "https://$ROUTE_URL/mcp" \
   --header "Authorization: Bearer $TOKEN"
 
-# If your cluster uses a self-signed certificate, start claude with
+# NOTE: If your cluster uses a self-signed certificate, start claude with
 # NODE_TLS_REJECT_UNAUTHORIZED=0 claude
 ```
 
+#### Option 2: Using cURL
 ```bash
 # Get the OpenShift ROUTE_URL and TOKEN
 ROUTE_URL=$(oc get route acm-mcp-server -n acm-search -o jsonpath='{.spec.host}')
 TOKEN=$(oc whoami -t)
 
-# Find failing pods across the fleet
+# Search for failing pods across the fleet
 curl -k -X POST "https://$ROUTE_URL/mcp" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","method":"tools/call","id":1,"params":{"name":"find_resources","arguments":{"kind":"Pod","status":"Failed,Error,CrashLoopBackOff","limit":10}}}'
+  -d '{"jsonrpc":"2.0","method":"tools/call","id":1,"params":{"name":"find_resources","arguments":{"kind":"Pod","status":"Failed,Error,CrashLoopBackOff","limit":5}}}'
 ```
 
 
