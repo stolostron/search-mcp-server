@@ -34,6 +34,7 @@ claude mcp add --transport http -s project acm-search \
 ```
 
 #### Option 2: Using cURL
+
 ```bash
 # Get the OpenShift ROUTE_URL and TOKEN
 ROUTE_URL=$(oc get route acm-mcp-server -n acm-search -o jsonpath='{.spec.host}')
@@ -53,9 +54,7 @@ curl -k -X POST "https://$ROUTE_URL/mcp" \
   - **Advanced filters**: labelSelector, clusterSelector, textSearch, ageNewerThan, ageOlderThan
   - **Output control**: outputMode (list/count/summary/health), groupBy, sortBy, sortOrder, limit, countOnly
 
-
 ## Development/Testing
-
 
 ```bash
 # Local development
@@ -68,16 +67,15 @@ DATABASE_URL="your-db-url" go run ./cmd/server --transport=http --port=8080
 DATABASE_URL="your-db-url" go run ./cmd/server --transport=stdio
 ```
 
-
-## Authentication (Production)
+## Authentication (in-cluster)
 
 Authentication auto-enables in Kubernetes environments:
 
 ```bash
-# Zero-config production deployment (auth auto-enabled)
+# Zero-config deployment (auth auto-enabled)
 helm install acm-mcp-server ./helm/acm-mcp-server --create-namespace --namespace acm-search
 
-# Disable auth for testing (not recommended in production)
+# Disable auth for testing (not recommended for production)
 helm install acm-mcp-server ./helm/acm-mcp-server \
   --create-namespace --namespace acm-search \
   --set authentication.enabled=false
@@ -89,6 +87,7 @@ MCP_ENABLE_AUTH=true MCP_KUBECONFIG=~/.kube/config DATABASE_URL="..." go run ./c
 ## Helm Deployment
 
 ### Deployment alternatives and customization
+
 ```bash
 # Deploy from local chart
 helm install acm-mcp-server ./helm/acm-mcp-server --create-namespace --namespace acm-search
@@ -172,7 +171,7 @@ echo '{"jsonrpc":"2.0","method":"tools/call","id":1,"params":{"name":"find_resou
 # Complex: Health analysis of resources across production clusters
 echo '{"jsonrpc":"2.0","method":"tools/call","id":1,"params":{"name":"find_resources","arguments":{"clusterSelector":"env=prod","outputMode":"health","ageOlderThan":"1w"}}}' | go run ./cmd/server
 
-# Web interface
+# Web interface (auth disabled / local HTTP)
 curl -X POST http://localhost:8080/mcp -d '{"jsonrpc":"2.0","method":"tools/list","id":1}' -H "Content-Type: application/json"
 ```
 
