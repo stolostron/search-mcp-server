@@ -2,7 +2,7 @@
 
 Model Context Protocol (MCP) server providing access to Red Hat Advanced Cluster Management (ACM) search database and Kubernetes resources across managed clusters.
 
-**Tech Preview:** Not for production environments.
+**This project is Tech Preview. Do not deploy in production environments.**
 
 ## Quick Start
 
@@ -10,12 +10,13 @@ Model Context Protocol (MCP) server providing access to Red Hat Advanced Cluster
 - Red Hat Advanced Cluster Management
 - [Helm](https://helm.sh/)
 
-### Deploy from Helm repository (recommended)
+### Deploy from Helm repository
 
 ```bash
 helm repo add acm-mcp-server https://raw.githubusercontent.com/stolostron/search-mcp-server/main/charts
 helm install acm-mcp-server acm-mcp-server/acm-mcp-server --create-namespace --namespace acm-search
 ```
+For additional deployment options see [Helm Deployment](#helm-deployment).
 
 ### Access the MCP server
 
@@ -28,7 +29,7 @@ claude mcp add --transport http -s project acm-search \
   "https://$ROUTE_URL/mcp" \
   --header "Authorization: Bearer $TOKEN"
 
-# NOTE: If your cluster uses a self-signed certificate, start claude with
+# NOTE: If your cluster uses a self-signed certificate, start claude code with
 # NODE_TLS_REJECT_UNAUTHORIZED=0 claude
 ```
 
@@ -45,22 +46,15 @@ curl -k -X POST "https://$ROUTE_URL/mcp" \
   -d '{"jsonrpc":"2.0","method":"tools/call","id":1,"params":{"name":"find_resources","arguments":{"kind":"Pod","status":"Failed,Error,CrashLoopBackOff","limit":5}}}'
 ```
 
+## Available Tools
+
+- **`find_resources`** - Advanced Kubernetes resource search across all managed clusters with comprehensive filtering:
+  - **Basic filters**: kind, name, namespace, cluster, status
+  - **Advanced filters**: labelSelector, clusterSelector, textSearch, ageNewerThan, ageOlderThan
+  - **Output control**: outputMode (list/count/summary/health), groupBy, sortBy, sortOrder, limit, countOnly
 
 
 ## Development/Testing
-
-### Deployment alternative and customization
-
-```bash
-# Option 2: From local chart
-helm install acm-mcp-server ./helm/acm-mcp-server --create-namespace --namespace acm-search
-
-# With custom configuration
-helm install acm-mcp-server acm-search/acm-mcp-server \
-  --create-namespace --namespace acm-search \
-  --set image.repository=quay.io/stolostron/search-mcp-server \
-  --set logLevel=debug
-```
 
 
 ```bash
@@ -74,12 +68,6 @@ DATABASE_URL="your-db-url" go run ./cmd/server --transport=http --port=8080
 DATABASE_URL="your-db-url" go run ./cmd/server --transport=stdio
 ```
 
-## Available Tools
-
-- **`find_resources`** - Advanced Kubernetes resource search across all managed clusters with comprehensive filtering:
-  - **Basic filters**: kind, name, namespace, cluster, status
-  - **Advanced filters**: labelSelector, clusterSelector, textSearch, ageNewerThan, ageOlderThan
-  - **Output control**: outputMode (list/count/summary/health), groupBy, sortBy, sortOrder, limit, countOnly
 
 ## Authentication (Production)
 
@@ -100,7 +88,19 @@ MCP_ENABLE_AUTH=true MCP_KUBECONFIG=~/.kube/config DATABASE_URL="..." go run ./c
 
 ## Helm Deployment
 
-Complete Helm deployment with ACM auto-discovery and authentication:
+### Deployment alternatives and customization
+```bash
+# Deploy from local chart
+helm install acm-mcp-server ./helm/acm-mcp-server --create-namespace --namespace acm-search
+
+# With custom configuration
+helm install acm-mcp-server acm-search/acm-mcp-server \
+  --create-namespace --namespace acm-search \
+  --set image.repository=quay.io/stolostron/search-mcp-server \
+  --set logLevel=debug
+```
+
+### Complete Helm deployment with ACM auto-discovery and authentication
 
 ```bash
 # Install (auto-discovers ACM database credentials)
@@ -178,4 +178,4 @@ curl -X POST http://localhost:8080/mcp -d '{"jsonrpc":"2.0","method":"tools/list
 
 Built for Red Hat Advanced Cluster Management search integration.
 
-Updated: 05/21/2026
+Updated: 07/22/2026
