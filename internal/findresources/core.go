@@ -363,7 +363,7 @@ func (f *FindResourcesCore) buildAuthorizedQuery(args FindResourcesArgs, targetC
 		sqlQuery.WriteString(orderBy)
 
 		// Add LIMIT clause
-		sqlQuery.WriteString(fmt.Sprintf(" LIMIT %d", args.Limit))
+		fmt.Fprintf(&sqlQuery, " LIMIT %d", args.Limit)
 	}
 
 	return &QueryPlan{

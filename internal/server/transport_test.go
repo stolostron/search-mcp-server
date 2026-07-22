@@ -190,7 +190,7 @@ func TestHandleHealth_NilServer(t *testing.T) {
 		// mcpServer intentionally left nil
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/health", nil)
 	rr := httptest.NewRecorder()
 
 	transport.handleHealth(rr, req)
@@ -215,7 +215,7 @@ func TestHandleHealth_ContentType(t *testing.T) {
 		// mcpServer nil — easiest path that avoids a live DB
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/health", nil)
 	rr := httptest.NewRecorder()
 
 	transport.handleHealth(rr, req)
@@ -232,7 +232,7 @@ func TestHandleHealth_ResponseShape(t *testing.T) {
 		// mcpServer nil — triggers the degraded path, sufficient to verify shape
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/health", nil)
 	rr := httptest.NewRecorder()
 	transport.handleHealth(rr, req)
 
@@ -272,7 +272,7 @@ func TestHandleHealth_OKBranch(t *testing.T) {
 		healthOverride: &stubHealthChecker{status: "healthy"},
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/health", nil)
 	rr := httptest.NewRecorder()
 
 	transport.handleHealth(rr, req)
@@ -303,7 +303,7 @@ func TestHandleHealth_DegradedBranch(t *testing.T) {
 		healthOverride: &stubHealthChecker{status: "unhealthy"},
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/health", nil)
 	rr := httptest.NewRecorder()
 
 	transport.handleHealth(rr, req)
