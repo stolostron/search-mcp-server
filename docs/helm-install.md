@@ -97,6 +97,7 @@ database:
 ```bash
 helm install acm-mcp-server ./helm/acm-mcp-server \
   -f custom-values.yaml \
+  --create-namespace \
   --namespace acm-search
 ```
 
@@ -168,7 +169,9 @@ make test-mcp-deployed
 **Debug Steps**:
 1. **Enable debug logging**:
    ```bash
-   helm upgrade acm-mcp-server acm-search/acm-mcp-server --set logLevel=debug -n acm-search
+   helm upgrade acm-mcp-server acm-search/acm-mcp-server \
+     --namespace acm-search \
+     --set app.logLevel=debug
    ```
 
 2. **Check configuration dump**:
@@ -192,13 +195,14 @@ For troubleshooting, enable debug logging to see detailed configuration and data
 ```bash
 # Install with debug logging
 helm install acm-mcp-server acm-search/acm-mcp-server \
-  --set logLevel=debug \
-  --namespace acm-search
+  --create-namespace \
+  --namespace acm-search \
+  --set app.logLevel=debug
 
-# Or upgrade existing installation
+# Or upgrade existing installation (namespace must already exist)
 helm upgrade acm-mcp-server acm-search/acm-mcp-server \
-  --set logLevel=debug \
-  --namespace acm-search
+  --namespace acm-search \
+  --set app.logLevel=debug
 
 # Check debug logs
 kubectl logs -l app.kubernetes.io/name=acm-mcp-server -n acm-search --tail=50
@@ -213,9 +217,10 @@ kubectl logs -l app.kubernetes.io/name=acm-mcp-server -n acm-search --tail=50
 ### Log Level Options
 
 ```yaml
-# values.yaml or --set logLevel=<value>
-logLevel: "info"    # Default: standard operational logs
-logLevel: "debug"   # Verbose: includes configuration dump, connectivity details
+# values.yaml or --set app.logLevel=<value>
+app:
+  logLevel: "info"    # Default: standard operational logs
+  # logLevel: "debug" # Verbose: includes configuration dump, connectivity details
 ```
 
 ## Advanced Configuration
@@ -224,6 +229,8 @@ logLevel: "debug"   # Verbose: includes configuration dump, connectivity details
 
 ```bash
 helm install acm-mcp-server ./helm/acm-mcp-server \
+  --create-namespace \
+  --namespace acm-search \
   --set image.repository=quay.io/stolostron/search-mcp-server \
   --set image.tag=v0.1.0
 ```
@@ -232,6 +239,8 @@ helm install acm-mcp-server ./helm/acm-mcp-server \
 
 ```bash
 helm install acm-mcp-server ./helm/acm-mcp-server \
+  --create-namespace \
+  --namespace acm-search \
   --set resources.requests.memory=256Mi \
   --set resources.limits.memory=1Gi
 ```
@@ -241,10 +250,14 @@ helm install acm-mcp-server ./helm/acm-mcp-server \
 ```bash
 # Enable authentication (for production)
 helm install acm-mcp-server acm-search/acm-mcp-server \
+  --create-namespace \
+  --namespace acm-search \
   --set authentication.enabled=true
 
 # Disable authentication (for testing)
 helm install acm-mcp-server acm-search/acm-mcp-server \
+  --create-namespace \
+  --namespace acm-search \
   --set authentication.enabled=false
 ```
 
