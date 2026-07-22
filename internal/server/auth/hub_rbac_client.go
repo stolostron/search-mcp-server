@@ -91,10 +91,10 @@ func (h *HubRBACClient) GetHubClusterPermissions(ctx context.Context, userToken 
 	// PHASE 2: Check cache first (if we have userUID)
 	if userUID != "" {
 		if cachedPerms, found := h.cache.getCachedPermissions(userUID); found {
-			log.Printf("[HUB-RBAC-DEBUG] Using cached hub permissions for user UID: %s", userUID)
+			log.Printf("[HUB-RBAC-DEBUG] Using cached hub permissions for user UID: %s", sanitizeLogValue(userUID))
 			return cachedPerms, nil
 		}
-		log.Printf("[HUB-RBAC-DEBUG] No valid cache for user UID: %s, performing discovery", userUID)
+		log.Printf("[HUB-RBAC-DEBUG] No valid cache for user UID: %s, performing discovery", sanitizeLogValue(userUID))
 	}
 
 	// Create impersonated client with user token
@@ -636,6 +636,12 @@ func (hpc *HubPermissionsCache) isValid() bool {
 	return time.Since(hpc.CachedAt) < hpc.TTL
 }
 
+// sanitizeLogValue removes newline and carriage-return characters from a string
+// before it is written to a log message, preventing G706 log-injection (CWE-117).
+func sanitizeLogValue(s string) string {
+	return strings.NewReplacer("\n", "", "\r", "").Replace(s)
+}
+
 // getCachedPermissions retrieves cached permissions for a user
 func (hc *HubRBACCache) getCachedPermissions(userUID string) (*HubPermissions, bool) {
 	// 1. Snapshot the state with a Read Lock
@@ -644,14 +650,14 @@ func (hc *HubRBACCache) getCachedPermissions(userUID string) (*HubPermissions, b
 
 	if !exists {
 		hc.mutex.RUnlock()
-		log.Printf("[HUB-RBAC-CACHE] No cache entry for user UID: %s", userUID)
+		log.Printf("[HUB-RBAC-CACHE] No cache entry for user UID: %s", sanitizeLogValue(userUID))
 		return nil, false
 	}
 
 	if cachedData.isValid() {
 		permissions := cachedData.Permissions
 		hc.mutex.RUnlock()
-		log.Printf("[HUB-RBAC-CACHE] Cache hit for user UID: %s", userUID)
+		log.Printf("[HUB-RBAC-CACHE] Cache hit for user UID: %s", sanitizeLogValue(userUID))
 		return permissions, true
 	}
 	hc.mutex.RUnlock() // Release before potentially upgrading
@@ -663,7 +669,7 @@ func (hc *HubRBACCache) getCachedPermissions(userUID string) (*HubPermissions, b
 	// 3. Re-verify the condition under the Write Lock
 	cachedData, exists = hc.cache[userUID]
 	if exists && !cachedData.isValid() {
-		log.Printf("[HUB-RBAC-CACHE] Cache entry expired for user UID: %s", userUID)
+		log.Printf("[HUB-RBAC-CACHE] Cache entry expired for user UID: %s", sanitizeLogValue(userUID))
 		delete(hc.cache, userUID)
 	}
 
@@ -682,7 +688,7 @@ func (hc *HubRBACCache) setCachedPermissions(userUID string, permissions *HubPer
 		UserUID:     userUID,
 	}
 
-	log.Printf("[HUB-RBAC-CACHE] Cached permissions for user UID: %s, TTL: %v", userUID, hc.defaultTTL)
+	log.Printf("[HUB-RBAC-CACHE] Cached permissions for user UID: %s, TTL: %v", sanitizeLogValue(userUID), hc.defaultTTL)
 }
 
 // cleanupExpiredEntries removes expired cache entries (called periodically)
