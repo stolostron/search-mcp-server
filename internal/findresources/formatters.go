@@ -61,8 +61,8 @@ func (f *FindResourcesFormatter) formatListResult(result *FindResourcesResult) M
 
 	// Header with execution info
 	output.WriteString("# Find Resources Results\n\n")
-	output.WriteString(fmt.Sprintf("**Found %d resources** (execution time: %dms)\n\n",
-		result.Metadata.TotalCount, result.Metadata.ExecutionTime))
+	fmt.Fprintf(&output, "**Found %d resources** (execution time: %dms)\n\n",
+		result.Metadata.TotalCount, result.Metadata.ExecutionTime)
 
 	if len(resources) == 0 {
 		output.WriteString("No resources found matching the specified criteria.\n")
@@ -79,7 +79,7 @@ func (f *FindResourcesFormatter) formatListResult(result *FindResourcesResult) M
 	// Create table for each kind
 	for _, kind := range getSortedKinds(kindGroups) {
 		resourcesOfKind := kindGroups[kind]
-		output.WriteString(fmt.Sprintf("## %s (%d)\n\n", kind, len(resourcesOfKind)))
+		fmt.Fprintf(&output, "## %s (%d)\n\n", kind, len(resourcesOfKind))
 
 		// Create markdown table
 		output.WriteString("| Name | Namespace | Cluster | Age | Status |\n")
@@ -92,8 +92,8 @@ func (f *FindResourcesFormatter) formatListResult(result *FindResourcesResult) M
 			age := f.escapeMarkdown(resource.Age)
 			status := f.formatStatus(resource.Status)
 
-			output.WriteString(fmt.Sprintf("| %s | %s | %s | %s | %s |\n",
-				name, namespace, cluster, age, status))
+			fmt.Fprintf(&output, "| %s | %s | %s | %s | %s |\n",
+				name, namespace, cluster, age, status)
 		}
 
 		output.WriteString("\n")
@@ -102,7 +102,7 @@ func (f *FindResourcesFormatter) formatListResult(result *FindResourcesResult) M
 	// Footer with query info
 	if result.Metadata.Query != "" {
 		output.WriteString("---\n")
-		output.WriteString(fmt.Sprintf("*Query executed in %dms*\n", result.Metadata.ExecutionTime))
+		fmt.Fprintf(&output, "*Query executed in %dms*\n", result.Metadata.ExecutionTime)
 	}
 
 	return MCPResponse{
@@ -127,8 +127,8 @@ func (f *FindResourcesFormatter) formatCountResult(result *FindResourcesResult) 
 
 	// Header
 	output.WriteString("# Resource Count Analysis\n\n")
-	output.WriteString(fmt.Sprintf("**Total Resources: %d** (execution time: %dms)\n\n",
-		result.Metadata.TotalCount, result.Metadata.ExecutionTime))
+	fmt.Fprintf(&output, "**Total Resources: %d** (execution time: %dms)\n\n",
+		result.Metadata.TotalCount, result.Metadata.ExecutionTime)
 
 	if len(counts) == 0 {
 		output.WriteString("No resources found matching the specified criteria.\n")
@@ -147,8 +147,8 @@ func (f *FindResourcesFormatter) formatCountResult(result *FindResourcesResult) 
 		label := f.escapeMarkdown(count.Label)
 		percentage := fmt.Sprintf("%.1f%%", count.Percentage)
 
-		output.WriteString(fmt.Sprintf("| %s | %d | %s |\n",
-			label, count.Count, percentage))
+		fmt.Fprintf(&output, "| %s | %d | %s |\n",
+			label, count.Count, percentage)
 	}
 
 	return MCPResponse{
@@ -173,16 +173,16 @@ func (f *FindResourcesFormatter) formatSummaryResult(result *FindResourcesResult
 
 	// Header with overview
 	output.WriteString("# Resource Fleet Summary\n\n")
-	output.WriteString(fmt.Sprintf("📊 **Overview** (execution time: %dms)\n", result.Metadata.ExecutionTime))
-	output.WriteString(fmt.Sprintf("- **Total Resources:** %d\n", summary.TotalResources))
-	output.WriteString(fmt.Sprintf("- **Total Clusters:** %d\n\n", summary.TotalClusters))
+	fmt.Fprintf(&output, "📊 **Overview** (execution time: %dms)\n", result.Metadata.ExecutionTime)
+	fmt.Fprintf(&output, "- **Total Resources:** %d\n", summary.TotalResources)
+	fmt.Fprintf(&output, "- **Total Clusters:** %d\n\n", summary.TotalClusters)
 
 	// Resources by Cluster
 	if len(summary.ResourcesByCluster) > 0 {
 		output.WriteString("## 🖥️ Resources by Cluster\n\n")
 		for _, item := range summary.ResourcesByCluster {
-			output.WriteString(fmt.Sprintf("- **%s:** %d resources (%.1f%%)\n",
-				f.escapeMarkdown(item.Label), item.Count, item.Percentage))
+			fmt.Fprintf(&output, "- **%s:** %d resources (%.1f%%)\n",
+				f.escapeMarkdown(item.Label), item.Count, item.Percentage)
 		}
 		output.WriteString("\n")
 	}
@@ -191,8 +191,8 @@ func (f *FindResourcesFormatter) formatSummaryResult(result *FindResourcesResult
 	if len(summary.ResourcesByKind) > 0 {
 		output.WriteString("## 📦 Resources by Type\n\n")
 		for _, item := range summary.ResourcesByKind {
-			output.WriteString(fmt.Sprintf("- **%s:** %d resources (%.1f%%)\n",
-				f.escapeMarkdown(item.Label), item.Count, item.Percentage))
+			fmt.Fprintf(&output, "- **%s:** %d resources (%.1f%%)\n",
+				f.escapeMarkdown(item.Label), item.Count, item.Percentage)
 		}
 		output.WriteString("\n")
 	}
@@ -201,8 +201,8 @@ func (f *FindResourcesFormatter) formatSummaryResult(result *FindResourcesResult
 	if len(summary.ResourcesByNamespace) > 0 {
 		output.WriteString("## 📁 Top Namespaces\n\n")
 		for _, item := range summary.ResourcesByNamespace {
-			output.WriteString(fmt.Sprintf("- **%s:** %d resources (%.1f%%)\n",
-				f.escapeMarkdown(item.Label), item.Count, item.Percentage))
+			fmt.Fprintf(&output, "- **%s:** %d resources (%.1f%%)\n",
+				f.escapeMarkdown(item.Label), item.Count, item.Percentage)
 		}
 		output.WriteString("\n")
 	}
@@ -229,7 +229,7 @@ func (f *FindResourcesFormatter) formatHealthResult(result *FindResourcesResult)
 
 	// Header with health overview
 	output.WriteString("# Fleet Health Analysis\n\n")
-	output.WriteString(fmt.Sprintf("🏥 **Overall Health** (execution time: %dms)\n", result.Metadata.ExecutionTime))
+	fmt.Fprintf(&output, "🏥 **Overall Health** (execution time: %dms)\n", result.Metadata.ExecutionTime)
 
 	// Calculate percentages
 	totalFloat := float64(health.Total)
@@ -240,10 +240,10 @@ func (f *FindResourcesFormatter) formatHealthResult(result *FindResourcesResult)
 		unknownPct = float64(health.Unknown) / totalFloat * 100
 	}
 
-	output.WriteString(fmt.Sprintf("- ✅ **Healthy:** %d resources (%.1f%%)\n", health.Healthy, healthyPct))
-	output.WriteString(fmt.Sprintf("- ❌ **Unhealthy:** %d resources (%.1f%%)\n", health.Unhealthy, unhealthyPct))
-	output.WriteString(fmt.Sprintf("- ❓ **Unknown:** %d resources (%.1f%%)\n", health.Unknown, unknownPct))
-	output.WriteString(fmt.Sprintf("- 📊 **Total:** %d resources\n\n", health.Total))
+	fmt.Fprintf(&output, "- ✅ **Healthy:** %d resources (%.1f%%)\n", health.Healthy, healthyPct)
+	fmt.Fprintf(&output, "- ❌ **Unhealthy:** %d resources (%.1f%%)\n", health.Unhealthy, unhealthyPct)
+	fmt.Fprintf(&output, "- ❓ **Unknown:** %d resources (%.1f%%)\n", health.Unknown, unknownPct)
+	fmt.Fprintf(&output, "- 📊 **Total:** %d resources\n\n", health.Total)
 
 	// Status breakdown table
 	if len(health.Details) > 0 {
@@ -256,8 +256,8 @@ func (f *FindResourcesFormatter) formatHealthResult(result *FindResourcesResult)
 			percentage := fmt.Sprintf("%.1f%%", detail.Percentage)
 			icon := f.getStatusIcon(detail.Label)
 
-			output.WriteString(fmt.Sprintf("| %s %s | %d | %s |\n",
-				icon, status, detail.Count, percentage))
+			fmt.Fprintf(&output, "| %s %s | %d | %s |\n",
+				icon, status, detail.Count, percentage)
 		}
 		output.WriteString("\n")
 	}
@@ -269,7 +269,7 @@ func (f *FindResourcesFormatter) formatHealthResult(result *FindResourcesResult)
 			if i >= 5 { // Limit to top 5 for readability
 				break
 			}
-			output.WriteString(fmt.Sprintf("%d. 🚨 %s\n", i+1, f.escapeMarkdown(issue)))
+			fmt.Fprintf(&output, "%d. 🚨 %s\n", i+1, f.escapeMarkdown(issue))
 		}
 		output.WriteString("\n")
 	}
