@@ -3,7 +3,7 @@ replicaCount: 1
 
 image:
   repository: quay.io/stolostron/search-mcp-server
-  tag: v0.1.0
+  tag: v0.2.0
   pullPolicy: Always
 
 nameOverride: ""
