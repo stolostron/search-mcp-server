@@ -299,8 +299,9 @@ func GetAuthorizedTools(userCtx *UserContext) []string {
 
 	tools := []string{}
 
-	// Authenticated users get find_resources
+	// Authenticated users get find_resources and find_related_resources
 	tools = append(tools, "find_resources")
+	tools = append(tools, "find_related_resources")
 
 	return tools
 }

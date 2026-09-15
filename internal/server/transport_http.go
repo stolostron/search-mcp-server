@@ -223,6 +223,11 @@ func (t *HTTPTransport) registerTools() error {
 				userCtx := auth.UserFromContext(ctx)
 				return t.handleFindResources(ctx, request, userCtx)
 			}
+		case "find_related_resources":
+			handler = func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+				userCtx := auth.UserFromContext(ctx)
+				return t.handleFindRelatedResources(ctx, request, userCtx)
+			}
 		default:
 			log.Printf("Warning: No handler found for tool: %s", def.Name)
 			continue
@@ -310,6 +315,21 @@ func (t *HTTPTransport) handleFindResources(ctx context.Context, request mcp.Cal
 	}
 
 	return mcp.NewToolResultText("No results found"), nil
+}
+
+func (t *HTTPTransport) handleFindRelatedResources(ctx context.Context, request mcp.CallToolRequest, userCtx *auth.UserContext) (*mcp.CallToolResult, error) {
+	args, err := ParseFindRelatedArgs(request)
+	if err != nil {
+		return nil, fmt.Errorf("invalid find_related_resources arguments: %w", err)
+	}
+
+	result, err := t.mcpServer.findRelatedCore.FindRelatedResources(ctx, args, userCtx)
+	if err != nil {
+		return nil, fmt.Errorf("find_related_resources execution failed: %w", err)
+	}
+
+	formatted := FormatRelatedResult(result)
+	return mcp.NewToolResultText(formatted), nil
 }
 
 // MCP Protocol Handlers
@@ -473,6 +493,8 @@ func (t *HTTPTransport) handleToolsCall(ctx context.Context, w http.ResponseWrit
 	switch name {
 	case "find_resources":
 		result, err = t.handleFindResources(ctx, mcpRequest, userCtx)
+	case "find_related_resources":
+		result, err = t.handleFindRelatedResources(ctx, mcpRequest, userCtx)
 	default:
 		t.sendJSONRPCError(w, requestID, -32601, fmt.Sprintf("Unknown tool: %s", name), http.StatusNotFound)
 		return

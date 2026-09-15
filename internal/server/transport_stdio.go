@@ -100,6 +100,8 @@ func (t *STDIOTransport) registerTools() error {
 		switch def.Name {
 		case "find_resources":
 			handler = t.handleFindResources
+		case "find_related_resources":
+			handler = t.handleFindRelatedResources
 		default:
 			log.Printf("Warning: No handler found for tool: %s", def.Name)
 			continue
@@ -144,4 +146,22 @@ func (t *STDIOTransport) handleFindResources(ctx context.Context, request mcp.Ca
 	return mcp.NewToolResultText("No results found"), nil
 }
 
+func (t *STDIOTransport) handleFindRelatedResources(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	t.requestCount++
+
+	args, err := ParseFindRelatedArgs(request)
+	if err != nil {
+		t.errorCount++
+		return nil, fmt.Errorf("invalid find_related_resources arguments: %w", err)
+	}
+
+	result, err := t.mcpServer.findRelatedCore.FindRelatedResources(ctx, args, nil)
+	if err != nil {
+		t.errorCount++
+		return nil, fmt.Errorf("find_related_resources execution failed: %w", err)
+	}
+
+	formatted := FormatRelatedResult(result)
+	return mcp.NewToolResultText(formatted), nil
+}
 

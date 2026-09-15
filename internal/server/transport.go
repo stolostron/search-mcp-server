@@ -8,7 +8,10 @@ import (
 	"sync"
 	"time"
 
+	"strings"
+
 	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/stolostron/search-mcp-server/internal/findrelated"
 	"github.com/stolostron/search-mcp-server/internal/findresources"
 )
 
@@ -416,6 +419,53 @@ func ParseFindResourcesArgs(request mcp.CallToolRequest) (findresources.FindReso
 	// Different transports handle streaming differently
 	if stream {
 		log.Printf("Streaming requested - handling at transport level")
+	}
+
+	return args, nil
+}
+
+// ParseFindRelatedArgs parses find_related_resources arguments from an MCP request
+func ParseFindRelatedArgs(request mcp.CallToolRequest) (findrelated.FindRelatedArgs, error) {
+	uidsStr := request.GetString("uids", "")
+	if uidsStr == "" {
+		return findrelated.FindRelatedArgs{}, fmt.Errorf("uids is required")
+	}
+
+	var uids []string
+	for _, uid := range strings.Split(uidsStr, ",") {
+		trimmed := strings.TrimSpace(uid)
+		if trimmed != "" {
+			uids = append(uids, trimmed)
+		}
+	}
+	if len(uids) == 0 {
+		return findrelated.FindRelatedArgs{}, fmt.Errorf("uids must contain at least one UID")
+	}
+
+	args := findrelated.FindRelatedArgs{
+		UIDs:    uids,
+		MaxHops: request.GetInt("maxHops", 0),
+		Limit:   request.GetInt("limit", 200),
+	}
+
+	relatedKindsStr := request.GetString("relatedKinds", "")
+	if relatedKindsStr != "" {
+		for _, kind := range strings.Split(relatedKindsStr, ",") {
+			trimmed := strings.TrimSpace(kind)
+			if trimmed != "" {
+				args.RelatedKinds = append(args.RelatedKinds, trimmed)
+			}
+		}
+	}
+
+	outputMode := request.GetString("outputMode", "list")
+	switch outputMode {
+	case "list":
+		args.OutputMode = findrelated.OutputModeList
+	case "count":
+		args.OutputMode = findrelated.OutputModeCount
+	default:
+		return args, fmt.Errorf("invalid output mode: %s", outputMode)
 	}
 
 	return args, nil

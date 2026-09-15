@@ -386,7 +386,7 @@ func defaultKubeconfigPath() string {
 	}
 
 	kubeconfigPath = filepath.Clean(kubeconfigPath)
-	if _, err := os.Stat(kubeconfigPath); err == nil {
+	if _, err := os.Stat(kubeconfigPath); err == nil { // #nosec G304,G703 -- path from KUBECONFIG env or $HOME/.kube/config, not user input
 		return kubeconfigPath
 	}
 

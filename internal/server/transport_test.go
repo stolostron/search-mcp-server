@@ -8,6 +8,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -315,6 +316,79 @@ func TestHandleHealth_DegradedBranch(t *testing.T) {
 
 	assert.Equal(t, "degraded", body["status"])
 	assert.Len(t, body, 1, "response must contain only 'status'")
+}
+
+func TestParseFindRelatedArgs_Valid(t *testing.T) {
+	request := mcp.CallToolRequest{
+		Params: mcp.CallToolParams{
+			Arguments: map[string]interface{}{
+				"uids":         "uid-1, uid-2 ,uid-3",
+				"relatedKinds": "Pod, ReplicaSet",
+				"maxHops":      float64(2),
+				"outputMode":   "count",
+				"limit":        float64(500),
+			},
+		},
+	}
+	args, err := ParseFindRelatedArgs(request)
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"uid-1", "uid-2", "uid-3"}, args.UIDs)
+	assert.Equal(t, []string{"Pod", "ReplicaSet"}, args.RelatedKinds)
+	assert.Equal(t, 2, args.MaxHops)
+	assert.Equal(t, "count", args.OutputMode)
+	assert.Equal(t, 500, args.Limit)
+}
+
+func TestParseFindRelatedArgs_EmptyUIDs(t *testing.T) {
+	request := mcp.CallToolRequest{
+		Params: mcp.CallToolParams{
+			Arguments: map[string]interface{}{},
+		},
+	}
+	_, err := ParseFindRelatedArgs(request)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "uids is required")
+}
+
+func TestParseFindRelatedArgs_WhitespaceOnlyUIDs(t *testing.T) {
+	request := mcp.CallToolRequest{
+		Params: mcp.CallToolParams{
+			Arguments: map[string]interface{}{
+				"uids": "  , , ",
+			},
+		},
+	}
+	_, err := ParseFindRelatedArgs(request)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "at least one UID")
+}
+
+func TestParseFindRelatedArgs_SingleUID(t *testing.T) {
+	request := mcp.CallToolRequest{
+		Params: mcp.CallToolParams{
+			Arguments: map[string]interface{}{
+				"uids": "single-uid",
+			},
+		},
+	}
+	args, err := ParseFindRelatedArgs(request)
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"single-uid"}, args.UIDs)
+	assert.Equal(t, "list", args.OutputMode)
+}
+
+func TestParseFindRelatedArgs_InvalidOutputMode(t *testing.T) {
+	request := mcp.CallToolRequest{
+		Params: mcp.CallToolParams{
+			Arguments: map[string]interface{}{
+				"uids":       "uid-1",
+				"outputMode": "invalid",
+			},
+		},
+	}
+	_, err := ParseFindRelatedArgs(request)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid output mode")
 }
 
 func TestTransportManager_AutoRegisterTransports(t *testing.T) {

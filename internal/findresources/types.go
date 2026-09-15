@@ -49,6 +49,7 @@ type Metadata struct {
 
 // ResourceResult represents a single resource in list mode
 type ResourceResult struct {
+	UID       string                 `json:"uid"`
 	Name      string                 `json:"name"`
 	Namespace *string                `json:"namespace,omitempty"` // nil for cluster-scoped
 	Kind      string                 `json:"kind"`

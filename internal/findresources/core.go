@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/stolostron/search-mcp-server/internal/rbac"
 	"github.com/stolostron/search-mcp-server/internal/sanitize"
 	"github.com/stolostron/search-mcp-server/internal/server/auth"
 	"github.com/stolostron/search-mcp-server/internal/utils"
@@ -372,160 +373,15 @@ func (f *FindResourcesCore) buildAuthorizedQuery(args FindResourcesArgs, targetC
 	}, nil
 }
 
-// applyAuthorizationFilters applies user authorization filters using direct mapping to prevent Cartesian products
+// applyAuthorizationFilters applies user authorization filters using the shared RBAC package.
 func (f *FindResourcesCore) applyAuthorizationFilters(filters *auth.QueryFilters, kindFilter interface{}, builder *utils.SQLBuilder) error {
-	if len(filters.PermissionSources) == 0 {
-		// No permissions means no access
-		builder.AddCondition("1 = 0") // Always false condition
-		return nil
-	}
-
-	// Build OR conditions for each permission source (mirrors search-v2-api approach)
-	var sourceConditions []string
-	var allParams []interface{}
-
-	for i, source := range filters.PermissionSources {
-		log.Printf("[RBAC-DEBUG] Building SQL for permission source %d: %s", i, source.Source)
-
-		// Generate permissions using direct namespace→resource mapping (NO Cartesian products)
-		var sourcePermissions []string
-		var sourceParams []interface{}
-
-		// Handle cluster-scoped resources
-		if len(source.ClusterScopedKinds) > 0 {
-			clusterCondition, clusterParams := f.buildClusterScopedConditions(source, kindFilter, filters.HubClusterName)
-			if clusterCondition != "" {
-				sourcePermissions = append(sourcePermissions, clusterCondition)
-				sourceParams = append(sourceParams, clusterParams...)
-			}
-		}
-
-		// Handle namespaced resources with explicit namespace→resource pairing
-		if len(source.NamespacedKinds) > 0 {
-			namespaceConditions, namespaceParams := f.buildNamespacedConditions(source, kindFilter, filters.HubClusterName)
-			if len(namespaceConditions) > 0 {
-				sourcePermissions = append(sourcePermissions, namespaceConditions...)
-				sourceParams = append(sourceParams, namespaceParams...)
-			}
-		}
-
-		// Combine all permissions for this source with OR logic
-		if len(sourcePermissions) > 0 {
-			sourceCondition := "(" + strings.Join(sourcePermissions, " OR ") + ")"
-			sourceConditions = append(sourceConditions, sourceCondition)
-			allParams = append(allParams, sourceParams...)
-			log.Printf("[RBAC-DEBUG] Source %d SQL: %s", i, sourceCondition)
-		}
-	}
-
-	// Combine all permission sources with OR
-	if len(sourceConditions) > 0 {
-		finalCondition := "(" + strings.Join(sourceConditions, " OR ") + ")"
-		builder.AddCondition(finalCondition, allParams...)
-		log.Printf("[RBAC-DEBUG] Final combined SQL: %s", finalCondition)
-	} else {
-		// No valid conditions - deny access
-		builder.AddCondition("1 = 0")
-	}
-
+	cond, params := rbac.BuildConditionsWithOptions(filters, rbac.Options{
+		PermFilter: func(perms []auth.ResourcePermission) []auth.ResourcePermission {
+			return f.filterPermsByKind(perms, kindFilter)
+		},
+	})
+	builder.AddCondition(cond, params...)
 	return nil
-}
-
-// buildClusterScopedConditions builds conditions for cluster-scoped resources
-func (f *FindResourcesCore) buildClusterScopedConditions(source auth.PermissionSource, kindFilter interface{}, hubClusterName string) (string, []interface{}) {
-	var allConditions []string
-	var allParams []interface{}
-
-	// Process each cluster's cluster-scoped permissions separately (prevents Cartesian products)
-	for cluster, allowedPerms := range source.ClusterScopedKinds {
-		if len(allowedPerms) == 0 {
-			continue
-		}
-
-		// Filter permissions against user-requested kind filter
-		authorizedPerms := f.filterPermsByKind(allowedPerms, kindFilter)
-		if len(authorizedPerms) == 0 {
-			continue
-		}
-
-		// Build apigroup+kind conditions for this cluster
-		resourceCondition, resourceParams := f.buildAPIGroupKindConditions(authorizedPerms)
-		if resourceCondition != "" {
-			condition := fmt.Sprintf("(cluster = %s AND (%s))", "%s", resourceCondition)
-			allConditions = append(allConditions, condition)
-			allParams = append(allParams, cluster)
-			allParams = append(allParams, resourceParams...)
-		}
-	}
-
-	if len(allConditions) > 0 {
-		return "(" + strings.Join(allConditions, " OR ") + ")", allParams
-	}
-
-	return "", nil
-}
-
-// buildNamespacedConditions builds explicit namespace→resource conditions (prevents Cartesian products)
-func (f *FindResourcesCore) buildNamespacedConditions(source auth.PermissionSource, kindFilter interface{}, hubClusterName string) ([]string, []interface{}) {
-	var conditions []string
-	var allParams []interface{}
-
-	// Iterate through direct namespace→resource mapping
-	// NOTE: For userpermission-cr source, keys are in "cluster/namespace" format to preserve cluster-namespace relationships
-	for namespaceKey, allowedPerms := range source.NamespacedKinds {
-		// Filter permissions against user-requested kind filter
-		authorizedPerms := f.filterPermsByKind(allowedPerms, kindFilter)
-		if len(authorizedPerms) == 0 {
-			continue
-		}
-
-		// Build apigroup+kind conditions for these permissions
-		resourceCondition, resourceParams := f.buildAPIGroupKindConditions(authorizedPerms)
-		if resourceCondition == "" {
-			continue
-		}
-
-		// Parse cluster and namespace from the key based on source type
-		var cluster, namespace string
-		if source.Source == "userpermission-cr" {
-			parts := strings.SplitN(namespaceKey, "/", 2)
-			if len(parts) == 2 {
-				cluster, namespace = parts[0], parts[1]
-			} else {
-				cluster, namespace = "", namespaceKey
-			}
-		} else {
-			namespace = namespaceKey
-			cluster = hubClusterName
-		}
-
-		var namespaceCondition string
-		var namespaceParams []interface{}
-
-		if namespace == "*" {
-			if cluster != "" {
-				namespaceCondition = fmt.Sprintf("(cluster = %s AND (%s))", "%s", resourceCondition)
-				namespaceParams = append(namespaceParams, cluster)
-				namespaceParams = append(namespaceParams, resourceParams...)
-			} else {
-				// SECURITY: empty cluster with wildcard namespace would grant unscoped access — deny
-				log.Printf("[RBAC-SECURITY] Skipping wildcard namespace rule with empty cluster (would grant unscoped access)")
-				continue
-			}
-		} else {
-			namespaceCondition = fmt.Sprintf("(cluster = %s AND data->>'namespace' = %s AND (%s))", "%s", "%s", resourceCondition)
-			namespaceParams = append(namespaceParams, cluster, namespace)
-			namespaceParams = append(namespaceParams, resourceParams...)
-		}
-
-		conditions = append(conditions, namespaceCondition)
-		allParams = append(allParams, namespaceParams...)
-
-		log.Printf("[RBAC-DEBUG] Namespace key '%s' (cluster: %s, namespace: %s): %d allowed perms",
-			namespaceKey, cluster, namespace, len(allowedPerms))
-	}
-
-	return conditions, allParams
 }
 
 // convertKindFilter converts kind filter to slice for processing multiple kinds
@@ -601,122 +457,6 @@ func (f *FindResourcesCore) filterPermsByKind(perms []auth.ResourcePermission, k
 	return result
 }
 
-// buildAPIGroupKindConditions groups ResourcePermissions by apigroup and generates
-// SQL conditions pairing data->>'apigroup' with data->>'kind'.
-func (f *FindResourcesCore) buildAPIGroupKindConditions(perms []auth.ResourcePermission) (string, []interface{}) {
-	// Check for full wildcard (apigroup=* AND kind=*)
-	for _, p := range perms {
-		if p.Kind == "*" && p.APIGroup == "*" {
-			return "1 = 1", nil
-		}
-	}
-
-	// Group kinds by apigroup for efficient SQL
-	type groupEntry struct {
-		kinds    []string
-		wildcard bool // kind == "*" for this group
-	}
-	groups := make(map[string]*groupEntry)
-	var groupOrder []string // preserve insertion order
-
-	for _, p := range perms {
-		entry, exists := groups[p.APIGroup]
-		if !exists {
-			entry = &groupEntry{}
-			groups[p.APIGroup] = entry
-			groupOrder = append(groupOrder, p.APIGroup)
-		}
-		if p.Kind == "*" {
-			entry.wildcard = true
-		} else if !entry.wildcard {
-			// Avoid duplicates
-			found := false
-			for _, k := range entry.kinds {
-				if k == p.Kind {
-					found = true
-					break
-				}
-			}
-			if !found {
-				entry.kinds = append(entry.kinds, p.Kind)
-			}
-		}
-	}
-
-	var conditions []string
-	var params []interface{}
-
-	for _, apiGroup := range groupOrder {
-		entry := groups[apiGroup]
-
-		// Build apigroup condition
-		var apiGroupCond string
-		switch apiGroup {
-		case "*":
-			apiGroupCond = "" // no apigroup constraint
-		case "":
-			apiGroupCond = "(data->>'apigroup' IS NULL OR data->>'apigroup' = '')"
-		default:
-			apiGroupCond = fmt.Sprintf("data->>'apigroup' = %s", "%s")
-		}
-
-		// Build kind condition
-		var kindCond string
-		if entry.wildcard {
-			kindCond = "" // no kind constraint
-		} else if len(entry.kinds) == 1 {
-			kindCond = fmt.Sprintf("data->>'kind' = %s", "%s")
-		} else if len(entry.kinds) > 1 {
-			placeholders := make([]string, len(entry.kinds))
-			for i := range entry.kinds {
-				placeholders[i] = "%s"
-			}
-			kindCond = fmt.Sprintf("data->>'kind' IN (%s)", strings.Join(placeholders, ","))
-		}
-
-		// Combine apigroup + kind
-		var combined string
-		if apiGroupCond == "" && kindCond == "" {
-			combined = "1 = 1"
-		} else if apiGroupCond == "" {
-			combined = kindCond
-		} else if kindCond == "" {
-			combined = apiGroupCond
-			if apiGroup != "" && apiGroup != "*" {
-				params = append(params, apiGroup)
-			}
-		} else {
-			combined = fmt.Sprintf("(%s AND %s)", apiGroupCond, kindCond)
-			if apiGroup != "" && apiGroup != "*" {
-				params = append(params, apiGroup)
-			}
-		}
-
-		// Add kind params
-		if !entry.wildcard {
-			for _, k := range entry.kinds {
-				params = append(params, k)
-			}
-		}
-
-		if combined != "" {
-			conditions = append(conditions, combined)
-		}
-	}
-
-	if len(conditions) == 0 {
-		return "", nil
-	}
-
-	if len(conditions) == 1 {
-		return conditions[0], params
-	}
-
-	return strings.Join(conditions, " OR "), params
-}
-
-
-// Helper methods for building individual filter conditions will follow...
 
 // combineClusterFilters combines explicit cluster filter with clusters from clusterSelector
 func (f *FindResourcesCore) combineClusterFilters(explicitClusters interface{}, targetClusters []string) []string {
@@ -917,6 +657,11 @@ func (f *FindResourcesCore) processListMode(queryResult *types.QueryResult, args
 			continue
 		}
 
+		uid, ok := row[0].(string)
+		if !ok {
+			continue
+		}
+
 		cluster, ok := row[1].(string)
 		if !ok {
 			continue
@@ -932,6 +677,7 @@ func (f *FindResourcesCore) processListMode(queryResult *types.QueryResult, args
 
 		// Extract standard fields
 		resource := ResourceResult{
+			UID:     uid,
 			Cluster: cluster,
 			Data:    dataMap,
 		}
