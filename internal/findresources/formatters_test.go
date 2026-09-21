@@ -337,7 +337,7 @@ func TestFindResourcesFormatter_FormatResult_ListMode(t *testing.T) {
 	assert.Contains(t, text, "Found 1 resources")
 	assert.Contains(t, text, "execution time: 150ms")
 	assert.Contains(t, text, "## Pod (1)")
-	assert.Contains(t, text, "| Name | Namespace | Cluster | Age | Status |")
+	assert.Contains(t, text, "| Name | Namespace | Cluster | Age | Status | UID |")
 	assert.Contains(t, text, "| test-pod | default | cluster1 | 1h30m | Running |")
 }
 

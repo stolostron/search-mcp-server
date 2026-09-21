@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/stolostron/search-mcp-server/internal/findrelated"
 	"github.com/stolostron/search-mcp-server/internal/findresources"
 	"github.com/stolostron/search-mcp-server/pkg/config"
 	"github.com/stolostron/search-mcp-server/pkg/database"
@@ -34,8 +35,9 @@ type PostgresMCPServer struct {
 	dbQueries *database.DatabaseQueries
 
 	// Business Logic
-	findCore  *findresources.FindResourcesCore
-	formatter *findresources.FindResourcesFormatter
+	findCore        *findresources.FindResourcesCore
+	findRelatedCore *findrelated.FindRelatedCore
+	formatter       *findresources.FindResourcesFormatter
 
 	// Transport Management
 	transportMgr *TransportManager
@@ -104,6 +106,7 @@ func NewPostgresMCPServerWithConfig(serverConfig *ServerConfig) (*PostgresMCPSer
 	// Initialize find resources core. Prompt injection patterns in resource
 	// metadata are always redacted before being returned to the LLM.
 	findCore := findresources.NewFindResourcesCore(dbQueries)
+	findRelatedCore := findrelated.NewFindRelatedCore(dbQueries)
 	formatter := findresources.NewFindResourcesFormatter()
 
 	// Create server instance
@@ -112,6 +115,7 @@ func NewPostgresMCPServerWithConfig(serverConfig *ServerConfig) (*PostgresMCPSer
 		dbConn:           dbConn,
 		dbQueries:        dbQueries,
 		findCore:         findCore,
+		findRelatedCore:  findRelatedCore,
 		formatter:        formatter,
 		streamingEnabled: serverConfig.EnableStreaming,
 	}

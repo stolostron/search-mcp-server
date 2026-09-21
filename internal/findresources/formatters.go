@@ -82,8 +82,8 @@ func (f *FindResourcesFormatter) formatListResult(result *FindResourcesResult) M
 		fmt.Fprintf(&output, "## %s (%d)\n\n", kind, len(resourcesOfKind))
 
 		// Create markdown table
-		output.WriteString("| Name | Namespace | Cluster | Age | Status |\n")
-		output.WriteString("|------|-----------|---------|-----|--------|\n")
+		output.WriteString("| Name | Namespace | Cluster | Age | Status | UID |\n")
+		output.WriteString("|------|-----------|---------|-----|--------|-----|\n")
 
 		for _, resource := range resourcesOfKind {
 			name := f.escapeMarkdown(resource.Name)
@@ -91,9 +91,10 @@ func (f *FindResourcesFormatter) formatListResult(result *FindResourcesResult) M
 			cluster := f.escapeMarkdown(resource.Cluster)
 			age := f.escapeMarkdown(resource.Age)
 			status := f.formatStatus(resource.Status)
+			uid := f.escapeMarkdown(resource.UID)
 
-			fmt.Fprintf(&output, "| %s | %s | %s | %s | %s |\n",
-				name, namespace, cluster, age, status)
+			fmt.Fprintf(&output, "| %s | %s | %s | %s | %s | %s |\n",
+				name, namespace, cluster, age, status, uid)
 		}
 
 		output.WriteString("\n")
