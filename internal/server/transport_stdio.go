@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sync/atomic"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
@@ -69,16 +70,16 @@ func (t *STDIOTransport) GetStatus() map[string]interface{} {
 		"name":               "stdio",
 		"supports_streaming": false,
 		"protocol":           "MCP",
-		"requests_processed": t.requestCount,
-		"errors":             t.errorCount,
+		"requests_processed": atomic.LoadInt64(&t.requestCount),
+		"errors":             atomic.LoadInt64(&t.errorCount),
 	}
 }
 
 // GetMetrics returns STDIO transport metrics
 func (t *STDIOTransport) GetMetrics() map[string]interface{} {
 	return map[string]interface{}{
-		"requests_total": t.requestCount,
-		"errors_total":   t.errorCount,
+		"requests_total": atomic.LoadInt64(&t.requestCount),
+		"errors_total":   atomic.LoadInt64(&t.errorCount),
 		"transport":      "stdio",
 	}
 }
@@ -117,19 +118,19 @@ func (t *STDIOTransport) registerTools() error {
 
 
 func (t *STDIOTransport) handleFindResources(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	t.requestCount++
+	atomic.AddInt64(&t.requestCount, 1)
 
 	// Parse arguments using shared function (eliminates duplication)
 	args, err := ParseFindResourcesArgs(request)
 	if err != nil {
-		t.errorCount++
+		atomic.AddInt64(&t.errorCount, 1)
 		return nil, fmt.Errorf("invalid find_resources arguments: %w", err)
 	}
 
 	// Execute find resources (STDIO transport has no auth middleware, so userCtx is nil)
 	result, err := t.mcpServer.findCore.FindResources(ctx, args, nil)
 	if err != nil {
-		t.errorCount++
+		atomic.AddInt64(&t.errorCount, 1)
 		return nil, fmt.Errorf("find_resources execution failed: %w", err)
 	}
 
@@ -143,5 +144,4 @@ func (t *STDIOTransport) handleFindResources(ctx context.Context, request mcp.Ca
 
 	return mcp.NewToolResultText("No results found"), nil
 }
-
 
