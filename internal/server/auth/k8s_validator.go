@@ -384,7 +384,12 @@ func defaultKubeconfigPath() string {
 		return kubeconfigPath
 	}
 
-	kubeconfigPath := filepath.Join(os.Getenv("HOME"), ".kube", "config")
+	homeDir := strings.TrimSpace(os.Getenv("HOME"))
+	if homeDir == "" {
+		return ""
+	}
+
+	kubeconfigPath := filepath.Join(homeDir, ".kube", "config")
 	// #nosec G703 -- standard kubeconfig path resolution fallback
 	if _, err := os.Stat(kubeconfigPath); err == nil {
 		return kubeconfigPath
