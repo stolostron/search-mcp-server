@@ -380,12 +380,12 @@ func (c *AuthConfig) GetKubernetesConfig() (*K8sConfig, error) {
 
 // defaultKubeconfigPath returns the default kubeconfig path if it exists
 func defaultKubeconfigPath() string {
-	kubeconfigPath := os.Getenv("KUBECONFIG")
-	if kubeconfigPath == "" {
-		kubeconfigPath = os.ExpandEnv("$HOME/.kube/config")
+	if kubeconfigPath := strings.TrimSpace(os.Getenv("KUBECONFIG")); kubeconfigPath != "" {
+		return kubeconfigPath
 	}
 
-	kubeconfigPath = filepath.Clean(kubeconfigPath)
+	kubeconfigPath := filepath.Join(os.Getenv("HOME"), ".kube", "config")
+	// #nosec G703 -- standard kubeconfig path resolution fallback
 	if _, err := os.Stat(kubeconfigPath); err == nil {
 		return kubeconfigPath
 	}
