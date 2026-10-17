@@ -4,7 +4,7 @@ go 1.26.0
 
 require (
 	github.com/jackc/pgx/v5 v5.11.0
-	github.com/mark3labs/mcp-go v1.2.1
+	github.com/mark3labs/mcp-go v1.3.0
 	github.com/onsi/ginkgo/v2 v2.33.1
 	github.com/onsi/gomega v1.44.0
 	github.com/stolostron/cluster-lifecycle-api v0.0.0-20260330032750-43755d6ceb09
