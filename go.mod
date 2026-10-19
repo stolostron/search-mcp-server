@@ -7,7 +7,7 @@ require (
 	github.com/mark3labs/mcp-go v1.2.1
 	github.com/onsi/ginkgo/v2 v2.33.1
 	github.com/onsi/gomega v1.44.0
-	github.com/stolostron/cluster-lifecycle-api v0.0.0-20260330032750-43755d6ceb09
+	github.com/stolostron/cluster-lifecycle-api v0.0.0-20261016140402-a0759edd9e0d
 	github.com/stretchr/testify v1.12.1
 	k8s.io/api v0.37.1
 	k8s.io/apimachinery v0.37.1
