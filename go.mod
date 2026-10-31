@@ -9,9 +9,9 @@ require (
 	github.com/onsi/gomega v1.44.0
 	github.com/stolostron/cluster-lifecycle-api v0.0.0-20261016140402-a0759edd9e0d
 	github.com/stretchr/testify v1.12.1
-	k8s.io/api v0.37.1
-	k8s.io/apimachinery v0.37.1
-	k8s.io/client-go v0.37.1
+	k8s.io/api v0.37.2
+	k8s.io/apimachinery v0.37.2
+	k8s.io/client-go v0.37.2
 )
 
 require (
