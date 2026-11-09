@@ -47,6 +47,25 @@ route:
     termination: edge
     insecureEdgeTerminationPolicy: Redirect
 
+# Optional integration with Kuadrant's MCPGateway
+kuadrantMcpGateway:
+  enabled: false
+  # Namespace where the MCPGateway HTTPRoute and registration are created.
+  namespace: mcp-system
+  gateway:
+    name: mcp-gateway
+    namespace: gateway-system
+    sectionName: mcps
+  hostname: acm-search.mcp.local
+  referenceGrantName: allow-mcp-gateway-to-acm-search
+  httpRouteName: acm-search-route
+  registrationName: acm-search
+  registration:
+    prefix: acm_
+    category:
+      - kubernetes
+    hint: Search ACM managed-cluster resources
+
 # RBAC
 rbac:
   create: true

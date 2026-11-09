@@ -50,6 +50,61 @@ helm install acm-mcp-server ./helm/acm-mcp-server \
 
 ## Configuration Options
 
+### Kuadrant MCPGateway Integration (Optional)
+
+The chart can optionally create a Gateway API `HTTPRoute`, a `ReferenceGrant` to
+the MCP server Service, and a Kuadrant `MCPServerRegistration`. The integration
+is disabled by default. Enable it with a values file:
+
+```yaml
+kuadrantMcpGateway:
+  enabled: true
+```
+
+```bash
+helm upgrade --install acm-mcp-server ./helm/acm-mcp-server \
+  --namespace acm-search \
+  --create-namespace \
+  -f kuadrant-values.yaml
+```
+
+By default, the chart creates the `ReferenceGrant` in the Helm release namespace
+(`acm-search` in the command above), where the chart's Service is deployed. The
+`HTTPRoute` and `MCPServerRegistration` are created in `mcp-system` and attach to
+the `mcp-gateway` Gateway in `gateway-system`, using hostname
+`acm-search.mcp.local`. The Service name is taken from the Helm release/chart
+name, so it stays aligned with the deployed Service.
+
+These integration settings can be overridden in the values file:
+
+```yaml
+kuadrantMcpGateway:
+  enabled: true
+  namespace: mcp-system
+  gateway:
+    name: mcp-gateway
+    namespace: gateway-system
+    sectionName: mcps
+  hostname: acm-search.mcp.local
+  registration:
+    prefix: acm_
+    category:
+      - kubernetes
+    hint: Search ACM managed-cluster resources
+```
+
+The Gateway API and Kuadrant CRDs, plus the referenced Gateway, must already
+exist in the cluster. To render and inspect the optional resources without
+installing them (and without depending on live ACM database Secrets), run:
+
+```bash
+helm template acm-mcp-server ./helm/acm-mcp-server \
+  --namespace acm-search \
+  --set kuadrantMcpGateway.enabled=true \
+  --set database.autoDiscover=false \
+  --set-string database.url=postgresql://user:pass@db:5432/search
+```
+
 ### Auto-Discovery Mode (Default)
 
 The chart automatically discovers ACM installation and database credentials:
