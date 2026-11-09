@@ -46,6 +46,11 @@ spec:
   category:
     {{- toYaml .Values.kuadrantMcpGateway.registration.category | nindent 4 }}
   hint: {{ .Values.kuadrantMcpGateway.registration.hint | quote }}
+  {{- if .Values.authentication.enabled }}
+  credentialRef:
+    name: {{ .Values.kuadrantMcpGateway.registration.credentialRef.name }}
+    key: {{ .Values.kuadrantMcpGateway.registration.credentialRef.key }}
+  {{- end }}
   targetRef:
     group: gateway.networking.k8s.io
     kind: HTTPRoute

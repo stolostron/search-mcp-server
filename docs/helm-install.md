@@ -54,11 +54,44 @@ helm install acm-mcp-server ./helm/acm-mcp-server \
 
 The chart can optionally create a Gateway API `HTTPRoute`, a `ReferenceGrant` to
 the MCP server Service, and a Kuadrant `MCPServerRegistration`. The integration
-is disabled by default. Enable it with a values file:
+is disabled by default. When authentication is enabled (the default), the
+registration references a token Secret in the integration namespace; create
+that Secret before enabling the integration.
+
+For example, create the token and the labeled Secret expected by Kuadrant:
+
+```bash
+export TOKEN=$(oc create token mcp-broker-sa -n mcp-system)
+cat <<EOF | oc apply -f -
+apiVersion: v1
+kind: Secret
+metadata:
+  name: acm-search-credential
+  namespace: mcp-system
+  labels:
+    mcp.kuadrant.io/secret: "true"
+type: Opaque
+stringData:
+  token: "Bearer ${TOKEN}"
+EOF
+```
+
+`oc create token` issues a time-limited token. Refresh the Secret before the
+token expires. The chart configures the registration's `credentialRef` to use
+the `token` key in this Secret, so no manual patch to the registration is needed.
+If you use a different Secret name or key, set those values in the chart config.
+When `authentication.enabled` is `false`, the chart omits `credentialRef` and
+the token Secret is not required.
+
+Enable the integration with a values file:
 
 ```yaml
 kuadrantMcpGateway:
   enabled: true
+  registration:
+    credentialRef:
+      name: acm-search-credential
+      key: token
 ```
 
 ```bash
@@ -91,6 +124,9 @@ kuadrantMcpGateway:
     category:
       - kubernetes
     hint: Search ACM managed-cluster resources
+    credentialRef:
+      name: acm-search-credential
+      key: token
 ```
 
 The Gateway API and Kuadrant CRDs, plus the referenced Gateway, must already

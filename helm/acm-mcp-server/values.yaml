@@ -65,6 +65,9 @@ kuadrantMcpGateway:
     category:
       - kubernetes
     hint: Search ACM managed-cluster resources
+    credentialRef:
+      name: acm-search-credential
+      key: token
 
 # RBAC
 rbac:
