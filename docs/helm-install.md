@@ -129,9 +129,12 @@ kuadrantMcpGateway:
       key: token
 ```
 
-The Gateway API and Kuadrant CRDs, plus the referenced Gateway, must already
-exist in the cluster. To render and inspect the optional resources without
-installing them (and without depending on live ACM database Secrets), run:
+The namespace configured by `kuadrantMcpGateway.namespace` (default: `mcp-system`)
+must already exist, and the Helm user must have permission to create resources
+in that namespace. The Gateway API and Kuadrant CRDs, plus the referenced
+Gateway, must also already exist in the cluster. To render and inspect the
+optional resources without installing them (and without depending on live ACM
+database Secrets), run:
 
 ```bash
 helm template acm-mcp-server ./helm/acm-mcp-server \
