@@ -50,6 +50,101 @@ helm install acm-mcp-server ./helm/acm-mcp-server \
 
 ## Configuration Options
 
+### Kuadrant MCPGateway Integration (Optional)
+
+Prerequisite: Having Kuadrant MCPGateway installed.
+The chart can optionally create a Gateway API `HTTPRoute`, a `ReferenceGrant` to
+the MCP server Service, and a Kuadrant `MCPServerRegistration`. The integration
+is disabled by default. When authentication is enabled (the default), the
+registration references a token Secret in the integration namespace; create
+that Secret before enabling the integration.
+
+For example, create the token and the labeled Secret expected by Kuadrant:
+
+```bash
+export TOKEN=$(oc create token mcp-broker-sa -n mcp-system)
+cat <<EOF | oc apply -f -
+apiVersion: v1
+kind: Secret
+metadata:
+  name: acm-search-credential
+  namespace: mcp-system
+  labels:
+    mcp.kuadrant.io/secret: "true"
+type: Opaque
+stringData:
+  token: "Bearer ${TOKEN}"
+EOF
+```
+
+`oc create token` issues a time-limited token. Refresh the Secret before the
+token expires. The chart configures the registration's `credentialRef` to use
+the `token` key in this Secret, so no manual patch to the registration is needed.
+If you use a different Secret name or key, set those values in the chart config.
+When `authentication.enabled` is `false`, the chart omits `credentialRef` and
+the token Secret is not required.
+
+Enable the integration with a values file:
+
+```yaml
+kuadrantMcpGateway:
+  enabled: true
+  registration:
+    credentialRef:
+      name: acm-search-credential
+      key: token
+```
+
+```bash
+helm upgrade --install acm-mcp-server ./helm/acm-mcp-server \
+  --namespace acm-search \
+  --create-namespace \
+  -f kuadrant-values.yaml
+```
+
+By default, the chart creates the `ReferenceGrant` in the Helm release namespace
+(`acm-search` in the command above), where the chart's Service is deployed. The
+`HTTPRoute` and `MCPServerRegistration` are created in `mcp-system` and attach to
+the `mcp-gateway` Gateway in `gateway-system`, using hostname
+`acm-search.mcp.local`. The Service name is taken from the Helm release/chart
+name, so it stays aligned with the deployed Service.
+
+These integration settings can be overridden in the values file:
+
+```yaml
+kuadrantMcpGateway:
+  enabled: true
+  namespace: mcp-system
+  gateway:
+    name: mcp-gateway
+    namespace: gateway-system
+    sectionName: mcps
+  hostname: acm-search.mcp.local
+  registration:
+    prefix: acm_
+    category:
+      - kubernetes
+    hint: Search ACM managed-cluster resources
+    credentialRef:
+      name: acm-search-credential
+      key: token
+```
+
+The namespace configured by `kuadrantMcpGateway.namespace` (default: `mcp-system`)
+must already exist, and the Helm user must have permission to create resources
+in that namespace. The Gateway API and Kuadrant CRDs, plus the referenced
+Gateway, must also already exist in the cluster. To render and inspect the
+optional resources without installing them (and without depending on live ACM
+database Secrets), run:
+
+```bash
+helm template acm-mcp-server ./helm/acm-mcp-server \
+  --namespace acm-search \
+  --set kuadrantMcpGateway.enabled=true \
+  --set database.autoDiscover=false \
+  --set-string database.url=postgresql://user:pass@db:5432/search
+```
+
 ### Auto-Discovery Mode (Default)
 
 The chart automatically discovers ACM installation and database credentials:

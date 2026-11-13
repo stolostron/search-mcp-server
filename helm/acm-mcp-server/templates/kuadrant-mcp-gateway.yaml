@@ -1,0 +1,58 @@
+{{- if .Values.kuadrantMcpGateway.enabled }}
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: {{ .Values.kuadrantMcpGateway.referenceGrantName }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  from:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      namespace: {{ .Values.kuadrantMcpGateway.namespace }}
+  to:
+    - group: ""
+      kind: Service
+      name: {{ include "acm-mcp-server.fullname" . }}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ .Values.kuadrantMcpGateway.httpRouteName }}
+  namespace: {{ .Values.kuadrantMcpGateway.namespace }}
+spec:
+  parentRefs:
+    - name: {{ .Values.kuadrantMcpGateway.gateway.name }}
+      namespace: {{ .Values.kuadrantMcpGateway.gateway.namespace }}
+      sectionName: {{ .Values.kuadrantMcpGateway.gateway.sectionName }}
+  hostnames:
+    - {{ .Values.kuadrantMcpGateway.hostname | quote }}
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: {{ include "acm-mcp-server.fullname" . }}
+          namespace: {{ .Release.Namespace }}
+          port: {{ .Values.service.port }}
+---
+apiVersion: mcp.kuadrant.io/v1
+kind: MCPServerRegistration
+metadata:
+  name: {{ .Values.kuadrantMcpGateway.registrationName }}
+  namespace: {{ .Values.kuadrantMcpGateway.namespace }}
+spec:
+  prefix: {{ .Values.kuadrantMcpGateway.registration.prefix | quote }}
+  category:
+    {{- toYaml .Values.kuadrantMcpGateway.registration.category | nindent 4 }}
+  hint: {{ .Values.kuadrantMcpGateway.registration.hint | quote }}
+  {{- if .Values.authentication.enabled }}
+  credentialRef:
+    name: {{ .Values.kuadrantMcpGateway.registration.credentialRef.name }}
+    key: {{ .Values.kuadrantMcpGateway.registration.credentialRef.key }}
+  {{- end }}
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: {{ .Values.kuadrantMcpGateway.httpRouteName }}
+{{- end }}
