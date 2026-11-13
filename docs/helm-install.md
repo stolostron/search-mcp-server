@@ -52,6 +52,7 @@ helm install acm-mcp-server ./helm/acm-mcp-server \
 
 ### Kuadrant MCPGateway Integration (Optional)
 
+Prerequisite: Having Kuadrant MCPGateway installed.
 The chart can optionally create a Gateway API `HTTPRoute`, a `ReferenceGrant` to
 the MCP server Service, and a Kuadrant `MCPServerRegistration`. The integration
 is disabled by default. When authentication is enabled (the default), the
