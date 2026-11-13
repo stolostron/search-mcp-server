@@ -381,9 +381,9 @@ func (t *HTTPTransport) handleInitialize(w http.ResponseWriter, requestID interf
 
 func (t *HTTPTransport) handleNotificationsInitialized(w http.ResponseWriter, requestID interface{}) {
 	// notifications/initialized is a JSON-RPC notification (not a request)
-	// According to JSON-RPC 2.0 spec: "The Server MUST NOT reply to a Notification"
-	// Just acknowledge receipt with HTTP 200 and no response body
-	w.WriteHeader(http.StatusOK)
+	// [§2.1.4]: "If the input is a JSON-RPC response or notification: If the server
+	// accepts the input, the server MUST return HTTP status code 202 Accepted with no body."
+	w.WriteHeader(http.StatusAccepted)
 	// No JSON response - notifications are fire-and-forget
 }
 
