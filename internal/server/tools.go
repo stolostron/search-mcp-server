@@ -23,6 +23,7 @@ func GetCentralizedToolDefinitions() []ToolDefinition {
 			Name:        "find_resources",
 			Description: "Find and analyze Kubernetes resources across ACM managed clusters with advanced filtering, counting, and health analysis. Security note: free-text metadata fields (status messages, annotations, labels) are inspected for prompt injection patterns and matching values are replaced with a redaction marker.",
 			Options: []mcp.ToolOption{
+				mcp.WithReadOnlyHintAnnotation(true),
 				// Basic filters
 				mcp.WithString("kind",
 					mcp.Description("Resource kind or comma-separated list. Examples: \"Pod\", \"Pod,ConfigMap,Service\", \"ManagedCluster\""),
@@ -190,6 +191,7 @@ func GetCentralizedToolDefinitions() []ToolDefinition {
 			Name:        "find_related_resources",
 			Description: "Find resources related to seed resources via ownership and relationship edges in the search index. Traverses the search.edges table bidirectionally. Results are RBAC-filtered to the caller's permissions.\n\nUse find_resources first to locate resources, then pass UIDs from those results to this tool.",
 			Options: []mcp.ToolOption{
+				mcp.WithReadOnlyHintAnnotation(true),
 				mcp.WithString("uids",
 					mcp.Description("UID of the seed resource (from find_resources results). Exactly one UID. Required."),
 					mcp.Required(),
