@@ -414,6 +414,7 @@ func (t *HTTPTransport) handleToolsList(w http.ResponseWriter, requestID interfa
 		tool := map[string]interface{}{
 			"name":        def.Name,
 			"description": def.Description,
+			"annotations": map[string]interface{}{"readOnlyHint": true},
 		}
 
 		// Use the JSON schema from centralized definition
